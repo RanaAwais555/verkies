@@ -11,6 +11,7 @@ import { can, useSession } from "@/lib/hooks";
 const NAV = [
   { href: "/", label: "Home" },
   { href: "/research", label: "Research" },
+  { href: "/discover", label: "Discover" },
   { href: "/accounts", label: "Accounts" },
   { href: "/settings", label: "Settings" },
 ];
@@ -45,7 +46,11 @@ export function AppShell({ children }: { children: ReactNode }) {
         <div className="mx-auto flex w-full max-w-6xl items-center gap-4 px-4 py-2">
           <Link href="/" className="font-semibold">VROS</Link>
           <nav className="flex flex-1 gap-1 overflow-x-auto">
-            {NAV.filter((n) => n.href !== "/accounts" || can(session, "accounts.read", "accounts.read_own")).map((n) => {
+            {NAV.filter(
+              (n) =>
+                (n.href !== "/accounts" || can(session, "accounts.read", "accounts.read_own")) &&
+                (n.href !== "/discover" || can(session, "research.run")),
+            ).map((n) => {
               const active = n.href === "/" ? pathname === "/" : pathname.startsWith(n.href);
               return (
                 <Link

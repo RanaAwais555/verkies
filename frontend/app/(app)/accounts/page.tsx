@@ -17,7 +17,14 @@ export default function AccountsPage() {
 
   return (
     <div className="space-y-6">
-      <h1 className="text-xl font-semibold">Accounts</h1>
+      <div className="flex flex-wrap items-center gap-3">
+        <h1 className="text-xl font-semibold">Accounts</h1>
+        <span className="ml-auto flex gap-3 text-sm">
+          {/* Plain links: the browser downloads with the session cookie. Exports are audited. */}
+          <a href={`/api/v1/accounts/export?format=csv${q.trim() ? `&q=${encodeURIComponent(q.trim())}` : ""}`} className="underline">Export CSV</a>
+          <a href={`/api/v1/accounts/export?format=json${q.trim() ? `&q=${encodeURIComponent(q.trim())}` : ""}`} className="underline">Export JSON</a>
+        </span>
+      </div>
       <Card>
         <div className="mb-3 flex flex-wrap gap-2">
           <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search name or domain" aria-label="Search accounts" className={`${inputClass} max-w-xs`} />

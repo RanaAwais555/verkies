@@ -64,6 +64,17 @@ Tests cover each rule: every private, loopback, link-local, CGNAT, multicast, re
 - Dependency pinning and automated vulnerability checks in CI.
 - Secure headers on API and frontend.
 
+### Imports and exports
+
+- **CSV import:**
+  - The browser sends the file's text in a JSON body. No file is stored on disk, and the server never executes or evaluates it.
+  - Limits are enforced: 2 MB, 5,000 rows, 50 columns, 2,000 characters per cell.
+  - Rows are only data until a person starts research. Research then goes through the same SSRF-safe fetcher and URL validation as any other run.
+- **Export:**
+  - It includes only the accounts the user may see.
+  - CSV cells starting with `=`, `+`, `-`, `@`, tab or carriage return are prefixed with `'` so spreadsheets do not run them as formulas.
+  - Every export is audited (`accounts.exported`, with format and count).
+
 ## 5. Audit
 
 Append-only `audit_log` records user, time, object, action, old value, new value, source and reason for: research approval/rejection, score or config changes, owner changes, stage changes, user and role changes, and imports. Database triggers block `UPDATE`/`DELETE` on audit rows.

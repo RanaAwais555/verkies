@@ -17,6 +17,16 @@ Phases follow §20. Phase 1 must work reliably end to end before any later phase
 
 **Phase 1 done** when every box in the §20 checklist passes in the e2e test and the docs match the code.
 
+## Phase 2: Discovery
+
+| Slice | Delivers | Exit criteria |
+| --- | --- | --- |
+| 2.1 Import and bulk research ✅ | CSV upload with column mapping, validation and a duplicate preview (existing accounts, repeats in the file, similar names, previous research, suppression list), import history, research on chosen rows, account export (CSV/JSON) | Integration tests for every row status and for export safety; browser test of the import flow |
+| 2.2 Buying signals | Job postings from public job-board APIs (Greenhouse, Lever, Ashby, Workable) and news from company blog/press feeds, stored as dated, evidence-backed signals that feed intent and timing | Signals stored with source, date and evidence; scores change only with evidence; fakes in tests |
+| 2.3 Company registries | Companies House (free API key) and Wikidata: identifiers, status, incorporation date, SIC codes, officers as decision makers | Registry facts cited as evidence; dissolved companies rejected as inactive |
+| 2.4 Search | Self-hosted SearXNG provider that finds candidate companies, natural-language search turned into filters | Provider contract tests with a fake; no network in tests |
+| 2.5 Top leads and duplicates | "Find my next 20 leads" ranking, duplicate review and account merge | Ranking explained per lead; merges audited and reversible in the audit trail |
+
 ## Later phases
 
 | Phase | Theme | Headline deliverables |

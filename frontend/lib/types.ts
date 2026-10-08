@@ -366,3 +366,45 @@ export const REJECTION_REASONS: Record<string, string> = {
   existing_solution_sufficient: "Existing solution sufficient",
   suppressed_account: "Suppressed account",
 };
+
+export type ImportRow = {
+  id: string;
+  row_number: number;
+  raw: Record<string, string>;
+  name: string | null;
+  website_url: string | null;
+  normalised_domain: string | null;
+  country: string | null;
+  industry: string | null;
+  notes: string | null;
+  status:
+    | "pending"
+    | "new"
+    | "invalid"
+    | "duplicate_in_file"
+    | "existing_account"
+    | "possible_duplicate"
+    | "already_researched"
+    | "suppressed"
+    | "queued";
+  status_detail: string | null;
+  matched_account_id: string | null;
+  research_run_id: string | null;
+  run_status: string | null;
+  run_review_status: string | null;
+};
+
+export type ImportJob = {
+  id: string;
+  name: string;
+  kind: string;
+  status: "uploaded" | "checked";
+  columns: string[];
+  mapping: Record<string, string>;
+  row_count: number;
+  stats: Record<string, number>;
+  created_by_id: string;
+  created_at: string;
+};
+
+export type ImportDetail = ImportJob & { fields: string[]; rows: ImportRow[] };

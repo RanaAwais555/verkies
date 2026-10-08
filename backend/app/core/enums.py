@@ -200,3 +200,26 @@ class AuditSource(StrEnum):
     IMPORT = "import"
     CLI = "cli"
     SYSTEM = "system"
+
+
+class DiscoveryKind(StrEnum):
+    CSV_IMPORT = "csv_import"
+
+
+class DiscoveryStatus(StrEnum):
+    UPLOADED = "uploaded"  # rows stored, columns not mapped yet
+    CHECKED = "checked"  # mapped, validated and checked for duplicates
+
+
+class CandidateStatus(StrEnum):
+    """Where a discovered company stands (DATA_MODEL.md §3: duplicates are never silent)."""
+
+    PENDING = "pending"  # not yet mapped and checked
+    NEW = "new"
+    INVALID = "invalid"
+    DUPLICATE_IN_FILE = "duplicate_in_file"
+    EXISTING_ACCOUNT = "existing_account"  # domain already belongs to an account
+    POSSIBLE_DUPLICATE = "possible_duplicate"  # similar name to an account; a person decides
+    ALREADY_RESEARCHED = "already_researched"  # a run for the domain exists
+    SUPPRESSED = "suppressed"
+    QUEUED = "queued"  # research started from this row

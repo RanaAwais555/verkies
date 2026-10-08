@@ -19,7 +19,7 @@ const backendEnv = {
   VROS_DATABASE_URL: process.env.VROS_DATABASE_URL ?? "postgresql+psycopg://vros:vros@localhost:5432/vros",
   VROS_REDIS_URL: process.env.VROS_REDIS_URL ?? "redis://localhost:6379/0",
   VROS_STORAGE_DIR: process.env.VROS_STORAGE_DIR ?? "/tmp/vros-e2e-storage",
-  VROS_FETCH_HOST_OVERRIDES: "harbour.test=127.0.0.1,pixelforge.test=127.0.0.1",
+  VROS_FETCH_HOST_OVERRIDES: "harbour.test=127.0.0.1,pixelforge.test=127.0.0.1,oldmill.test=127.0.0.1",
   VROS_FETCH_PRIVATE_ALLOWLIST: "127.0.0.0/8",
   VROS_CRAWL_ALLOWED_PORTS: `${SITE_PORT},80,443`,
   VROS_CRAWL_MIN_INTERVAL_SECONDS: "0",

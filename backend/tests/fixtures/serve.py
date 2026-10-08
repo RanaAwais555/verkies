@@ -11,6 +11,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 from tests.fixtures.sites import (
     AGENCY,
+    CLOSED,
     IMMIGRATION_ABOUT,
     IMMIGRATION_CONTACT,
     IMMIGRATION_HOME,
@@ -25,6 +26,7 @@ SITES = {
         "/about-us/": IMMIGRATION_ABOUT,
     },
     "pixelforge.test": {"/": AGENCY[0][0].html},
+    "oldmill.test": {"/": CLOSED[0][0].html},
 }
 
 
