@@ -6,7 +6,7 @@ running a team system on a public domain with development secrets.
 
 from enum import StrEnum
 from functools import lru_cache
-from typing import Annotated, Self
+from typing import Annotated, Literal, Self
 from urllib.parse import urlsplit
 
 from pydantic import Field, SecretStr, ValidationError, field_validator, model_validator
@@ -77,6 +77,13 @@ class Settings(BaseSettings):
     # JavaScript rendering with headless Chromium, for pages whose static HTML is too thin.
     render_enabled: bool = True
     chromium_executable: str | None = None
+
+    # Optional local AI for brief wording (AI_SPEC.md). "none" = template mode only.
+    ai_provider: Literal["none", "ollama"] = "none"
+    ollama_url: str = "http://ollama:11434"
+    ollama_model: str = "granite4.2:8b"
+    ollama_num_ctx: int = Field(default=8192, ge=2048)
+    ai_timeout_seconds: float = Field(default=120.0, gt=0)
 
     # Where fetched bodies are stored (StorageProvider). Docker mounts a volume here.
     storage_dir: str = "./var/storage"

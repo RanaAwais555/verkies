@@ -115,7 +115,8 @@ def _wordpress_version(facts: Facts) -> tuple[int, ...] | None:
 def website_rebuild(facts: Facts) -> Candidate | None:
     signals: list[tuple[str, str]] = []
     if (stale := facts.value("website.stale_copyright")) and stale >= 2:
-        signals.append(("website.stale_copyright", f"the footer copyright is {stale} years old"))
+        year = facts.value("website.copyright_year")
+        signals.append(("website.stale_copyright", f"the footer copyright still says {year}"))
     version = _wordpress_version(facts)
     if version and version < (6,):
         signals.append(
@@ -144,7 +145,7 @@ def website_rebuild(facts: Facts) -> Candidate | None:
         ),
         confidence=round(min(0.85, 0.45 + 0.1 * len(signals)), 2),
         rule_key="website_rebuild.neglect_signals",
-        evidence_ids=facts.evidence(*(k for k, _ in signals)),
+        evidence_ids=facts.evidence(*(k for k, _ in signals), "website.copyright_year"),
         signals=[k for k, _ in signals],
     )
 
@@ -309,15 +310,17 @@ def engineering_capacity(facts: Facts) -> Candidate | None:
     if not roles:
         return None
     signals = ["hiring.tech_roles"] + [k for k in ("hiring.job_board",) if facts.has(k)]
+    # A product company hiring engineers is building its product; others are building tools.
+    product = bool(PRODUCT_INDUSTRIES.intersection(industries(facts)))
     return Candidate(
-        category="ongoing_product_support",
+        category="saas_development" if product else "internal_tools",
         title="Engineering capacity",
         problem=(
             f"They are hiring for {', '.join(roles[:3])}: building is under way and capacity "
             f"is short now. An external product team can deliver while hiring continues."
         ),
         confidence=0.65 if len(roles) > 1 else 0.55,
-        rule_key="ongoing_product_support.hiring_engineers",
+        rule_key="engineering_capacity.hiring_engineers",
         evidence_ids=facts.evidence(*signals),
         signals=signals,
     )

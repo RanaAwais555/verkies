@@ -10,6 +10,7 @@ from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 from sqlalchemy.pool import NullPool
 
 from app.config import get_settings
+from app.providers.ai import build_ai_provider
 from app.providers.fetch import build_fetcher, build_renderer
 from app.providers.storage import LocalStorage
 from app.research.pipeline import INTERNAL_ERROR, PipelineDeps, fail_run, run_research
@@ -39,6 +40,7 @@ async def run_research_job(run_id: uuid.UUID) -> None:
                 fetcher=fetcher,
                 renderer=build_renderer(settings, fetcher),
                 storage=LocalStorage(settings.storage_dir),
+                ai=build_ai_provider(settings),
             ),
         )
     finally:

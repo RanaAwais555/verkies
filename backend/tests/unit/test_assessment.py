@@ -49,7 +49,7 @@ def test_service_firm_with_manual_intake_is_high_priority() -> None:
 
 def test_saas_hiring_engineers_qualifies_but_unknown_buyer_holds_it_back() -> None:
     candidates, a = assess_site(SAAS)
-    assert candidates[0].category == "ongoing_product_support"
+    assert candidates[0].category == "saas_development"
     assert a.scores["intent_score"] == 90 and a.scores["timing_score"] == 75
     assert a.scores["buyer_confidence"] == 15
     assert a.qualifies and a.priority_band == PriorityBand.QUALIFIED

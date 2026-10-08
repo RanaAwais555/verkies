@@ -10,6 +10,8 @@ x-prod-backend-env: &prod-backend-env
   VROS_DATABASE_URL: postgresql+psycopg://vros:${VROS_DB_PASSWORD:?set VROS_DB_PASSWORD}@postgres:5432/vros
   VROS_REDIS_URL: redis://redis:6379/0
   VROS_LOG_LEVEL: ${VROS_LOG_LEVEL:-INFO}
+  VROS_AI_PROVIDER: ${VROS_AI_PROVIDER:-none}
+  VROS_OLLAMA_MODEL: ${VROS_OLLAMA_MODEL:-granite4.2:8b}
 
 services:
   postgres:

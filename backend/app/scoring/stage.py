@@ -11,7 +11,8 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 from sqlalchemy.orm import selectinload
 
 from app.accounts.models import AccountDomain, Suppression
-from app.catalogue.models import Service
+from app.catalogue.matching import Match, ServiceInfo, match_services
+from app.catalogue.models import ReferenceProject, Service
 from app.core.enums import SuppressionKind
 from app.evidence.models import Observation
 from app.intelligence.facts import Fact, Facts
@@ -25,8 +26,11 @@ from app.qualification.config import IcpConfigModel
 from app.qualification.models import IcpConfig, QualificationResult
 from app.research.models import ResearchRun
 from app.scoring.config import ScoringConfigModel
+from app.scoring.dimensions import Dimension
 from app.scoring.engine import Assessment, assess
 from app.scoring.models import ScoreSnapshot, ScoringConfig
+from app.similarity.engine import ReferenceProfile, SimilarityResult, compare
+from app.similarity.engine import best as best_similarity
 
 
 class MissingConfiguration(Exception):
@@ -39,6 +43,8 @@ class Context:
     facts: Facts
     candidates: list[Candidate]
     solved_by: dict[str, list[str]]
+    services: list[ServiceInfo]
+    references: list[ReferenceProfile]
     icp_config_id: uuid.UUID
     icp_config: IcpConfigModel
     scoring_config_id: uuid.UUID
@@ -56,13 +62,20 @@ async def load_facts(db: AsyncSession, run: ResearchRun) -> Facts:
         )
     ).scalars()
     return Facts(
-        Fact(r.key, r.value, float(r.confidence), str(r.evidence_id), r.evidence.source_url)
+        Fact(
+            r.key,
+            r.value,
+            float(r.confidence),
+            str(r.evidence_id),
+            r.evidence.source_url,
+            r.evidence.evidence_text,
+        )
         for r in rows
     )
 
 
-async def solved_by(db: AsyncSession) -> dict[str, list[str]]:
-    """Category -> confirmed, active service keys (only confirmed services are recommended)."""
+async def catalogue(db: AsyncSession) -> list[ServiceInfo]:
+    """The confirmed, active services in catalogue order (only these are ever recommended)."""
     services = (
         await db.execute(
             select(Service)
@@ -70,11 +83,27 @@ async def solved_by(db: AsyncSession) -> dict[str, list[str]]:
             .order_by(Service.created_at, Service.key)
         )
     ).scalars()
+    return [ServiceInfo(s.key, s.name, tuple(s.solves)) for s in services]
+
+
+def solved_by_map(services: list[ServiceInfo]) -> dict[str, list[str]]:
     mapping: dict[str, list[str]] = {}
     for service in services:
         for category in service.solves:
             mapping.setdefault(category, []).append(service.key)
     return mapping
+
+
+async def references(db: AsyncSession) -> list[ReferenceProfile]:
+    rows = (
+        await db.execute(select(ReferenceProject).options(selectinload(ReferenceProject.services)))
+    ).scalars()
+    return [
+        ReferenceProfile(
+            r.name, r.industry, r.problem, tuple(s.key for s in r.services), r.profile_complete
+        )
+        for r in rows
+    ]
 
 
 async def _suppressed(db: AsyncSession, domain: str) -> str | None:
@@ -112,11 +141,14 @@ async def load_context(db: AsyncSession, run_id: uuid.UUID) -> Context:
         raise MissingConfiguration(
             "No active ICP or scoring configuration. An admin must activate one."
         )
+    services = await catalogue(db)
     return Context(
         run=run,
         facts=facts,
         candidates=detect(facts),
-        solved_by=await solved_by(db),
+        solved_by=solved_by_map(services),
+        services=services,
+        references=await references(db),
         icp_config_id=icp_row.id,
         icp_config=IcpConfigModel.model_validate(icp_row.config),
         scoring_config_id=scoring_row.id,
@@ -125,7 +157,21 @@ async def load_context(db: AsyncSession, run_id: uuid.UUID) -> Context:
     )
 
 
+def matches_and_similarity(ctx: Context) -> tuple[list[Match], list[SimilarityResult]]:
+    matches = match_services(ctx.candidates, ctx.services)
+    industries = [f.value["name"] for f in ctx.facts.all("company.industry")]
+    problems = [c.problem for c in ctx.candidates]
+    results = [
+        compare(r, industries=industries, problems=problems, matches=matches)
+        for r in ctx.references
+    ]
+    return matches, results
+
+
 def run_assessment(ctx: Context) -> Assessment:
+    _, results = matches_and_similarity(ctx)
+    top = best_similarity(results)
+    similarity = Dimension(top.score, note=top.because) if top else None
     return assess(
         ctx.facts,
         ctx.candidates,
@@ -134,6 +180,7 @@ def run_assessment(ctx: Context) -> Assessment:
         scoring_config=ctx.scoring_config,
         suppressed_by=ctx.suppressed_by,
         possible_duplicates=list(ctx.run.possible_duplicate_of),
+        client_similarity=similarity,
     )
 
 

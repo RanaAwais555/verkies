@@ -192,3 +192,26 @@ class Assessment(BaseModel):
     opportunities: list[OpportunityOut]
     qualification: QualificationOut | None
     score: ScoreOut | None
+
+
+class BriefClaimOut(BaseModel):
+    claim_id: uuid.UUID
+    claim_class: str  # fact, inference, recommendation
+    text: str
+    evidence: list[EvidenceOut]
+
+
+class BriefSectionOut(BaseModel):
+    source: str  # template or ai
+    claims: list[BriefClaimOut]
+    unknown: str | None
+    notes: list[str]
+
+
+class BriefOut(BaseModel):
+    run_id: uuid.UUID
+    mode: str
+    generated_at: datetime
+    generated_by: dict[str, Any]
+    summary: dict[str, Any]
+    sections: dict[str, BriefSectionOut]

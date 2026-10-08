@@ -13,6 +13,9 @@ from app.core.errors import AppError
 from app.research import service
 from app.research.schemas import (
     Assessment,
+    BriefClaimOut,
+    BriefOut,
+    BriefSectionOut,
     EvidenceOut,
     Intelligence,
     ObservationOut,
@@ -157,6 +160,40 @@ async def assessment(run_id: uuid.UUID, user: Viewer, db: DbSession) -> Assessme
         )
         if s
         else None,
+    )
+
+
+@router.get("/{run_id}/brief")
+async def brief(run_id: uuid.UUID, user: Viewer, db: DbSession) -> BriefOut:
+    run = await service.get_run(db, user=user, run_id=run_id)
+    row, evidence = await service.brief_of(db, run)
+    sections: dict[str, BriefSectionOut] = {}
+    for name, section in row.sections.items():
+        if name == "summary":
+            continue
+        sections[name] = BriefSectionOut(
+            source=section["source"],
+            claims=[
+                BriefClaimOut(
+                    claim_id=c["claim_id"],
+                    claim_class=c["class"],
+                    text=c["text"],
+                    evidence=[
+                        _evidence_out(evidence[e]) for e in c["evidence_ids"] if e in evidence
+                    ],
+                )
+                for c in section["claims"]
+            ],
+            unknown=section["unknown"],
+            notes=section["notes"],
+        )
+    return BriefOut(
+        run_id=run.id,
+        mode=row.mode.value,
+        generated_at=row.generated_at,
+        generated_by=row.generated_by,
+        summary=row.sections.get("summary", {}),
+        sections=sections,
     )
 
 

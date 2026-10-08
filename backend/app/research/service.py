@@ -10,6 +10,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.accounts.models import AccountDomain
 from app.audit import service as audit
 from app.auth.models import User
+from app.briefs.models import LeadBrief
+from app.catalogue.models import ServiceMatch
 from app.config import Settings
 from app.core.enums import AuditSource, JobStatus
 from app.core.errors import Conflict, NotFound, PermissionDenied, ValidationFailed
@@ -27,6 +29,7 @@ from app.research.models import ResearchPage, ResearchRun, ResearchStage
 from app.research.pipeline import PIPELINE_STAGES
 from app.research.urls import normalised_domain
 from app.scoring.models import ScoreSnapshot
+from app.similarity.models import SimilarityResult as SimilarityRow
 
 ACTIVE = frozenset({JobStatus.QUEUED, JobStatus.RUNNING, JobStatus.RETRYING})
 SEE_ALL_PERMISSION = "accounts.read"
@@ -167,6 +170,8 @@ async def retry_run(db: AsyncSession, *, user: User, run_id: uuid.UUID) -> Resea
     await db.execute(
         delete(QualificationResult).where(QualificationResult.research_run_id == run.id)
     )
+    for table in (LeadBrief, ServiceMatch, SimilarityRow):
+        await db.execute(delete(table).where(table.research_run_id == run.id))
     for stage in await stages_of(db, run.id):
         stage.status = JobStatus.QUEUED
         stage.progress_pct = 0
@@ -249,3 +254,22 @@ async def assessment_of(db: AsyncSession, run: ResearchRun) -> dict[str, Any]:
         "qualification": qualification,
         "snapshot": snapshot,
     }
+
+
+async def brief_of(db: AsyncSession, run: ResearchRun) -> tuple[LeadBrief, dict[str, Evidence]]:
+    row = (
+        await db.execute(select(LeadBrief).where(LeadBrief.research_run_id == run.id))
+    ).scalar_one_or_none()
+    if row is None:
+        raise NotFound("No brief yet: the run has not reached the brief stage.")
+    ids = {
+        uuid.UUID(e)
+        for name, section in row.sections.items()
+        if name != "summary"
+        for c in section["claims"]
+        for e in c["evidence_ids"]
+    }
+    found: list[Evidence] = []
+    if ids:
+        found = list((await db.execute(select(Evidence).where(Evidence.id.in_(ids)))).scalars())
+    return row, {str(e.id): e for e in found}

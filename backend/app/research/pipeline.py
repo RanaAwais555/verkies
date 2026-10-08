@@ -7,16 +7,19 @@ detect, qualify, score, match, brief). A run is never reported as having done wo
 import logging
 import uuid
 from collections.abc import Awaitable, Callable
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, field
 from datetime import UTC, datetime, timedelta
+from functools import partial
 from typing import Any
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
+from app.briefs import stage as brief_stages
 from app.config import Settings
 from app.core.enums import JobStatus, ResearchStageName
 from app.intelligence.stage import NothingToAnalyse, extract_run
+from app.providers.ai import AIProvider, NullAIProvider
 from app.providers.errors import ProviderError
 from app.providers.fetch.netguard import resolve_target
 from app.providers.fetch.render import PlaywrightRenderer
@@ -36,6 +39,8 @@ PIPELINE_STAGES: tuple[ResearchStageName, ...] = (
     ResearchStageName.DETECT,
     ResearchStageName.QUALIFY,
     ResearchStageName.SCORE,
+    ResearchStageName.MATCH,
+    ResearchStageName.BRIEF,
 )
 STARTABLE = frozenset({JobStatus.QUEUED, JobStatus.RETRYING})
 INTERNAL_ERROR = "Something went wrong on our side. The error has been logged; try again."
@@ -49,6 +54,7 @@ class PipelineDeps:
     renderer: PlaywrightRenderer | None
     storage: Storage
     force_refresh: bool = False
+    ai: AIProvider = field(default_factory=NullAIProvider)
 
 
 class StageFailed(Exception):
@@ -75,6 +81,8 @@ async def run_research(run_id: uuid.UUID, deps: PipelineDeps) -> None:
             (ResearchStageName.DETECT, scoring_stages.detect_stage),
             (ResearchStageName.QUALIFY, scoring_stages.qualify_stage),
             (ResearchStageName.SCORE, scoring_stages.score_stage),
+            (ResearchStageName.MATCH, brief_stages.match_stage),
+            (ResearchStageName.BRIEF, partial(brief_stages.brief_stage, ai=deps.ai)),
         ):
             await _raise_if_cancelled(run_id, deps)
             await _stage(run_id, current, deps, _bind(work, run_id, deps))
@@ -276,7 +284,7 @@ async def _crawl(run_id: uuid.UUID, deps: PipelineDeps) -> dict[str, Any]:
 
 
 def _bind(
-    work: Callable[[uuid.UUID, async_sessionmaker[AsyncSession]], Awaitable[dict[str, Any]]],
+    work: Callable[..., Awaitable[dict[str, Any]]],
     run_id: uuid.UUID,
     deps: PipelineDeps,
 ) -> Callable[[], Awaitable[dict[str, Any]]]:

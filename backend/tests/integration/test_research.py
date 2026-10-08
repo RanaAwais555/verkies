@@ -164,6 +164,8 @@ def test_research_run_crawls_and_reports_progress(
         "detect",
         "qualify",
         "score",
+        "match",
+        "brief",
     ]
     assert queued == [uuid.UUID(run["id"])]
 
@@ -403,7 +405,7 @@ def test_assessment_ties_opportunities_scores_and_config_together(
 
     detail = research_api.get(f"/research-runs/{run['id']}").json()
     assert detail["status"] == "completed", detail
-    assert [s["status"] for s in detail["stages"]] == ["completed"] * 6
+    assert [s["status"] for s in detail["stages"]] == ["completed"] * 8
 
     a = research_api.get(f"/research-runs/{run['id']}/assessment").json()
     assert a["opportunities"], a
@@ -514,3 +516,59 @@ def test_scoring_stops_cleanly_without_an_active_config(
     finally:
         with engine.begin() as conn:
             conn.execute(text("UPDATE icp_configs SET is_active = true WHERE version = 1"))
+
+
+def test_brief_is_stored_with_grounded_claims(
+    research_api: ApiClient, engine: Engine, acme: tuple[int, list[str]], settings: Settings
+) -> None:
+    port, _ = acme
+    make_user(engine, "r@verkies.test", ["researcher"])
+    research_api.login("r@verkies.test")
+    run = _start(research_api, f"http://acme.test:{port}/")
+    run_pipeline(uuid.UUID(run["id"]), settings, render=False)
+
+    brief = research_api.get(f"/research-runs/{run['id']}/brief").json()
+    assert brief["mode"] == "template" and brief["generated_by"]["dropped"] == []
+    assert brief["summary"]["domain"] == "acme.test"
+    assert set(brief["sections"]) >= {
+        "company_overview",
+        "problem_detected",
+        "why_verkies",
+        "why_now",
+        "recommended_service",
+        "best_buyer",
+        "similar_project",
+        "sales_angle",
+        "risks",
+        "next_action",
+    }
+    claims = [c for s in brief["sections"].values() for c in s["claims"]]
+    assert claims
+    for claim in claims:
+        if claim["claim_class"] in ("fact", "inference"):
+            assert claim["evidence"], claim
+            assert all(
+                e["source_url"].startswith(f"http://acme.test:{port}") for e in claim["evidence"]
+            )
+    assert "Unknown" in (brief["sections"]["similar_project"]["unknown"] or "")
+
+    with engine.connect() as conn:
+        unsupported = conn.execute(
+            text(
+                "SELECT count(*) FROM claims c WHERE c.claim_class IN ('fact', 'inference')"
+                " AND NOT EXISTS (SELECT 1 FROM claim_evidence ce WHERE ce.claim_id = c.id)"
+            )
+        ).scalar_one()
+        recs_without_support = conn.execute(
+            text(
+                "SELECT count(*) FROM claims c WHERE c.claim_class = 'recommendation'"
+                " AND NOT EXISTS (SELECT 1 FROM claim_support s WHERE s.claim_id = c.id)"
+            )
+        ).scalar_one()
+        matches = conn.execute(text("SELECT count(*) FROM service_matches")).scalar_one()
+        similarity = conn.execute(
+            text("SELECT count(*), count(similarity_score) FROM similarity_results")
+        ).one()
+    assert unsupported == 0 and recs_without_support == 0
+    assert matches <= 3
+    assert similarity == (6, 0)  # six reference projects, all Unknown until profiles are complete

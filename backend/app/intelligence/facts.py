@@ -16,6 +16,7 @@ class Fact:
     confidence: float
     evidence_id: str
     source_url: str
+    excerpt: str = ""
 
 
 class Facts:
@@ -60,6 +61,9 @@ class Facts:
     def technologies(self) -> dict[str, Fact]:
         return {f.value["name"]: f for f in self.all("technology.detected")}
 
+    def by_evidence(self) -> dict[str, Fact]:
+        return {f.evidence_id: f for f in self}
+
     def keys(self) -> list[str]:
         return list(self._by_key)
 
@@ -76,5 +80,5 @@ def facts_from_observations(observations: Iterable[Any]) -> Facts:
     synthetic but stable: "<key>#<n>"."""
     built: list[Fact] = []
     for n, o in enumerate(observations):
-        built.append(Fact(o.key, o.value, o.confidence, f"{o.key}#{n}", o.source_url))
+        built.append(Fact(o.key, o.value, o.confidence, f"{o.key}#{n}", o.source_url, o.excerpt))
     return Facts(built)

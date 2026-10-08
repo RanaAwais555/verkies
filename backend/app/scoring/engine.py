@@ -37,6 +37,7 @@ def assess(
     scoring_config: ScoringConfigModel,
     suppressed_by: str | None = None,
     possible_duplicates: list[str] | None = None,
+    client_similarity: dim.Dimension | None = None,
 ) -> Assessment:
     strength = dim.evidence_strength(facts)
     buyer = dim.buyer_confidence(facts)
@@ -63,9 +64,8 @@ def assess(
         "timing_score": dim.timing(facts),
         "commercial_potential": dim.commercial_potential(facts, icp.industry_tier),
         # Reference-project profiles are not complete yet: Unknown until slice 1.5 can compare.
-        "client_similarity": dim.Dimension(
-            None, note="No complete reference-project profile to compare"
-        ),
+        "client_similarity": client_similarity
+        or dim.Dimension(None, note="No complete reference-project profile to compare"),
         "evidence_strength": strength,
     }
     priority, gates, coverage = _priority(dims, icp, scoring_config)

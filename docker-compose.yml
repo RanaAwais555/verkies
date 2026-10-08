@@ -8,6 +8,8 @@ x-backend-env: &backend-env
   VROS_DATABASE_URL: postgresql+psycopg://vros:${VROS_DB_PASSWORD:-vros}@postgres:5432/vros
   VROS_REDIS_URL: redis://redis:6379/0
   VROS_LOG_LEVEL: ${VROS_LOG_LEVEL:-INFO}
+  VROS_AI_PROVIDER: ${VROS_AI_PROVIDER:-none}
+  VROS_OLLAMA_MODEL: ${VROS_OLLAMA_MODEL:-granite4.2:8b}
 
 services:
   postgres:
@@ -91,6 +93,15 @@ services:
       timeout: 5s
       retries: 10
 
+  # Optional local AI for brief wording. Off unless started with the "ai" profile:
+  #   docker compose --profile ai up -d   then   docker compose exec ollama ollama pull <model>
+  # and set VROS_AI_PROVIDER=ollama for the worker. Without it, briefs use template mode.
+  ollama:
+    image: ollama/ollama:latest
+    profiles: ["ai"]
+    volumes:
+      - ollama:/root/.ollama
+
   caddy:
     image: caddy:2-alpine
     environment:
@@ -108,6 +119,7 @@ services:
 volumes:
   pgdata:
   storage:
+  ollama:
   redisdata:
   caddydata:
   caddyconfig:
