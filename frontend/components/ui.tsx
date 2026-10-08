@@ -171,7 +171,9 @@ export const inputClass =
 
 export function Tabs({ tabs, active, onChange }: { tabs: { key: string; label: ReactNode }[]; active: string; onChange: (key: string) => void }) {
   return (
-    <div role="tablist" className="flex gap-1 overflow-x-auto border-b border-border">
+    // The bottom line is an inset shadow, not a border with tabs overlapping it by a pixel: that
+    // overlap made the row scroll vertically (a stray scrollbar on Windows).
+    <div role="tablist" className="flex gap-1 overflow-x-auto overflow-y-hidden shadow-[inset_0_-1px_0_var(--border)]">
       {tabs.map((t) => (
         <button
           key={t.key}
@@ -179,7 +181,7 @@ export function Tabs({ tabs, active, onChange }: { tabs: { key: string; label: R
           aria-selected={active === t.key}
           onClick={() => onChange(t.key)}
           className={cx(
-            "-mb-px whitespace-nowrap border-b-2 px-3 py-2 text-sm",
+            "whitespace-nowrap border-b-2 px-3 py-2 text-sm",
             active === t.key ? "border-foreground font-medium" : "border-transparent text-muted hover:text-foreground",
           )}
         >
