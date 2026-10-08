@@ -1,5 +1,6 @@
 "use client";
 
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import useSWR, { type SWRConfiguration } from "swr";
 
 import { api, ApiError, loginPath } from "@/lib/client";
@@ -25,4 +26,23 @@ export function useSession() {
 
 export function can(session: Session | undefined, ...permissions: string[]): boolean {
   return !!session && permissions.some((p) => session.user.permissions.includes(p));
+}
+
+/**
+ * The open tab, kept in the address (`?tab=`) rather than in component state: a link opens a
+ * page on its first tab, while Back and a shared link return to the tab that was open.
+ */
+export function useTab(first: string): [string, (key: string) => void] {
+  const params = useSearchParams();
+  const pathname = usePathname();
+  const router = useRouter();
+  const tab = params.get("tab") ?? first;
+  function setTab(key: string) {
+    const next = new URLSearchParams(params);
+    if (key === first) next.delete("tab");
+    else next.set("tab", key);
+    const query = next.toString();
+    router.replace(query ? `${pathname}?${query}` : pathname, { scroll: false });
+  }
+  return [tab, setTab];
 }

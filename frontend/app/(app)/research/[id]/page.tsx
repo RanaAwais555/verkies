@@ -1,8 +1,10 @@
 "use client";
 
+import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useState } from "react";
 
+import { BackLink } from "@/components/back";
 import { AssessmentView, BriefView, EvidenceList } from "@/components/brief";
 import { DecisionPanel } from "@/components/decision";
 import {
@@ -20,8 +22,8 @@ import {
   TextLink,
 } from "@/components/ui";
 import { api } from "@/lib/client";
-import { can, useApi, useSession } from "@/lib/hooks";
-import type { Assessment, Brief, Intelligence, RunDetail } from "@/lib/types";
+import { can, useApi, useSession, useTab } from "@/lib/hooks";
+import type { Approval, Assessment, Brief, Intelligence, RunDetail } from "@/lib/types";
 import { REJECTION_REASONS } from "@/lib/types";
 
 const ACTIVE = new Set(["queued", "running", "retrying"]);
@@ -75,6 +77,47 @@ function IntelligenceView({ runId }: { runId: string }) {
   );
 }
 
+/** What was decided, and where to go next. `approval` is only known in the tab that approved. */
+function Outcome({ run, approval, reviewer }: { run: RunDetail; approval: Approval | null; reviewer: boolean }) {
+  const accountId = approval?.account_id ?? run.account_id;
+  return (
+    <Card>
+      {run.review_status === "approved" ? (
+        <div className="space-y-1 text-sm" data-testid="approved">
+          <p>
+            <strong>Approved</strong> {formatDate(run.reviewed_at, true)}.
+            {approval && (
+              <>
+                {" "}{approval.created_account ? "New account created" : "Added to the existing account"} with a lead,
+                {approval.opportunity_id ? " an opportunity," : ""} {approval.contact_ids.length} contact
+                {approval.contact_ids.length === 1 ? "" : "s"} and a task due {formatDate(approval.task_due_at)}.
+              </>
+            )}
+          </p>
+        </div>
+      ) : (
+        <p className="text-sm" data-testid="rejected">
+          <strong>Rejected:</strong> {REJECTION_REASONS[run.rejection_reason ?? ""] ?? run.rejection_reason}
+          {run.rejection_note && ` — ${run.rejection_note}`} ({formatDate(run.reviewed_at, true)}). It is off the review
+          queue and stays searchable under Research.
+        </p>
+      )}
+      <div className="mt-3 flex flex-wrap gap-2">
+        {run.review_status === "approved" && accountId && (
+          <Link href={`/accounts/${accountId}`} className="rounded-md bg-foreground px-3 py-1.5 text-sm font-medium text-background hover:opacity-90">
+            Open the account
+          </Link>
+        )}
+        {reviewer && (
+          <Link href="/" className="rounded-md border border-border px-3 py-1.5 text-sm font-medium hover:bg-surface">
+            Back to the review queue
+          </Link>
+        )}
+      </div>
+    </Card>
+  );
+}
+
 function PagesView({ run }: { run: RunDetail }) {
   return (
     <Card title={`Pages (${run.pages.length})`}>
@@ -103,9 +146,8 @@ export default function ResearchRunPage() {
   const completed = run?.status === "completed";
   const { data: brief, mutate: refreshBrief } = useApi<Brief>(completed ? `/research-runs/${id}/brief` : null);
   const { data: assessment } = useApi<Assessment>(completed ? `/research-runs/${id}/assessment` : null);
-  const [tab, setTab] = useState("brief");
-  // Keep the panel (and its confirmation) after deciding, although the run is no longer pending.
-  const [decidedHere, setDecidedHere] = useState(false);
+  const [tab, setTab] = useTab("brief");
+  const [approval, setApproval] = useState<Approval | null>(null);
   const [busy, setBusy] = useState(false);
   const [actionError, setActionError] = useState<unknown>(null);
 
@@ -122,21 +164,23 @@ export default function ResearchRunPage() {
     }
   }
 
-  if (error) return <ErrorNote error={error} />;
-  if (!run || !session) return <Loading />;
+  const back = <BackLink fallback="/research" />;
+  if (error) return <div className="space-y-4">{back}<ErrorNote error={error} /></div>;
+  if (!run || !session) return <div className="space-y-4">{back}<Loading /></div>;
 
   const nextAction = brief?.sections.next_action?.claims[0]?.text ?? null;
   const needsOverride = !!assessment && (!assessment.score?.qualifies || !!assessment.qualification?.hard_reject);
-  const reviewable =
-    completed && (run.review_status === "pending" || decidedHere) && can(session, "prospects.review") && brief && assessment;
+  const reviewer = can(session, "prospects.review");
+  const reviewable = completed && run.review_status === "pending" && reviewer && brief && assessment;
 
   return (
     <div className="space-y-4">
+      {back}
       <div className="flex flex-wrap items-center gap-3">
         <h1 className="text-xl font-semibold">{run.normalised_domain}</h1>
         <StatusBadge status={run.status} />
         <StatusBadge status={run.review_status} />
-        {run.account_id && <TextLink href={`/accounts/${run.account_id}`}>Open account</TextLink>}
+        {run.account_id && run.review_status !== "approved" && <TextLink href={`/accounts/${run.account_id}`}>Open account</TextLink>}
         <span className="ml-auto flex gap-2">
           {ACTIVE.has(run.status) && <Button variant="secondary" busy={busy} onClick={() => act("cancel")}>Cancel</Button>}
           {(run.status === "failed" || run.status === "cancelled") && <Button variant="secondary" busy={busy} onClick={() => act("retry")}>Retry</Button>}
@@ -147,14 +191,7 @@ export default function ResearchRunPage() {
         {run.retry_count > 0 && ` · attempt ${run.retry_count + 1}`}
       </p>
       <ErrorNote error={actionError} />
-      {run.review_status === "rejected" && (
-        <Card>
-          <p className="text-sm">
-            Rejected: <strong>{REJECTION_REASONS[run.rejection_reason ?? ""] ?? run.rejection_reason}</strong>
-            {run.rejection_note && ` — ${run.rejection_note}`} ({formatDate(run.reviewed_at, true)})
-          </p>
-        </Card>
-      )}
+      {run.review_status !== "pending" && <Outcome run={run} approval={approval} reviewer={reviewer} />}
       {!completed && <Progress run={run} />}
       {reviewable && (
         <DecisionPanel
@@ -163,10 +200,9 @@ export default function ResearchRunPage() {
           nextAction={nextAction}
           needsOverride={needsOverride}
           recommendedRejection={assessment.qualification?.rejection_reason ?? null}
-          onDecided={() => {
-            setDecidedHere(true);
-            mutate();
-            refreshBrief();
+          onDecided={async (decided) => {
+            if (decided) setApproval(decided);
+            await Promise.all([mutate(), refreshBrief()]);
           }}
         />
       )}

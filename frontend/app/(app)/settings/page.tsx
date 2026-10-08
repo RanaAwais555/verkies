@@ -17,7 +17,7 @@ import {
   Tabs,
 } from "@/components/ui";
 import { api } from "@/lib/client";
-import { can, useApi, useSession } from "@/lib/hooks";
+import { can, useApi, useSession, useTab } from "@/lib/hooks";
 import type { ConfigVersion, Invite, ReferenceProject, Role, Service, User } from "@/lib/types";
 
 function useAction() {
@@ -379,7 +379,7 @@ function SystemStatus() {
 
 export default function SettingsPage() {
   const { data: session } = useSession();
-  const [tab, setTab] = useState("profile");
+  const [tab, setTab] = useTab("profile");
   if (!session) return <Loading />;
   const configAdmin = can(session, "config.manage");
   const tabs = [

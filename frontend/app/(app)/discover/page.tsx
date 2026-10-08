@@ -25,7 +25,8 @@ function RegistrySearch() {
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    const data = new FormData(event.currentTarget);
+    const form = event.currentTarget;
+    const data = new FormData(form);
     const codes = String(data.get("sic") ?? "").split(/[\s,]+/).map((c) => c.trim()).filter(Boolean);
     setBusy(true);
     setError(null);
@@ -39,9 +40,11 @@ function RegistrySearch() {
           size: Number(data.get("size") ?? 25),
         },
       });
+      form.reset();
       router.push(`/discover/${job.id}`);
     } catch (err) {
       setError(err);
+    } finally {
       setBusy(false);
     }
   }
@@ -93,7 +96,8 @@ function WebSearch() {
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    const data = new FormData(event.currentTarget);
+    const form = event.currentTarget;
+    const data = new FormData(form);
     setBusy(true);
     setError(null);
     try {
@@ -101,9 +105,11 @@ function WebSearch() {
         method: "POST",
         body: { query: String(data.get("query") ?? "").trim(), pages: Number(data.get("pages") ?? 1) },
       });
+      form.reset();
       router.push(`/discover/${job.id}`);
     } catch (err) {
       setError(err);
+    } finally {
       setBusy(false);
     }
   }
@@ -158,6 +164,7 @@ export default function DiscoverPage() {
       router.push(`/discover/${job.id}`);
     } catch (err) {
       setUploadError(err);
+    } finally {
       setBusy(false);
     }
   }

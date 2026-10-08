@@ -35,7 +35,7 @@ export function TaskRow({ task, showAccount, onChange }: { task: Task; showAccou
       <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted">
         {showAccount && task.account_name && <TextLink href={`/accounts/${task.account_id}`}>{task.account_name}</TextLink>}
         <span className={open && isOverdue(task.due_at) ? "font-medium text-red-600" : undefined}>
-          Due {formatDate(task.due_at)}{open && isOverdue(task.due_at) ? " (overdue)" : ""}
+          {task.due_at ? `Due ${formatDate(task.due_at)}` : "No due date"}{open && isOverdue(task.due_at) ? " (overdue)" : ""}
         </span>
         <span>Owner: {task.owner_name ?? "nobody"}</span>
         {open && (

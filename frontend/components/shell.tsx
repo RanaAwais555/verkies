@@ -1,9 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname } from "next/navigation";
 import type { ReactNode } from "react";
 
+import { useNavigationHistory } from "@/components/back";
 import { Button, cx, ErrorNote, Loading } from "@/components/ui";
 import { api } from "@/lib/client";
 import { can, useSession } from "@/lib/hooks";
@@ -19,11 +20,14 @@ const NAV = [
 export function AppShell({ children }: { children: ReactNode }) {
   const { data: session, error } = useSession();
   const pathname = usePathname();
-  const router = useRouter();
+  useNavigationHistory();
 
   async function signOut() {
     await api("/auth/logout", { method: "POST" }).catch(() => undefined);
-    router.replace("/login");
+    // A full page load, so nothing from this session (cached data, pages kept in the
+    // background) is left in the tab for the next person to sign in.
+    // eslint-disable-next-line @next/next/no-location-assign-relative-destination -- the full load is the point
+    window.location.assign("/login");
   }
 
   if (error && error.status !== 401) {

@@ -31,7 +31,8 @@ export default function InvitePage() {
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    const form = new FormData(event.currentTarget);
+    const element = event.currentTarget;
+    const form = new FormData(element);
     if (form.get("password") !== form.get("confirm")) {
       setError(new Error("The passwords do not match."));
       return;
@@ -44,9 +45,11 @@ export default function InvitePage() {
         body: { token, name: form.get("name"), password: form.get("password") },
       });
       history.replaceState(null, "", "/invite"); // drop the spent token from the address bar
+      element.reset();
       router.replace("/");
     } catch (err) {
       setError(err);
+    } finally {
       setBusy(false);
     }
   }

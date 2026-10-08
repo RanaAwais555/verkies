@@ -3,6 +3,7 @@
 import { useParams } from "next/navigation";
 import { useState, type FormEvent } from "react";
 
+import { BackLink } from "@/components/back";
 import { Badge, Button, Card, ErrorNote, Field, inputClass, label, Loading, StatusBadge, TextLink } from "@/components/ui";
 import { api } from "@/lib/client";
 import { useApi } from "@/lib/hooks";
@@ -76,8 +77,9 @@ export default function ImportPage() {
   const [actionError, setActionError] = useState<unknown>(null);
   const [result, setResult] = useState<string | null>(null);
 
-  if (error) return <ErrorNote error={error} />;
-  if (!job) return <Loading />;
+  const back = <BackLink fallback="/discover" />;
+  if (error) return <div className="space-y-4">{back}<ErrorNote error={error} /></div>;
+  if (!job) return <div className="space-y-4">{back}<Loading /></div>;
 
   const researchable = job.rows.filter((r) => RESEARCHABLE.has(r.status));
   const toggle = (rowId: string) => {
@@ -109,6 +111,7 @@ export default function ImportPage() {
 
   return (
     <div className="space-y-4">
+      {back}
       <div className="flex flex-wrap items-center gap-3">
         <h1 className="text-xl font-semibold">
           {job.kind === "search" ? `Search: ${job.name}` : job.kind === "registry" ? `Companies House: ${job.name}` : job.name}

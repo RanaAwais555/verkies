@@ -3,6 +3,7 @@
 import { useParams } from "next/navigation";
 import { useState, type FormEvent } from "react";
 
+import { BackLink } from "@/components/back";
 import { NewTaskForm, TaskRow } from "@/components/tasks";
 import {
   Badge,
@@ -24,7 +25,7 @@ import {
   TextLink,
 } from "@/components/ui";
 import { api } from "@/lib/client";
-import { can, useApi, useSession } from "@/lib/hooks";
+import { can, useApi, useSession, useTab } from "@/lib/hooks";
 import type { Account360, AuditEntry, Task, TeamMember, TimelineEvent } from "@/lib/types";
 
 function Overview({ account, refresh }: { account: Account360; refresh: () => void }) {
@@ -253,9 +254,10 @@ export default function AccountPage() {
   const { id } = useParams<{ id: string }>();
   const { data: session } = useSession();
   const { data: account, error, mutate } = useApi<Account360>(`/accounts/${id}`);
-  const [tab, setTab] = useState("overview");
-  if (error) return <ErrorNote error={error} />;
-  if (!account) return <Loading />;
+  const [tab, setTab] = useTab("overview");
+  const back = <BackLink fallback="/accounts" />;
+  if (error) return <div className="space-y-4">{back}<ErrorNote error={error} /></div>;
+  if (!account) return <div className="space-y-4">{back}<Loading /></div>;
   const tabs = [
     { key: "overview", label: "Overview" },
     { key: "leads", label: `Leads (${account.leads.length})` },
@@ -265,6 +267,7 @@ export default function AccountPage() {
   ];
   return (
     <div className="space-y-4">
+      {back}
       <div className="flex flex-wrap items-center gap-3">
         <h1 className="text-xl font-semibold">{account.name}</h1>
         <Badge>{label(account.account_type)}</Badge>

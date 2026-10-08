@@ -1,5 +1,7 @@
 "use client";
 
+import { mutate } from "swr";
+
 // Browser-side API access. Everything goes to /api on the same origin (Caddy in Docker, a
 // rewrite in `npm run dev`), with the session cookie, and the CSRF token echoed in a header on
 // every state-changing request (double submit, see backend/app/auth/deps.py).
@@ -55,8 +57,7 @@ export async function api<T>(path: string, options: Options = {}): Promise<T> {
   } catch {
     throw new ApiError(0, "network", "Cannot reach the server. Check your connection.");
   }
-  if (response.status === 204) return undefined as T;
-  const data = await response.json().catch(() => null);
+  const data = response.status === 204 ? undefined : await response.json().catch(() => null);
   if (!response.ok) {
     const error = data?.error;
     if (error) throw new ApiError(response.status, error.code, error.message, error.details);
@@ -64,5 +65,9 @@ export async function api<T>(path: string, options: Options = {}): Promise<T> {
     const detail = Array.isArray(data?.detail) ? data.detail.map((d: { msg: string }) => d.msg).join("; ") : null;
     throw new ApiError(response.status, "invalid", detail ?? `Request failed (${response.status}).`);
   }
+  // A change on one page can show on others (a task done on Home changes "requires attention",
+  // an approval adds an account): refetch everything on screen. Not for /auth: sign-in, sign-out
+  // and accepting an invite navigate away, and checking an invite is itself a fetch on screen.
+  if (method !== "GET" && !path.startsWith("/auth/")) void mutate(() => true);
   return data as T;
 }

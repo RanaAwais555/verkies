@@ -19,14 +19,17 @@ function LoginForm() {
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    const form = new FormData(event.currentTarget);
+    const element = event.currentTarget;
+    const form = new FormData(element);
     setBusy(true);
     setError(null);
     try {
       await api("/auth/login", { method: "POST", body: { email: form.get("email"), password: form.get("password") } });
+      element.reset(); // the page can be kept in the background; never leave the password in it
       router.replace(next);
     } catch (err) {
       setError(err);
+    } finally {
       setBusy(false);
     }
   }

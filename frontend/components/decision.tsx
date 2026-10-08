@@ -1,9 +1,8 @@
 "use client";
 
-import Link from "next/link";
 import { useState, type FormEvent } from "react";
 
-import { Button, Card, ErrorNote, Field, formatDate, inputClass } from "@/components/ui";
+import { Button, Card, ErrorNote, Field, inputClass } from "@/components/ui";
 import { api, ApiError } from "@/lib/client";
 import { useApi } from "@/lib/hooks";
 import type { Approval, Duplicate, Session, TeamMember } from "@/lib/types";
@@ -15,7 +14,8 @@ type Props = {
   nextAction: string | null;
   needsOverride: boolean;
   recommendedRejection: string | null;
-  onDecided: () => void;
+  /** Called after the decision is saved; the page then shows the outcome instead of this panel. */
+  onDecided: (approval?: Approval) => Promise<unknown>;
 };
 
 export function DecisionPanel(props: Props) {
@@ -37,7 +37,6 @@ function ApproveForm({ runId, session, nextAction, needsOverride, onDecided }: P
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<unknown>(null);
   const [duplicates, setDuplicates] = useState<Duplicate[] | null>(null);
-  const [done, setDone] = useState<Approval | null>(null);
 
   async function approve(form: HTMLFormElement, choice: { account_id?: string; create_new_account?: boolean } = {}) {
     const data = new FormData(form);
@@ -53,8 +52,7 @@ function ApproveForm({ runId, session, nextAction, needsOverride, onDecided }: P
     setBusy(true);
     setError(null);
     try {
-      setDone(await api<Approval>(`/prospects/${runId}/approve`, { method: "POST", body }));
-      onDecided();
+      await onDecided(await api<Approval>(`/prospects/${runId}/approve`, { method: "POST", body }));
     } catch (err) {
       if (err instanceof ApiError && err.code === "possible_duplicate") {
         setDuplicates((err.details?.possible_duplicates as Duplicate[]) ?? []);
@@ -64,19 +62,6 @@ function ApproveForm({ runId, session, nextAction, needsOverride, onDecided }: P
     } finally {
       setBusy(false);
     }
-  }
-
-  if (done) {
-    return (
-      <div className="space-y-2 text-sm" data-testid="approved">
-        <p>
-          Approved. {done.created_account ? "New account created" : "Added to the existing account"} with a lead,
-          {done.opportunity_id ? " an opportunity," : ""} {done.contact_ids.length} contact{done.contact_ids.length === 1 ? "" : "s"} and
-          a task due {formatDate(done.task_due_at)}.
-        </p>
-        <Link href={`/accounts/${done.account_id}`} className="font-medium underline">Open the account</Link>
-      </div>
-    );
   }
 
   return (
@@ -135,7 +120,6 @@ function ApproveForm({ runId, session, nextAction, needsOverride, onDecided }: P
 function RejectForm({ runId, recommendedRejection, onDecided }: Props) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<unknown>(null);
-  const [done, setDone] = useState(false);
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -147,8 +131,7 @@ function RejectForm({ runId, recommendedRejection, onDecided }: Props) {
         method: "POST",
         body: { reason: data.get("reason"), note: String(data.get("note") ?? "").trim() || null, suppress: data.get("suppress") === "on" },
       });
-      setDone(true);
-      onDecided();
+      await onDecided();
     } catch (err) {
       setError(err);
     } finally {
@@ -156,7 +139,6 @@ function RejectForm({ runId, recommendedRejection, onDecided }: Props) {
     }
   }
 
-  if (done) return <p className="text-sm" data-testid="rejected">Rejected. It is off the queue and stays searchable under Research.</p>;
   return (
     <form onSubmit={submit} className="space-y-3">
       <Field label="Reason">
