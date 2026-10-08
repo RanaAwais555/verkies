@@ -48,6 +48,8 @@ CI runs all of these plus Compose and Caddyfile validation and image builds (`.g
 
 ## Deploy to a live domain
 
+Step by step for Hetzner Cloud: [`docs/DEPLOY_HETZNER.md`](docs/DEPLOY_HETZNER.md). The short version, for any server with Docker:
+
 One small VPS (2 vCPU / 4 GB is enough for the team stack without local AI) with Docker installed.
 
 1. Point the domain's DNS `A` (and `AAAA` if any) record, e.g. `vros.verkies.co`, at the server. Open ports 80 and 443.
