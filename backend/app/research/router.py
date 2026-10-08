@@ -3,7 +3,7 @@
 import logging
 import uuid
 from collections.abc import Callable
-from typing import Annotated
+from typing import Annotated, Any
 
 from fastapi import APIRouter, Depends, Query, status
 
@@ -12,11 +12,16 @@ from app.auth.models import User
 from app.core.errors import AppError
 from app.research import service
 from app.research.schemas import (
+    Assessment,
+    EvidenceOut,
     Intelligence,
     ObservationOut,
+    OpportunityOut,
     PageOut,
+    QualificationOut,
     RunDetail,
     RunOut,
+    ScoreOut,
     StartRun,
 )
 
@@ -97,6 +102,62 @@ async def intelligence(run_id: uuid.UUID, user: Viewer, db: DbSession) -> Intell
     for row in await service.observations_of(db, run):
         areas.setdefault(row.area.value, []).append(ObservationOut.of(row))
     return Intelligence(run_id=run.id, attempt=run.retry_count, areas=areas)
+
+
+def _evidence_out(item: Any) -> EvidenceOut:
+    return EvidenceOut(
+        id=item.id,
+        source_url=item.source_url,
+        evidence_type=item.evidence_type.value,
+        excerpt=item.evidence_text,
+        collected_at=item.collected_at,
+        confidence=float(item.confidence),
+    )
+
+
+@router.get("/{run_id}/assessment")
+async def assessment(run_id: uuid.UUID, user: Viewer, db: DbSession) -> Assessment:
+    run = await service.get_run(db, user=user, run_id=run_id)
+    found = await service.assessment_of(db, run)
+    q = found["qualification"]
+    s = found["snapshot"]
+    dims = s.breakdown.get("dimensions", {}) if s else {}
+    return Assessment(
+        run_id=run.id,
+        opportunities=[
+            OpportunityOut(
+                id=c.id,
+                category=key,
+                title=c.title,
+                problem=c.problem_statement,
+                confidence=float(c.confidence),
+                rule_key=c.rule_key,
+                evidence=[_evidence_out(e) for e in evidence],
+            )
+            for c, key, evidence in found["candidates"]
+        ],
+        qualification=QualificationOut(
+            icp_fit=None if q.icp_fit is None else float(q.icp_fit),
+            hard_reject=q.hard_reject,
+            rejection_reason=q.rejection_reason.value if q.rejection_reason else None,
+            explanation=q.explanation,
+            components=q.components,
+            negative_icp_hits=q.negative_icp_hits,
+        )
+        if q
+        else None,
+        score=ScoreOut(
+            scores={name: entry["score"] for name, entry in dims.items()},
+            priority_score=None if s.priority_score is None else float(s.priority_score),
+            priority_band=s.priority_band.value if s.priority_band else None,
+            qualifies=s.qualifies,
+            not_qualified_because=s.breakdown.get("not_qualified_because", []),
+            breakdown=s.breakdown,
+            created_at=s.created_at,
+        )
+        if s
+        else None,
+    )
 
 
 @router.post("/{run_id}/cancel")

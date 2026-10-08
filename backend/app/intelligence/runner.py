@@ -7,8 +7,10 @@ from app.intelligence.extractors import (
     company,
     conversion,
     hiring,
+    industry,
     product,
     seo,
+    status,
     technology,
     website,
 )
@@ -25,6 +27,8 @@ EXTRACTORS: dict[str, Extractor] = {
     "technology": technology.extract,
     "company": company.extract,
     "hiring": hiring.extract,
+    "status": status.extract,
+    "industry": industry.extract,
 }
 
 

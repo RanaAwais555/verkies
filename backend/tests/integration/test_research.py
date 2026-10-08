@@ -157,7 +157,14 @@ def test_research_run_crawls_and_reports_progress(
     research_api.login("r@verkies.test")
     run = _start(research_api, f"http://acme.test:{port}")
     assert run["status"] == "queued" and run["normalised_domain"] == "acme.test"
-    assert [s["stage"] for s in run["stages"]] == ["validate", "crawl", "extract"]
+    assert [s["stage"] for s in run["stages"]] == [
+        "validate",
+        "crawl",
+        "extract",
+        "detect",
+        "qualify",
+        "score",
+    ]
     assert queued == [uuid.UUID(run["id"])]
 
     run_pipeline(uuid.UUID(run["id"]), settings)
@@ -379,3 +386,131 @@ def test_observations_are_append_only_and_retry_shows_latest_attempt(
     with engine.connect() as conn:
         attempts = conn.execute(text("SELECT DISTINCT attempt FROM observations")).scalars().all()
     assert sorted(attempts) == [0, 1]
+
+
+def test_assessment_ties_opportunities_scores_and_config_together(
+    research_api: ApiClient,
+    make_api: Callable[[], ApiClient],
+    engine: Engine,
+    acme: tuple[int, list[str]],
+    settings: Settings,
+) -> None:
+    port, _ = acme
+    make_user(engine, "r@verkies.test", ["researcher"])
+    research_api.login("r@verkies.test")
+    run = _start(research_api, f"http://acme.test:{port}/")
+    run_pipeline(uuid.UUID(run["id"]), settings, render=False)
+
+    detail = research_api.get(f"/research-runs/{run['id']}").json()
+    assert detail["status"] == "completed", detail
+    assert [s["status"] for s in detail["stages"]] == ["completed"] * 6
+
+    a = research_api.get(f"/research-runs/{run['id']}/assessment").json()
+    assert a["opportunities"], a
+    for opportunity in a["opportunities"]:
+        assert opportunity["evidence"], opportunity  # every opportunity cites evidence
+        assert all(
+            e["source_url"].startswith(f"http://acme.test:{port}") for e in opportunity["evidence"]
+        )
+    assert a["qualification"]["explanation"].startswith("ICP fit")
+    score = a["score"]
+    assert set(score["scores"]) == {
+        "icp_score",
+        "opportunity_score",
+        "intent_score",
+        "buyer_confidence",
+        "data_confidence",
+        "service_fit",
+        "timing_score",
+        "commercial_potential",
+        "client_similarity",
+        "evidence_strength",
+    }
+    assert score["scores"]["client_similarity"] is None
+    assert score["priority_band"] in ("hot", "high", "qualified", "monitor", "reject")
+
+    with engine.connect() as conn:
+        versions = (
+            conn.execute(
+                text(
+                    "SELECT c.version FROM score_snapshots s JOIN scoring_configs c"
+                    " ON c.id = s.scoring_config_id"
+                )
+            )
+            .scalars()
+            .all()
+        )
+    assert versions == [1]
+
+
+def test_config_versioning_changes_the_next_score(
+    research_api: ApiClient,
+    make_api: Callable[[], ApiClient],
+    engine: Engine,
+    acme: tuple[int, list[str]],
+    settings: Settings,
+) -> None:
+    port, _ = acme
+    make_user(engine, "admin@verkies.test", ["admin"])
+    make_user(engine, "r@verkies.test", ["researcher"])
+    research_api.login("r@verkies.test")
+    current = research_api.get("/config/scoring").json()
+    assert current["version"] == 1 and current["is_active"]
+    assert (
+        research_api.send("PUT", "/config/scoring", json={"config": current["config"]}).status_code
+        == 403
+    )
+
+    admin = make_api()
+    admin.login("admin@verkies.test")
+    bad = dict(current["config"], weights=current["config"]["weights"] | {"icp_score": 0.9})
+    rejected = admin.send("PUT", "/config/scoring", json={"config": bad})
+    assert rejected.status_code == 422 and "sum to 1" in rejected.json()["error"]["message"]
+
+    run = _start(research_api, f"http://acme.test:{port}/")
+    run_pipeline(uuid.UUID(run["id"]), settings, render=False)
+    before = research_api.get(f"/research-runs/{run['id']}/assessment").json()["score"]
+
+    weights = current["config"]["weights"] | {"icp_score": 0.0, "intent_score": 0.32}
+    updated = admin.send(
+        "PUT",
+        "/config/scoring",
+        json={"config": dict(current["config"], weights=weights), "note": "Weight intent higher"},
+    )
+    assert updated.status_code == 200 and updated.json()["version"] == 2
+    versions = admin.get("/config/scoring/versions").json()
+    assert [(v["version"], v["is_active"]) for v in versions] == [(2, True), (1, False)]
+
+    with engine.begin() as conn:
+        conn.execute(text("UPDATE research_runs SET status = 'failed'"))
+    research_api.send("POST", f"/research-runs/{run['id']}/retry")
+    run_pipeline(uuid.UUID(run["id"]), settings, render=False)
+    after = research_api.get(f"/research-runs/{run['id']}/assessment").json()["score"]
+    assert after["breakdown"]["dimensions"]["icp_score"]["weight"] == 0.0
+    assert before["breakdown"]["dimensions"]["icp_score"]["weight"] == 0.2
+    with engine.connect() as conn:
+        audit = conn.execute(
+            text("SELECT action, reason FROM audit_log WHERE action LIKE 'config.%'")
+        ).all()
+    assert audit == [("config.scoring.updated", "Weight intent higher")]
+
+
+def test_scoring_stops_cleanly_without_an_active_config(
+    research_api: ApiClient, engine: Engine, acme: tuple[int, list[str]], settings: Settings
+) -> None:
+    port, _ = acme
+    make_user(engine, "r@verkies.test", ["researcher"])
+    research_api.login("r@verkies.test")
+    with engine.begin() as conn:
+        conn.execute(text("UPDATE icp_configs SET is_active = false"))
+    try:
+        run = _start(research_api, f"http://acme.test:{port}/")
+        run_pipeline(uuid.UUID(run["id"]), settings, render=False)
+        detail = research_api.get(f"/research-runs/{run['id']}").json()
+        assert detail["status"] == "failed"
+        assert "No active ICP or scoring configuration" in detail["error"]
+        failed = [s["stage"] for s in detail["stages"] if s["status"] == "failed"]
+        assert failed == ["detect"]
+    finally:
+        with engine.begin() as conn:
+            conn.execute(text("UPDATE icp_configs SET is_active = true WHERE version = 1"))

@@ -31,6 +31,8 @@ Geography is inferred from, in order: structured data (`PostalAddress`), contact
 
 Industry is classified from page content (rules over keywords and structured data first, AI classification second, always with the evidence that supports it). If the classifier cannot decide, the industry is Unknown.
 
+Implemented (`backend/app/intelligence/extractors/industry.py`): keyword rules over the homepage, about, services, product and pricing pages need at least three hits and a 1.5x lead over the runner-up; a matching JSON-LD type (e.g. `LegalService`) also counts. A site can carry more than one industry observation (e.g. immigration from its wording, legal from its schema type); the ICP uses the highest-scoring tier among them.
+
 ## 4. Geography (default)
 
 | Priority | Region | Focus cities |
@@ -51,11 +53,11 @@ Each rule has an ID, a detector, a severity (**hard** or **soft**), a rejection 
 | Parked or for-sale domain | hard | inactive_company | Known parking page patterns, near-empty page, registrar/parking markers |
 | Site unreachable or erroring on all pages | hard | inactive_company | Non-2xx on homepage after retries, DNS failure |
 | Closed or ceased trading | hard | inactive_company | "ceased trading", "permanently closed", "we have closed" in page text |
-| Personal or hobby project | hard | hobby_or_personal | Personal-name site, "my blog", "my portfolio", no business offering |
+| Personal, hobby or freelancer site | hard with two or more phrases; review with one | hobby_or_personal, or student_or_freelancer when the wording is about freelancing | "hire me", "my portfolio", "freelance web developer", "download my CV" |
 | Student, freelancer or job seeker | hard | student_or_freelancer | "hire me", "freelance", "open to work", CV/portfolio structure, single-person offering |
 | Influencer or personal brand | soft→hard if no business product | hobby_or_personal | Link-in-bio structure, sponsorship and merch pages, no product |
-| Agency or competitor | **routed**, see §6 | competitor | "our clients", "we build websites for", case-study-led service agency |
-| Duplicate | hard | duplicate | Domain/name/identifier match to an existing account (`DATA_MODEL.md` §3) |
+| Agency or competitor | **routed**, see §6: hard with two or more phrases or the word "agency"; review with one | competitor | "digital agency", "we build websites for", "white-label services", "our clients include" |
+| Duplicate | review | duplicate | Domain already belongs to an account. Not a rejection: approval updates that account (`DATA_MODEL.md` §3) |
 | Suppressed account | hard | suppressed_account | Matches `suppressions` |
 | No identifiable commercial opportunity | soft | no_commercial_opportunity | No opportunity candidate above minimum confidence |
 | No plausible service fit | soft | no_relevant_service | No service match |
@@ -64,6 +66,8 @@ Each rule has an ID, a detector, a severity (**hard** or **soft**), a rejection 
 | Unsuitable size | soft | unsuitable_company_size | Only when size is evidenced |
 | Existing solution sufficient | soft | existing_solution_sufficient | Strong conversion path and modern product evidence with no problem signals |
 | Irrelevant industry | soft | irrelevant_industry | Industry known and outside all tiers |
+
+A **review** hit neither rejects nor penalises; it is shown to the person approving.
 
 Detectors are conservative on **hard** rules: they require explicit evidence, and an ambiguous case becomes a soft hit with a "needs review" flag, not a silent rejection.
 
@@ -87,3 +91,7 @@ Agencies never enter the standard sales queue automatically. When the agency det
 ## 8. Tests
 
 Unit tests per rule (positive, negative, ambiguous) and per component (known and Unknown). Fixture sites as listed in SCORING_SPEC.md §8. A rule change that flips a golden-file outcome fails CI until the expected outcome is reviewed.
+
+## 9. Implementation
+
+`backend/app/qualification/icp.py` (engine) and `config.py` (defaults, validation). Version 1 is seeded by migration `0006`; admins create new versions with `PUT /api/v1/config/icp` (validated, audited, the old version kept). Each qualification result stores the config version it used. Tests: `backend/tests/unit/test_assessment.py` (golden sites: service firm, SaaS, holding page, parked, closed, freelancer, agency).

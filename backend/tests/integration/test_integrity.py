@@ -189,8 +189,7 @@ def test_only_one_active_scoring_config(engine: Engine) -> None:
         "INSERT INTO scoring_configs (id, version, is_active, config)"
         " VALUES (gen_random_uuid(), :v, :a, '{}')"
     )
-    with engine.begin() as conn:
-        conn.execute(insert, {"v": 1, "a": True})
+    with engine.begin() as conn:  # version 1 is seeded and active
         conn.execute(insert, {"v": 2, "a": False})
     with pytest.raises(IntegrityError, match="single_active"), engine.begin() as conn:
         conn.execute(insert, {"v": 3, "a": True})

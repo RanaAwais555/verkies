@@ -2,6 +2,7 @@
 
 import uuid
 from datetime import UTC, datetime
+from typing import Any
 
 from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -12,12 +13,20 @@ from app.auth.models import User
 from app.config import Settings
 from app.core.enums import AuditSource, JobStatus
 from app.core.errors import Conflict, NotFound, PermissionDenied, ValidationFailed
+from app.evidence.models import Evidence
 from app.evidence.models import Observation as ObservationRow
+from app.opportunities.models import (
+    OpportunityCandidate,
+    OpportunityCategory,
+    opportunity_candidate_evidence,
+)
 from app.providers.fetch.netguard import parse_url
 from app.providers.fetch.types import FetchBlocked
+from app.qualification.models import QualificationResult
 from app.research.models import ResearchPage, ResearchRun, ResearchStage
 from app.research.pipeline import PIPELINE_STAGES
 from app.research.urls import normalised_domain
+from app.scoring.models import ScoreSnapshot
 
 ACTIVE = frozenset({JobStatus.QUEUED, JobStatus.RUNNING, JobStatus.RETRYING})
 SEE_ALL_PERMISSION = "accounts.read"
@@ -150,7 +159,14 @@ async def retry_run(db: AsyncSession, *, user: User, run_id: uuid.UUID) -> Resea
     run.error = None
     run.started_at = None
     run.finished_at = None
+    # Replaceable per-attempt results; observations and score snapshots stay as history.
     await db.execute(delete(ResearchPage).where(ResearchPage.research_run_id == run.id))
+    await db.execute(
+        delete(OpportunityCandidate).where(OpportunityCandidate.research_run_id == run.id)
+    )
+    await db.execute(
+        delete(QualificationResult).where(QualificationResult.research_run_id == run.id)
+    )
     for stage in await stages_of(db, run.id):
         stage.status = JobStatus.QUEUED
         stage.progress_pct = 0
@@ -189,3 +205,47 @@ async def observations_of(db: AsyncSession, run: ResearchRun) -> list[Observatio
             )
         ).scalars()
     )
+
+
+async def assessment_of(db: AsyncSession, run: ResearchRun) -> dict[str, Any]:
+    candidates = list(
+        (
+            await db.execute(
+                select(OpportunityCandidate, OpportunityCategory.key)
+                .join(
+                    OpportunityCategory, OpportunityCategory.id == OpportunityCandidate.category_id
+                )
+                .where(OpportunityCandidate.research_run_id == run.id)
+                .order_by(OpportunityCandidate.confidence.desc(), OpportunityCandidate.created_at)
+            )
+        ).all()
+    )
+    evidence: dict[uuid.UUID, list[Evidence]] = {}
+    if candidates:
+        rows = await db.execute(
+            select(opportunity_candidate_evidence.c.candidate_id, Evidence)
+            .join(Evidence, Evidence.id == opportunity_candidate_evidence.c.evidence_id)
+            .where(opportunity_candidate_evidence.c.candidate_id.in_([c.id for c, _ in candidates]))
+        )
+        for candidate_id, item in rows.all():
+            evidence.setdefault(candidate_id, []).append(item)
+    qualification = (
+        await db.execute(
+            select(QualificationResult).where(QualificationResult.research_run_id == run.id)
+        )
+    ).scalar_one_or_none()
+    snapshot = (
+        await db.execute(
+            select(ScoreSnapshot)
+            .where(ScoreSnapshot.research_run_id == run.id)
+            .order_by(ScoreSnapshot.created_at.desc())
+            .limit(1)
+        )
+    ).scalar_one_or_none()
+    if snapshot is not None and snapshot.breakdown.get("attempt") != run.retry_count:
+        snapshot = None  # an earlier attempt's score; this attempt has not been scored yet
+    return {
+        "candidates": [(c, key, evidence.get(c.id, [])) for c, key in candidates],
+        "qualification": qualification,
+        "snapshot": snapshot,
+    }

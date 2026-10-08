@@ -106,6 +106,19 @@ About 40 rules in `extractors/technology.py`, covering the technologies the mast
 | `hiring.job_board` | `{provider, token, url}` for Greenhouse, Lever, Ashby, Workable, Teamtailor, BambooHR, Recruitee, Workday, Personio. The token is what the Phase 2 job-board APIs need |
 | `hiring.tech_roles` | engineering/product role titles on the careers page |
 
+## Site status and industry
+
+| Key | Value | Notes |
+| --- | --- | --- |
+| `website.holding_page` | `parked` or `coming_soon` | Parked/for-sale wording, or a short page saying coming soon / under construction |
+| `company.closed_notice` | phrases | "ceased trading", "permanently closed", "we have closed" |
+| `company.personal_site_signals` | phrases | "hire me", "my portfolio", "freelance web developer", "download my CV" |
+| `company.agency_signals` | phrases | "digital agency", "we build websites for", "white-label services", "our clients include" |
+| `product.waitlist` | phrases | "join the waitlist", "early access", "private beta" |
+| `company.industry` | `{name, basis, hits?}` | Keyword rules or a JSON-LD type; Unknown unless clear (ICP_SPEC.md §3) |
+
+These feed the negative-ICP rules and the pre-launch (MVP) detector; an ordinary business site produces none of the first five.
+
 ## Not yet observed (and why)
 
 - **Lighthouse performance/accessibility scores** need Chrome and a full page load per audit; planned with the worker's Chromium as a separate, optional stage.

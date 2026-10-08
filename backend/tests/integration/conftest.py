@@ -4,6 +4,7 @@ Setup and assertions use a synchronous engine so they never share a connection p
 app, whose async engine lives in the TestClient's event loop.
 """
 
+import json
 import os
 import uuid
 from collections.abc import Iterator
@@ -33,6 +34,18 @@ SEED_TABLES = {
     "reference_projects",
     "reference_project_services",
 }
+
+
+def _seed_configs() -> tuple[dict, dict]:  # type: ignore[type-arg]
+    """Version-1 configs exactly as migration 0006 seeds them."""
+    import importlib.util
+
+    path = os.path.join(BACKEND_DIR, "alembic", "versions", "0006_default_configs.py")
+    spec = importlib.util.spec_from_file_location("seed_0006", path)
+    assert spec and spec.loader
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module.ICP_V1, module.SCORING_V1
 
 
 def alembic_config(url: str) -> Config:
@@ -67,6 +80,17 @@ def clean_db(engine: Engine) -> Iterator[None]:
         mutable = [t for t in tables if t not in SEED_TABLES]
         if mutable:
             conn.execute(text(f"TRUNCATE {', '.join(mutable)} CASCADE"))
+        # Configs reference users, so the cascade empties them: restore the seeded version 1.
+        icp, scoring = _seed_configs()
+        for table, config in (("icp_configs", icp), ("scoring_configs", scoring)):
+            conn.execute(text(f"DELETE FROM {table}"))  # noqa: S608
+            conn.execute(
+                text(
+                    f"INSERT INTO {table} (id, version, is_active, config, note)"  # noqa: S608
+                    " VALUES (gen_random_uuid(), 1, true, CAST(:c AS jsonb), 'seed')"
+                ),
+                {"c": json.dumps(config)},
+            )
 
 
 def make_user(

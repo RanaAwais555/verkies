@@ -15,6 +15,7 @@ from app.core.errors import install_error_handlers
 from app.core.logging import configure_logging, request_id_var
 from app.health.router import router as health_router
 from app.research.router import router as research_router
+from app.scoring.config_router import router as config_router
 
 API_PREFIX = "/api/v1"
 REQUEST_ID_HEADER = "X-Request-ID"
@@ -66,7 +67,14 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         return response
 
     install_error_handlers(app)
-    for router in (health_router, auth_router, users_router, audit_router, research_router):
+    for router in (
+        health_router,
+        auth_router,
+        users_router,
+        audit_router,
+        research_router,
+        config_router,
+    ):
         app.include_router(router, prefix=API_PREFIX)
     return app
 

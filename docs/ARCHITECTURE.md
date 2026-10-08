@@ -87,7 +87,7 @@ Tests use fakes for every interface. No test touches the network.
 
 ## 5. Research pipeline (Phase 1)
 
-Implemented so far: stages 1-3 (validate, crawl, extract) with the run API (`/api/v1/research-runs`: start, list, detail with stages and pages, intelligence, cancel, retry). Extraction is described in `OBSERVATIONS.md`. The worker image (`backend/Dockerfile` target `worker`) adds headless Chromium; the API image does not. Fetched bodies live in the `storage` volume.
+Implemented so far: stages 1-6 (validate, crawl, extract, detect, qualify, score) with the run API (`/api/v1/research-runs`: start, list, detail with stages and pages, intelligence, assessment, cancel, retry) and versioned configuration (`/api/v1/config/{icp,scoring}`). Extraction is described in `OBSERVATIONS.md`. The worker image (`backend/Dockerfile` target `worker`) adds headless Chromium; the API image does not. Fetched bodies live in the `storage` volume.
 
 
 A research run is one Celery job with ordered stages. Each stage writes its own progress row, so the UI shows crawl progress (§20).

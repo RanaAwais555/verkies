@@ -154,3 +154,41 @@ class Intelligence(BaseModel):
     run_id: uuid.UUID
     attempt: int
     areas: dict[str, list[ObservationOut]]
+
+
+class OpportunityOut(BaseModel):
+    id: uuid.UUID
+    category: str
+    title: str
+    problem: str
+    confidence: float
+    rule_key: str
+    evidence: list[EvidenceOut]
+
+
+class QualificationOut(BaseModel):
+    icp_fit: float | None
+    hard_reject: bool
+    rejection_reason: str | None
+    explanation: str
+    components: list[dict[str, Any]]
+    negative_icp_hits: list[dict[str, Any]]
+
+
+class ScoreOut(BaseModel):
+    scores: dict[str, float | None]
+    priority_score: float | None
+    priority_band: str | None
+    qualifies: bool
+    not_qualified_because: list[str]
+    breakdown: dict[str, Any]
+    created_at: datetime
+
+
+class Assessment(BaseModel):
+    """What the engines concluded for a run's latest attempt, every part tied to evidence."""
+
+    run_id: uuid.UUID
+    opportunities: list[OpportunityOut]
+    qualification: QualificationOut | None
+    score: ScoreOut | None

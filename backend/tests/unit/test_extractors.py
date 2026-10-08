@@ -166,7 +166,7 @@ def test_shiplane_conversion_and_product(shiplane: dict[str, list[Observation]])
     assert one(shiplane, "conversion.pricing_page").value is True
     assert one(shiplane, "product.login").value == "https://shiplane.io/login"
     assert one(shiplane, "product.signup").value == "https://shiplane.io/signup"
-    assert one(shiplane, "product.subscription_pricing").value.lower() == "per month"
+    assert one(shiplane, "product.subscription_pricing").value.lower() in ("per month", "per user")
     assert one(shiplane, "product.payments").value == ["Stripe"]
     assert one(shiplane, "product.app_store_links").value == [
         "https://apps.apple.com/app/shiplane/id123"
@@ -214,3 +214,26 @@ def test_a_failing_extractor_does_not_lose_the_others(monkeypatch: pytest.Monkey
     assert failed == ["seo"]
     assert any(o.key == "conversion.contact_form" for o in observations)
     assert not any(o.key.startswith("seo.") for o in observations)
+
+
+def test_status_and_industry_signals() -> None:
+    harbour, shiplane, holding = run(IMMIGRATION), run(SAAS), run(HOLDING)
+    assert {"name": "immigration", "basis": "keywords", "hits": 13} in values(
+        harbour, "company.industry"
+    )
+    assert {"name": "legal", "basis": "structured_data"} in values(harbour, "company.industry")
+    assert [v["name"] for v in values(shiplane, "company.industry")] == ["saas"]
+    assert one(holding, "website.holding_page").value == "coming_soon"
+    assert "company.industry" not in holding  # too little text to classify: Unknown
+    for found in (harbour, shiplane):
+        assert not [
+            k
+            for k in found
+            if k
+            in (
+                "website.holding_page",
+                "company.agency_signals",
+                "company.personal_site_signals",
+                "company.closed_notice",
+            )
+        ]

@@ -57,3 +57,24 @@ def test_admin_holds_every_permission(engine: Engine) -> None:
             )
         ).all()
     assert missing == []
+
+
+def test_seeded_catalogue_matches_code_defaults(engine: Engine) -> None:
+    from app.catalogue.defaults import SERVICES
+
+    with engine.connect() as conn:
+        rows = conn.execute(text("SELECT key, solves FROM services ORDER BY key")).all()
+    assert {k: s for k, s in rows} == {k: solves for k, _, solves, _ in SERVICES}
+
+
+def test_default_configs_are_seeded_valid_and_active(engine: Engine) -> None:
+    from app.qualification.config import IcpConfigModel
+    from app.scoring.config import ScoringConfigModel
+
+    with engine.connect() as conn:
+        icp = conn.execute(text("SELECT config FROM icp_configs WHERE is_active")).scalar_one()
+        scoring = conn.execute(
+            text("SELECT config FROM scoring_configs WHERE is_active")
+        ).scalar_one()
+    assert IcpConfigModel.model_validate(icp) == IcpConfigModel()
+    assert ScoringConfigModel.model_validate(scoring) == ScoringConfigModel()

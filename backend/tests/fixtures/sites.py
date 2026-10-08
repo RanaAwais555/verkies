@@ -2,6 +2,10 @@
 
 from app.intelligence.types import Page, SiteContext
 
+SAAS_FILLER = (
+    "Shiplane is a cloud platform for dispatch, fleet tracking and proof of delivery. Plans are per user per month with a free trial and integrations with your accounting software. "
+    * 6
+)
 FILLER = "We help families and skilled workers with UK visas, settlement and citizenship. " * 8
 
 IMMIGRATION_HOME = f"""<!doctype html><html lang="en"><head>
@@ -83,7 +87,7 @@ SAAS_HOME = f"""<!doctype html><html><head><title>Shiplane — Logistics softwar
 <a href="/careers">Careers</a></nav>
 <h1>Dispatch without the spreadsheets</h1>
 <a href="https://calendly.com/shiplane/demo">Book a demo</a>
-<p>{FILLER}</p>
+<p>{SAAS_FILLER}</p>
 <a href="https://apps.apple.com/app/shiplane/id123">Download on the App Store</a>
 <a href="https://docs.shiplane.io/api">API docs</a>
 <a href="https://x.com/shiplane">X</a><a href="https://www.linkedin.com/company/shiplane/">LinkedIn</a>
@@ -93,12 +97,12 @@ SAAS_HOME = f"""<!doctype html><html><head><title>Shiplane — Logistics softwar
 
 SAAS_PRICING = f"""<html><head><title>Pricing</title></head><body><h1>Pricing</h1>
 <p>Starter £49 per month. Growth £149 per month, billed annually.</p>
-<script src="https://js.stripe.com/v3/"></script><p>{FILLER}</p></body></html>"""
+<script src="https://js.stripe.com/v3/"></script><p>{SAAS_FILLER}</p></body></html>"""
 
 SAAS_CAREERS = f"""<html><head><title>Careers</title></head><body><h1>Join us</h1>
 <ul><li><a href="https://boards.greenhouse.io/shiplane/jobs/1">Senior Backend Engineer</a></li>
 <li><a href="https://boards.greenhouse.io/shiplane/jobs/2">Product Manager</a></li>
-<li>Account Executive</li></ul><p>{FILLER}</p></body></html>"""
+<li>Account Executive</li></ul><p>{SAAS_FILLER}</p></body></html>"""
 
 SAAS = (
     [
@@ -130,4 +134,50 @@ HOLDING_HTML = (
 HOLDING = (
     [Page("http://quiet.example/", HOLDING_HTML, "home", {}, len(HOLDING_HTML))],
     SiteContext(home_url="http://quiet.example/", robots="missing"),
+)
+
+
+def _single(url: str, html: str, **ctx: object) -> tuple[list[Page], SiteContext]:
+    return [Page(url, html, "home", {}, len(html))], SiteContext(
+        home_url=url, robots="missing", **ctx
+    )  # type: ignore[arg-type]
+
+
+PARKED = _single(
+    "https://bestwidgets.example/",
+    "<html><head><title>bestwidgets.example</title></head><body><h1>bestwidgets.example</h1>"
+    "<p>This domain is for sale! Buy this domain today. Contact our broker.</p></body></html>",
+)
+
+AGENCY_BODY = (
+    "Pixelforge is a digital agency in Manchester. We build websites for ambitious brands and "
+    "offer white-label services to other studios. Our clients include retailers and charities. "
+    "Web design, SEO and paid social for growing companies. "
+) * 5
+AGENCY = _single(
+    "https://pixelforge.example/",
+    f"""<html><head><title>Pixelforge | Digital Agency</title>
+<meta name="description" content="Pixelforge is a Manchester digital agency for web design, SEO and paid social.">
+<script type="application/ld+json">{{"@type":"Organization","name":"Pixelforge",
+ "address":{{"@type":"PostalAddress","addressLocality":"Manchester","addressCountry":"GB"}}}}</script>
+</head><body><h1>We make brands grow online</h1><p>{AGENCY_BODY}</p>
+<a href="/contact">Get a quote</a><a href="mailto:hello@pixelforge.example">Email</a>
+<h3>Jo Fielding</h3><p>Founder and Creative Director</p>
+<footer>© 2026 Pixelforge</footer></body></html>""",
+)
+
+FREELANCER = _single(
+    "https://samdoes.dev/",
+    """<html><head><title>Sam Rivers — Freelance Web Developer</title></head><body>
+<h1>Hi, I'm Sam</h1><p>I'm a freelance web developer building WordPress sites and React apps.
+I'm available for freelance work. Hire me for your next project, or view my work below.
+Download my CV.</p><a href="mailto:sam@samdoes.dev">Hire me</a><footer>© 2026 Sam Rivers</footer>
+</body></html>""",
+)
+
+CLOSED = _single(
+    "https://oldmill-bakery.example/",
+    """<html><head><title>Old Mill Bakery</title></head><body><h1>Old Mill Bakery</h1>
+<p>After 30 years we have now closed. Thank you to all our customers. The bakery ceased trading in
+March and the shop is permanently closed.</p><footer>© 2024 Old Mill Bakery</footer></body></html>""",
 )

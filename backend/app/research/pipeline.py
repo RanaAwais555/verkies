@@ -25,6 +25,7 @@ from app.providers.storage import Storage
 from app.research.crawler import CrawlCancelled, Crawler, CrawlLimits, PageOutcome
 from app.research.models import ResearchPage, ResearchRun, ResearchStage
 from app.research.source import CachedPageSource
+from app.scoring import stage as scoring_stages
 
 logger = logging.getLogger(__name__)
 
@@ -32,6 +33,9 @@ PIPELINE_STAGES: tuple[ResearchStageName, ...] = (
     ResearchStageName.VALIDATE,
     ResearchStageName.CRAWL,
     ResearchStageName.EXTRACT,
+    ResearchStageName.DETECT,
+    ResearchStageName.QUALIFY,
+    ResearchStageName.SCORE,
 )
 STARTABLE = frozenset({JobStatus.QUEUED, JobStatus.RETRYING})
 INTERNAL_ERROR = "Something went wrong on our side. The error has been logged; try again."
@@ -67,6 +71,13 @@ async def run_research(run_id: uuid.UUID, deps: PipelineDeps) -> None:
         await _raise_if_cancelled(run_id, deps)
         current = ResearchStageName.EXTRACT
         await _stage(run_id, current, deps, lambda: _extract(run_id, deps))
+        for current, work in (
+            (ResearchStageName.DETECT, scoring_stages.detect_stage),
+            (ResearchStageName.QUALIFY, scoring_stages.qualify_stage),
+            (ResearchStageName.SCORE, scoring_stages.score_stage),
+        ):
+            await _raise_if_cancelled(run_id, deps)
+            await _stage(run_id, current, deps, _bind(work, run_id, deps))
         await _finish(run_id, deps, JobStatus.COMPLETED)
     except CrawlCancelled:
         await _set_stage(run_id, current, deps, status=JobStatus.CANCELLED, finished=True)
@@ -262,6 +273,20 @@ async def _crawl(run_id: uuid.UUID, deps: PipelineDeps) -> dict[str, Any]:
         reason = report.stopped_reason or "no pages could be fetched"
         raise StageFailed(f"The website could not be read ({reason.replace('_', ' ')}).")
     return asdict(report)
+
+
+def _bind(
+    work: Callable[[uuid.UUID, async_sessionmaker[AsyncSession]], Awaitable[dict[str, Any]]],
+    run_id: uuid.UUID,
+    deps: PipelineDeps,
+) -> Callable[[], Awaitable[dict[str, Any]]]:
+    async def call() -> dict[str, Any]:
+        try:
+            return await work(run_id, deps.sessionmaker)
+        except scoring_stages.MissingConfiguration as exc:
+            raise StageFailed(str(exc)) from exc
+
+    return call
 
 
 async def _raise_if_cancelled(run_id: uuid.UUID, deps: PipelineDeps) -> None:
