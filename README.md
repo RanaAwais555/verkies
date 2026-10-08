@@ -12,7 +12,18 @@ Everything in Docker (needs Docker with Compose v2.24+):
 docker compose up --build
 # open http://localhost:8080        (app, through Caddy, same routing as production)
 #      http://localhost:8000/api/v1/docs   (API docs, development only)
+docker compose exec api python -m app.cli create-admin --email you@verkies.co --name "Your Name"
 ```
+
+If another program already uses one of the ports (8080, 8000, 5432 or 6379), Docker reports "port is already allocated", or the browser shows that other program's page instead of VROS. Pick free ports:
+
+```bash
+VROS_HTTP_PORT=8090 VROS_PUBLIC_URL=http://localhost:8090 VROS_API_PORT=8001 \
+VROS_DB_PORT=5433 VROS_REDIS_PORT=6380 docker compose up --build
+# open http://localhost:8090
+```
+
+The same variables can go in a `.env` file next to `docker-compose.yml`.
 
 Or run the parts directly (needs PostgreSQL 16 and Redis 7 on localhost, user/password/db `vros`):
 
