@@ -30,8 +30,8 @@ Phases follow §20. Phase 1 must work reliably end to end before any later phase
 
 ## Decisions needed (from GAP_ANALYSIS.md §6)
 
-1. Verkies service catalogue (blocks real service matching content).
-2. Reference project profiles (blocks real similarity content).
+1. Confirm the seeded service catalogue (`VERKIES_PROFILE.md` §3); until confirmed, matches are labelled unconfirmed.
+2. Complete the reference project profiles (`VERKIES_PROFILE.md` §4); until then similarity is Unknown.
 3. Production hosting target (Phase 7).
 4. GPU class for Ollama.
 5. Initial users and roles.

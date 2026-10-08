@@ -9,6 +9,7 @@ An intelligence-first revenue platform for Verkies Private Limited: prospect int
 | Document | Purpose |
 | --- | --- |
 | [`docs/VROS_Master_Context.md`](docs/VROS_Master_Context.md) | Source of truth for the product (v1.1) |
+| [`docs/VERKIES_PROFILE.md`](docs/VERKIES_PROFILE.md) | Verkies' own services and reference projects, from verkies.co (seed data, unconfirmed) |
 | [`docs/GAP_ANALYSIS.md`](docs/GAP_ANALYSIS.md) | Repo vs. master context, risks, open decisions |
 | [`docs/PRODUCT_SPEC.md`](docs/PRODUCT_SPEC.md) | Phase 1 scope, rules, acceptance mapping |
 | [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) | System design and repository layout |

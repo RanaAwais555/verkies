@@ -76,8 +76,8 @@ Rejection reason enum (§3): no_commercial_opportunity, wrong_icp, inactive_comp
 
 ### Services and similarity
 
-**services**: Verkies service catalogue. `key`, `name`, `description`, `solves jsonb` (opportunity category keys), `is_active`.
-**reference_projects**: `name`, `industry`, `business_model`, `problem`, `service_id`, `technologies text[]`, `growth_stage`, `buyer_type`, `workflow_notes`, `profile_complete bool`, `embedding vector(768)` null. Seeded with the six archetype *names* only; `profile_complete=false` until an admin fills them in.
+**services**: Verkies service catalogue. `key`, `name`, `description`, `solves jsonb` (opportunity category keys), `source_url`, `confirmed bool`, `is_active`. Seeded from `VERKIES_PROFILE.md` §3 with `confirmed=false`.
+**reference_projects**: `name`, `industry`, `business_model`, `problem`, `service_id`, `technologies text[]`, `growth_stage`, `buyer_type`, `workflow_notes`, `source_url`, `profile_complete bool`, `embedding vector(768)` null. Seeded from `VERKIES_PROFILE.md` §4 with only the fields the public site states; the rest are null (Unknown) and `profile_complete=false` until an admin fills them in.
 **service_matches**: `research_run_id`, `slot` (primary, secondary, expansion), `service_id`, `rationale`, `confidence`. At most three per run (`unique(research_run_id, slot)`).
 **similarity_results**: `research_run_id`, `reference_project_id`, `similarity_score`, `similar_because`.
 
