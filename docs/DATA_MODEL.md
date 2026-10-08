@@ -54,6 +54,8 @@ Indexes: trigram on `accounts.name`, `account_domains.domain`; btree on `account
 
 **raw_responses**: `url`, `final_url`, `rendered`, `fetched_at`, `status_code`, `headers jsonb` (never `Set-Cookie`), `body_ref` (content-addressed storage key), `content_type`, `bytes`, `content_hash`. Unique on `(url, rendered, content_hash)`; refetching identical content refreshes `fetched_at`.
 
+**observations**: a structured fact from a crawled site (catalogue: `OBSERVATIONS.md`). `research_run_id`, `attempt` (the run's retry count when produced; the API shows the latest), `account_id` (attached on approval), `area` (website, seo, conversion, product, technology, company, hiring), `key`, `value jsonb`, `evidence_id` (exactly one evidence row), `seen_on jsonb`, `confidence`. Append-only.
+
 **claims**: a stated finding in the system. `account_id`, `research_run_id`, `claim_class` enum (fact, inference, recommendation), `subject` (e.g. `conversion.primary_cta`), `statement`, `confidence`.
 **claim_evidence**: `claim_id`, `evidence_id`. A `fact` claim must have at least one row, enforced by a deferred constraint trigger. An `inference` must too. A `recommendation` links to the claims it rests on via `claim_support`.
 
@@ -130,7 +132,7 @@ On research start and on approval, candidates are looked up by normalised domain
 Implemented in migration `0002_integrity_rules` and covered by `tests/integration/test_integrity.py`.
 
 - A `fact` or `inference` claim must cite at least one evidence row, and a `recommendation` must rest on at least one other claim. Checked at commit (deferred constraint trigger), so rows can be inserted in any order.
-- `evidence`, `claims`, `claim_evidence`, `claim_support`, `score_snapshots`, `audit_log` and `timeline_events` reject `UPDATE` and `DELETE`. The single exception: `account_id` on evidence, claims and score snapshots may be set once from NULL (attaching research to the Account on approval); any other change in the same statement is refused.
+- `evidence`, `observations`, `claims`, `claim_evidence`, `claim_support`, `score_snapshots`, `audit_log` and `timeline_events` reject `UPDATE` and `DELETE`. The single exception: `account_id` on evidence, observations, claims and score snapshots may be set once from NULL (attaching research to the Account on approval); any other change in the same statement is refused.
 - `accounts.primary_domain` is unique among non-deleted accounts.
 - Scores are within `[0, 100]` (NULL means Unknown); confidence within `[0, 1]`.
 - Enumerations are text columns with CHECK constraints.

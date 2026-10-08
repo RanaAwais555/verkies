@@ -29,6 +29,16 @@ class ResearchStageName(StrEnum):
     BRIEF = "brief"
 
 
+class ObservationArea(StrEnum):
+    WEBSITE = "website"
+    SEO = "seo"
+    CONVERSION = "conversion"
+    PRODUCT = "product"
+    TECHNOLOGY = "technology"
+    COMPANY = "company"
+    HIRING = "hiring"
+
+
 class PageKind(StrEnum):
     PAGE = "page"
     ROBOTS = "robots"

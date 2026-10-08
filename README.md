@@ -2,7 +2,7 @@
 
 An intelligence-first revenue platform for Verkies Private Limited: prospect intelligence, qualification, CRM, client lifecycle and learning around a permanent Account. Built for team use, deployable to a live domain.
 
-**Status:** Phase 1, slices 1.0 (foundation), 1.1 (schema, team access, audit) and 1.2 (safe fetch, crawl, research runs) done. Next: 1.3 analysis and evidence. See [`docs/ROADMAP.md`](docs/ROADMAP.md).
+**Status:** Phase 1, slices 1.0 (foundation), 1.1 (schema, team access, audit) 1.2 (safe fetch, crawl, research runs) and 1.3 (analysis and evidence) done. Next: 1.4 opportunities, ICP and scoring. See [`docs/ROADMAP.md`](docs/ROADMAP.md).
 
 ## Run it locally
 
@@ -70,6 +70,7 @@ To update: `git pull` then rerun the `up -d --build` command.
 | [`docs/PRODUCT_SPEC.md`](docs/PRODUCT_SPEC.md) | Phase 1 scope, rules, acceptance mapping |
 | [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) | System design, repository layout, deployment |
 | [`docs/DATA_MODEL.md`](docs/DATA_MODEL.md) | PostgreSQL schema, Account-centric |
+| [`docs/OBSERVATIONS.md`](docs/OBSERVATIONS.md) | What the extract stage records, with evidence |
 | [`docs/ICP_SPEC.md`](docs/ICP_SPEC.md) | ICP and negative-ICP engine |
 | [`docs/SCORING_SPEC.md`](docs/SCORING_SPEC.md) | Ten scores, priority score, gates, bands |
 | [`docs/AI_SPEC.md`](docs/AI_SPEC.md) | Grounding rules, models, degradation |

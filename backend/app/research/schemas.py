@@ -7,6 +7,7 @@ from typing import Any
 from pydantic import BaseModel, Field
 
 from app.core.enums import JobStatus
+from app.evidence.models import Observation as ObservationRow
 from app.research.models import ResearchPage, ResearchRun, ResearchStage
 
 
@@ -106,3 +107,50 @@ class RunOut(BaseModel):
 
 class RunDetail(RunOut):
     pages: list[PageOut]
+
+
+class EvidenceOut(BaseModel):
+    id: uuid.UUID
+    source_url: str
+    evidence_type: str
+    excerpt: str
+    collected_at: datetime
+    confidence: float
+
+
+class ObservationOut(BaseModel):
+    id: uuid.UUID
+    area: str
+    key: str
+    value: Any
+    confidence: float
+    seen_on: list[str]
+    evidence: EvidenceOut
+
+    @classmethod
+    def of(cls, row: "ObservationRow") -> "ObservationOut":
+        ev = row.evidence
+        return cls(
+            id=row.id,
+            area=row.area.value,
+            key=row.key,
+            value=row.value,
+            confidence=float(row.confidence),
+            seen_on=row.seen_on,
+            evidence=EvidenceOut(
+                id=ev.id,
+                source_url=ev.source_url,
+                evidence_type=ev.evidence_type.value,
+                excerpt=ev.evidence_text,
+                collected_at=ev.collected_at,
+                confidence=float(ev.confidence),
+            ),
+        )
+
+
+class Intelligence(BaseModel):
+    """Everything extracted for a run's latest attempt, grouped by area."""
+
+    run_id: uuid.UUID
+    attempt: int
+    areas: dict[str, list[ObservationOut]]

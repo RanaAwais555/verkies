@@ -7,7 +7,7 @@ from app.briefs.models import LeadBrief
 from app.catalogue.models import ReferenceProject, Service, ServiceMatch
 from app.core.models import Base
 from app.crm.models import Activity, Lead, Opportunity, Task, TimelineEvent
-from app.evidence.models import Claim, Evidence
+from app.evidence.models import Claim, Evidence, Observation
 from app.opportunities.models import OpportunityCandidate, OpportunityCategory
 from app.qualification.models import IcpConfig, QualificationResult
 from app.research.models import RawResponse, ResearchPage, ResearchRun, ResearchStage
@@ -28,6 +28,7 @@ __all__ = [
     "Invite",
     "Lead",
     "LeadBrief",
+    "Observation",
     "Opportunity",
     "OpportunityCandidate",
     "OpportunityCategory",

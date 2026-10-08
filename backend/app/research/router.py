@@ -11,7 +11,14 @@ from app.auth.deps import AppSettings, DbSession, require_permission
 from app.auth.models import User
 from app.core.errors import AppError
 from app.research import service
-from app.research.schemas import PageOut, RunDetail, RunOut, StartRun
+from app.research.schemas import (
+    Intelligence,
+    ObservationOut,
+    PageOut,
+    RunDetail,
+    RunOut,
+    StartRun,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -81,6 +88,15 @@ async def get(run_id: uuid.UUID, user: Viewer, db: DbSession) -> RunDetail:
     stages = await service.stages_of(db, run.id)
     pages = await service.pages_of(db, run.id)
     return RunDetail(**RunOut.of(run, stages).model_dump(), pages=[PageOut.of(p) for p in pages])
+
+
+@router.get("/{run_id}/intelligence")
+async def intelligence(run_id: uuid.UUID, user: Viewer, db: DbSession) -> Intelligence:
+    run = await service.get_run(db, user=user, run_id=run_id)
+    areas: dict[str, list[ObservationOut]] = {}
+    for row in await service.observations_of(db, run):
+        areas.setdefault(row.area.value, []).append(ObservationOut.of(row))
+    return Intelligence(run_id=run.id, attempt=run.retry_count, areas=areas)
 
 
 @router.post("/{run_id}/cancel")

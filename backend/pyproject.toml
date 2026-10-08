@@ -51,6 +51,8 @@ ignore = ["S101"]  # assert is fine in tests
 [tool.ruff.lint.per-file-ignores]
 # Generated migrations keep Alembic's long single-line column definitions.
 "alembic/versions/*" = ["E501"]
+# Fixture websites are HTML data: long lines and real-world punctuation are the point.
+"tests/fixtures/*" = ["E501", "RUF001"]
 
 [tool.mypy]
 python_version = "3.13"

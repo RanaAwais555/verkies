@@ -1,0 +1,113 @@
+# VROS Observation Catalogue
+
+What the extract stage records about a company's website (slice 1.3, master context §8). Each observation is one row in `observations` with a `key`, a JSON `value`, a `confidence` and exactly one `evidence` row: source URL, a short excerpt, the evidence type and the collection time. `seen_on` lists every crawled page where the same fact appeared.
+
+**Rules**
+
+- Only what the pages show. Nothing is inferred about the business here; turning observations into opportunities, ICP fit and scores is slice 1.4.
+- **Absence** is recorded only where it matters for selling (no enquiry form, no booking tool, no live chat, no pricing page, no structured data) and always at lower confidence (0.6-0.8), with `seen_on` listing the pages that were checked. "Not found on the pages we crawled" is not the same as "does not exist".
+- A key missing from a run means the signal was not looked for or not found; it is **Unknown**, not false.
+- Observations are append-only. A retried run writes a new `attempt`; the API shows the latest.
+- Code: `backend/app/intelligence/extractors/`. Tests against fixture sites: `backend/tests/unit/test_extractors.py`.
+
+API: `GET /api/v1/research-runs/{id}/intelligence` returns the latest attempt's observations grouped by area, each with its evidence.
+
+## Website (technical health)
+
+| Key | Value | Notes |
+| --- | --- | --- |
+| `website.https` | bool | Homepage final URL is https |
+| `website.hsts` | bool | `Strict-Transport-Security` header on the homepage |
+| `website.security_headers` | `{present: [...], missing: [...]}` | CSP, X-Frame-Options, X-Content-Type-Options, Referrer-Policy |
+| `website.mobile_viewport` | bool | `<meta name="viewport">` on the homepage |
+| `website.homepage_html_kb` | number | HTML only, not images or scripts; omitted for rendered pages |
+| `website.robots_txt` | `parsed` / `missing` / `unreachable` | From the crawl |
+| `website.sitemap` | bool | A sitemap was found and read |
+| `website.broken_internal_links` | list of URLs | Links on crawled pages to same-site pages that returned 4xx/5xx |
+| `website.copyright_year` | int | Latest year in the homepage copyright line |
+| `website.stale_copyright` | int (years behind) | Copyright year two or more years old; a weak staleness signal |
+| `website.last_modified` | string | `Last-Modified` header, if sent |
+
+## SEO
+
+| Key | Value |
+| --- | --- |
+| `seo.home_title` | `{text, length, in_range}` (15-65 chars) or null |
+| `seo.home_meta_description` | `{text, length, in_range}` (50-165 chars) or null |
+| `seo.home_h1` | text or null |
+| `seo.home_canonical` | URL or null |
+| `seo.pages_missing_title`, `seo.pages_missing_meta_description`, `seo.pages_without_h1`, `seo.pages_with_multiple_h1` | list of URLs (only when non-empty) |
+| `seo.structured_data_types` | list of top-level JSON-LD `@type`s (empty list = none found) |
+| `seo.open_graph` | bool |
+| `seo.noindex_pages` | list of URLs |
+| `seo.image_alt_coverage` | `{images, with_alt, ratio}` across crawled pages |
+| `seo.home_word_count` | int |
+| `seo.hreflang` | list of language codes |
+
+## Conversion
+
+| Key | Value |
+| --- | --- |
+| `conversion.contact_form` | bool (search and newsletter forms excluded) |
+| `conversion.contact_form_fields` | e.g. `["name", "email", "phone", "message"]` |
+| `conversion.newsletter_signup` | true |
+| `conversion.email_addresses`, `conversion.phone_numbers` | lists from `mailto:` / `tel:` links |
+| `conversion.whatsapp` | true |
+| `conversion.booking_tool` | vendor name (Calendly, Acuity, Cal.com, HubSpot Meetings, ...) or null |
+| `conversion.live_chat` | vendor name (Intercom, Drift, Crisp, Tawk.to, Zendesk, HubSpot Chat, ...) or null |
+| `conversion.reviews_widget` | vendor name (Trustpilot, Feefo, REVIEWS.io, ...) |
+| `conversion.home_ctas` | list of call-to-action texts on the homepage (empty = none) |
+| `conversion.primary_cta` | first call to action on the homepage |
+| `conversion.testimonials` | true |
+| `conversion.trust_signals` | e.g. `["IAA-regulated", "ISO 27001", "award-winning"]` |
+| `conversion.pricing_page` | bool |
+| `conversion.case_studies_page` | true |
+
+## Product
+
+| Key | Value |
+| --- | --- |
+| `product.login`, `product.signup` | URL of the sign-in / sign-up link |
+| `product.app_store_links` | list of App Store / Google Play URLs |
+| `product.api_docs` | URL |
+| `product.portal` | matched phrase (client portal, dashboard, ...) |
+| `product.subscription_pricing` | matched phrase (per month, billed annually, ...) |
+| `product.online_tool` | matched phrase (calculator, instant quote, eligibility checker, ...) |
+| `product.site_search` | true |
+| `product.payments` | list of payment providers (Stripe, PayPal, GoCardless, ...) |
+
+## Technology
+
+| Key | Value |
+| --- | --- |
+| `technology.detected` | `{name, category}`, one per technology; evidence is the exact marker (generator tag, script URL, header or HTML snippet) |
+| `technology.generator` | the `<meta name="generator">` value |
+
+About 40 rules in `extractors/technology.py`, covering the technologies the master context names (WordPress, WooCommerce, Shopify, Wix, Squarespace, Webflow, Elementor, React, Next.js, Vue, Angular, PHP, Drupal, Magento, ...) plus analytics, marketing, payments, hosting and servers. Importing the full community Wappalyzer rule set is a later improvement.
+
+## Company
+
+| Key | Value |
+| --- | --- |
+| `company.name` | og:site_name (0.85), JSON-LD organisation name (0.85) or the `<title>` prefix (0.5) |
+| `company.description` | meta description or og:description |
+| `company.address` | JSON-LD PostalAddress fields |
+| `company.country_hint` | ISO country from the phone prefix (0.7) or the domain's country TLD (0.6). A hint for the ICP engine, not a fact about headquarters |
+| `company.social_profiles` | `{linkedin, x, facebook, instagram, youtube, github, tiktok}` (share links ignored) |
+| `company.linkedin_company_url` | URL |
+| `company.founded_year` | int ("founded in", "established", "since") |
+| `company.person` | `{name, title}` from JSON-LD Person (0.85) or a name heading followed by a role on team/about pages (0.6). Feeds Contacts on approval (slice 1.6) |
+
+## Hiring
+
+| Key | Value |
+| --- | --- |
+| `hiring.careers_page` | true |
+| `hiring.job_board` | `{provider, token, url}` for Greenhouse, Lever, Ashby, Workable, Teamtailor, BambooHR, Recruitee, Workday, Personio. The token is what the Phase 2 job-board APIs need |
+| `hiring.tech_roles` | engineering/product role titles on the careers page |
+
+## Not yet observed (and why)
+
+- **Lighthouse performance/accessibility scores** need Chrome and a full page load per audit; planned with the worker's Chromium as a separate, optional stage.
+- **TLS certificate expiry, MX/SPF/DMARC** need DNS and TLS lookups; planned behind the `DnsChecker` provider (PROVIDER_SPEC.md §3).
+- **Company registry facts, funding, news** are Phase 2 providers.

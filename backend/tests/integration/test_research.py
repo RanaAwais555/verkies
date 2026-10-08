@@ -157,7 +157,7 @@ def test_research_run_crawls_and_reports_progress(
     research_api.login("r@verkies.test")
     run = _start(research_api, f"http://acme.test:{port}")
     assert run["status"] == "queued" and run["normalised_domain"] == "acme.test"
-    assert [s["stage"] for s in run["stages"]] == ["validate", "crawl"]
+    assert [s["stage"] for s in run["stages"]] == ["validate", "crawl", "extract"]
     assert queued == [uuid.UUID(run["id"])]
 
     run_pipeline(uuid.UUID(run["id"]), settings)
@@ -317,3 +317,65 @@ def test_queue_outage_fails_the_run_cleanly(
         assert response.status_code == 503
         runs = api.get("/research-runs").json()
     assert runs[0]["status"] == "failed" and "queue" in runs[0]["error"]
+
+
+def test_extract_stage_produces_evidence_backed_intelligence(
+    research_api: ApiClient, engine: Engine, acme: tuple[int, list[str]], settings: Settings
+) -> None:
+    port, _ = acme
+    make_user(engine, "r@verkies.test", ["researcher"])
+    research_api.login("r@verkies.test")
+    run = _start(research_api, f"http://acme.test:{port}/")
+    run_pipeline(uuid.UUID(run["id"]), settings, render=False)
+
+    detail = research_api.get(f"/research-runs/{run['id']}").json()
+    extract = next(s for s in detail["stages"] if s["stage"] == "extract")
+    assert extract["status"] == "completed", extract
+    assert extract["detail"]["failed_extractors"] == []
+    assert extract["detail"]["pages_analysed"] >= 3
+
+    intel = research_api.get(f"/research-runs/{run['id']}/intelligence").json()
+    assert intel["attempt"] == 0
+    flat = {o["key"]: o for area in intel["areas"].values() for o in area}
+    https = flat["website.https"]
+    assert https["value"] is False  # the fixture site is plain http
+    assert https["evidence"]["source_url"] == f"http://acme.test:{port}/"
+    assert flat["seo.home_title"]["value"]["text"] == "Acme"
+    assert flat["conversion.contact_form"]["value"] is False
+    assert all(o["evidence"]["excerpt"] for o in flat.values())
+
+    with engine.connect() as conn:
+        orphaned = conn.execute(
+            text(
+                "SELECT count(*) FROM observations o LEFT JOIN evidence e ON e.id = o.evidence_id"
+                " WHERE e.id IS NULL"
+            )
+        ).scalar_one()
+    assert orphaned == 0
+
+
+def test_observations_are_append_only_and_retry_shows_latest_attempt(
+    research_api: ApiClient, engine: Engine, acme: tuple[int, list[str]], settings: Settings
+) -> None:
+    from sqlalchemy.exc import DBAPIError
+
+    port, _ = acme
+    make_user(engine, "r@verkies.test", ["researcher"])
+    research_api.login("r@verkies.test")
+    run = _start(research_api, f"http://acme.test:{port}/")
+    run_pipeline(uuid.UUID(run["id"]), settings, render=False)
+    with pytest.raises(DBAPIError, match="append-only"), engine.begin() as conn:
+        conn.execute(text("UPDATE observations SET value = 'true'::jsonb"))
+
+    first = research_api.get(f"/research-runs/{run['id']}/intelligence").json()
+    with engine.begin() as conn:
+        conn.execute(text("UPDATE research_runs SET status = 'failed'"))
+    research_api.send("POST", f"/research-runs/{run['id']}/retry")
+    run_pipeline(uuid.UUID(run["id"]), settings, render=False)
+    second = research_api.get(f"/research-runs/{run['id']}/intelligence").json()
+    assert second["attempt"] == 1
+    count = lambda intel: sum(len(v) for v in intel["areas"].values())  # noqa: E731
+    assert count(second) == count(first)  # history kept, but only the latest attempt shown
+    with engine.connect() as conn:
+        attempts = conn.execute(text("SELECT DISTINCT attempt FROM observations")).scalars().all()
+    assert sorted(attempts) == [0, 1]

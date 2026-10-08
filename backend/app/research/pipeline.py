@@ -16,6 +16,7 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from app.config import Settings
 from app.core.enums import JobStatus, ResearchStageName
+from app.intelligence.stage import NothingToAnalyse, extract_run
 from app.providers.errors import ProviderError
 from app.providers.fetch.netguard import resolve_target
 from app.providers.fetch.render import PlaywrightRenderer
@@ -30,6 +31,7 @@ logger = logging.getLogger(__name__)
 PIPELINE_STAGES: tuple[ResearchStageName, ...] = (
     ResearchStageName.VALIDATE,
     ResearchStageName.CRAWL,
+    ResearchStageName.EXTRACT,
 )
 STARTABLE = frozenset({JobStatus.QUEUED, JobStatus.RETRYING})
 INTERNAL_ERROR = "Something went wrong on our side. The error has been logged; try again."
@@ -62,6 +64,9 @@ async def run_research(run_id: uuid.UUID, deps: PipelineDeps) -> None:
         await _stage(run_id, current, deps, lambda: _validate(run_id, deps))
         current = ResearchStageName.CRAWL
         await _stage(run_id, current, deps, lambda: _crawl(run_id, deps))
+        await _raise_if_cancelled(run_id, deps)
+        current = ResearchStageName.EXTRACT
+        await _stage(run_id, current, deps, lambda: _extract(run_id, deps))
         await _finish(run_id, deps, JobStatus.COMPLETED)
     except CrawlCancelled:
         await _set_stage(run_id, current, deps, status=JobStatus.CANCELLED, finished=True)
@@ -257,6 +262,22 @@ async def _crawl(run_id: uuid.UUID, deps: PipelineDeps) -> dict[str, Any]:
         reason = report.stopped_reason or "no pages could be fetched"
         raise StageFailed(f"The website could not be read ({reason.replace('_', ' ')}).")
     return asdict(report)
+
+
+async def _raise_if_cancelled(run_id: uuid.UUID, deps: PipelineDeps) -> None:
+    async with deps.sessionmaker() as db:
+        status = (
+            await db.execute(select(ResearchRun.status).where(ResearchRun.id == run_id))
+        ).scalar_one()
+    if status == JobStatus.CANCELLED:
+        raise CrawlCancelled()
+
+
+async def _extract(run_id: uuid.UUID, deps: PipelineDeps) -> dict[str, Any]:
+    try:
+        return await extract_run(run_id, deps.sessionmaker, deps.storage)
+    except NothingToAnalyse as exc:
+        raise StageFailed(str(exc)) from exc
 
 
 async def _record_page(run_id: uuid.UUID, outcome: PageOutcome, deps: PipelineDeps) -> None:

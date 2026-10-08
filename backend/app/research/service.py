@@ -12,6 +12,7 @@ from app.auth.models import User
 from app.config import Settings
 from app.core.enums import AuditSource, JobStatus
 from app.core.errors import Conflict, NotFound, PermissionDenied, ValidationFailed
+from app.evidence.models import Observation as ObservationRow
 from app.providers.fetch.netguard import parse_url
 from app.providers.fetch.types import FetchBlocked
 from app.research.models import ResearchPage, ResearchRun, ResearchStage
@@ -172,3 +173,19 @@ async def mark_enqueue_failed(db: AsyncSession, run: ResearchRun) -> None:
     run.status = JobStatus.FAILED
     run.error = "The job queue is unavailable. Try again in a moment."
     run.finished_at = _now()
+
+
+async def observations_of(db: AsyncSession, run: ResearchRun) -> list[ObservationRow]:
+    """The latest attempt's observations; earlier attempts stay in the table as history."""
+    return list(
+        (
+            await db.execute(
+                select(ObservationRow)
+                .where(
+                    ObservationRow.research_run_id == run.id,
+                    ObservationRow.attempt == run.retry_count,
+                )
+                .order_by(ObservationRow.area, ObservationRow.key, ObservationRow.created_at)
+            )
+        ).scalars()
+    )
