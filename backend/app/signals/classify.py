@@ -21,6 +21,8 @@ STRENGTH = {
     "expansion": STRONG,
     "new_service": STRONG,
     "hiring": MEDIUM,
+    "rebrand": MEDIUM,  # change of company name (often a new website follows)
+    "financing": MEDIUM,  # a charge registered: secured lending
 }
 
 CTO = re.compile(

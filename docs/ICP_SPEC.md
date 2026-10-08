@@ -52,6 +52,7 @@ Each rule has an ID, a detector, a severity (**hard** or **soft**), a rejection 
 | --- | --- | --- | --- |
 | Parked or for-sale domain | hard | inactive_company | Known parking page patterns, near-empty page, registrar/parking markers |
 | Site unreachable or erroring on all pages | hard | inactive_company | Non-2xx on homepage after retries, DNS failure |
+| Insolvency history or dormant accounts on the register | review | inactive_company | Companies House `has_insolvency_history`, or the latest accounts are dormant-company accounts (slice 2.5): a person checks before contact |
 | Closed or ceased trading | hard | inactive_company | "ceased trading", "permanently closed", "we have closed" in page text, or a Companies House status of dissolved, liquidation, administration, receivership, insolvency proceedings, converted/closed or removed (slice 2.3) |
 | Personal, hobby or freelancer site | hard with two or more phrases; review with one | hobby_or_personal, or student_or_freelancer when the wording is about freelancing | "hire me", "my portfolio", "freelance web developer", "download my CV" |
 | Student, freelancer or job seeker | hard | student_or_freelancer | "hire me", "freelance", "open to work", CV/portfolio structure, single-person offering |

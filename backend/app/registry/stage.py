@@ -14,6 +14,7 @@ page. A registry that is unconfigured, down or has no match is reported, never f
 import re
 import uuid
 from dataclasses import dataclass
+from datetime import UTC, date, datetime, time
 from typing import Any
 
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
@@ -25,7 +26,14 @@ from app.intelligence.stage import persist_observation
 from app.intelligence.types import Observation
 from app.providers.errors import ProviderError, ProviderUnavailable
 from app.providers.fetch.safe_http import SafeHttpFetcher
-from app.registry.companies_house import PUBLIC_PAGE, CompaniesHouse, CompanyRecord
+from app.registry.companies_house import (
+    PUBLIC_PAGE,
+    AccountsInfo,
+    CompaniesHouse,
+    CompanyRecord,
+    FilingEvent,
+    Owner,
+)
 from app.registry.wikidata import Wikidata, WikidataRecord
 from app.research.models import ResearchRun
 from app.scoring.stage import load_facts
@@ -109,6 +117,7 @@ def company_observation(record: CompanyRecord) -> Observation:
             "sic_codes": record.sic_codes,
             "locality": record.locality,
             "postal_code": record.postal_code,
+            "has_insolvency_history": record.has_insolvency_history,
         },
         PUBLIC_PAGE.format(number=record.number),
         f"Companies House {record.number}: {record.name}, {record.status}, "
@@ -132,7 +141,11 @@ def officer_observation(number: str, name: str, role: str, appointed: str | None
 
 
 async def collect(
-    facts: Facts, domain: str, fetcher: SafeHttpFetcher, registries: Registries
+    facts: Facts,
+    domain: str,
+    fetcher: SafeHttpFetcher,
+    registries: Registries,
+    today: date | None = None,
 ) -> tuple[list[Observation], dict[str, Any]]:
     found: list[Observation] = []
     report: dict[str, Any] = {"wikidata": "disabled", "companies_house": "no number", "errors": []}
@@ -189,7 +202,88 @@ async def collect(
             )
         )
     report["officers"] = len(officers)
+    found += await _depth(registries.companies_house, fetcher, record.number, today, report)
     return found, report
+
+
+async def _depth(
+    client: CompaniesHouse,
+    fetcher: SafeHttpFetcher,
+    number: str,
+    today: date | None,
+    report: dict[str, Any],
+) -> list[Observation]:
+    """Filed accounts (size), dated filings that signal change, and the people with
+    significant control. Each part degrades on its own."""
+    found: list[Observation] = []
+    today = today or datetime.now(UTC).date()
+    try:
+        accounts, events = await client.filings(fetcher, number, today)
+    except ProviderError as exc:
+        report["errors"].append(f"companies house filings: {exc.message}")
+        accounts, events = None, []
+    if accounts:
+        found.append(accounts_observation(number, accounts))
+    found += [filing_observation(number, e) for e in events]
+    report["filing_events"] = len(events)
+    try:
+        owners = await client.owners(fetcher, number)
+    except ProviderError as exc:
+        report["errors"].append(f"companies house owners: {exc.message}")
+        owners = []
+    found += [owner_observation(number, o) for o in owners]
+    report["owners"] = len(owners)
+    return found
+
+
+def accounts_observation(number: str, accounts: AccountsInfo) -> Observation:
+    made_up = f", made up to {accounts.made_up_to.isoformat()}" if accounts.made_up_to else ""
+    return Observation(
+        ObservationArea.REGISTRY,
+        "registry.accounts",
+        {
+            "type": accounts.accounts_type,
+            "size_band": accounts.size_band,
+            "made_up_to": accounts.made_up_to.isoformat() if accounts.made_up_to else None,
+            "filed": accounts.filed.isoformat() if accounts.filed else None,
+        },
+        PUBLIC_PAGE.format(number=number) + "/filing-history",
+        f"Companies House {number} accounts: {accounts.accounts_type.replace('-', ' ')}{made_up}",
+        evidence_type=EvidenceType.COMPANY_REGISTRY,
+        confidence=0.95,
+    )
+
+
+def filing_observation(number: str, event: FilingEvent) -> Observation:
+    return Observation(
+        ObservationArea.SIGNALS,
+        "signal.filing",
+        {"signal": event.signal, "title": event.title, "published": event.filed.isoformat()},
+        PUBLIC_PAGE.format(number=number) + "/filing-history",
+        f"Companies House {number} filing: {event.title} — filed {event.filed.isoformat()}",
+        evidence_type=EvidenceType.COMPANY_REGISTRY,
+        confidence=0.9,
+        published_at=datetime.combine(event.filed, time(), tzinfo=UTC),
+    )
+
+
+def owner_observation(number: str, owner: Owner) -> Observation:
+    control = "; ".join(n.replace("-", " ") for n in owner.natures[:2])
+    return Observation(
+        ObservationArea.REGISTRY,
+        "registry.owner",
+        {
+            "name": owner.name,
+            "natures": list(owner.natures),
+            "notified": owner.notified.isoformat() if owner.notified else None,
+            "number": number,
+        },
+        PUBLIC_PAGE.format(number=number) + "/persons-with-significant-control",
+        f"Companies House {number} person with significant control: {owner.name}"
+        + (f" ({control})" if control else ""),
+        evidence_type=EvidenceType.COMPANY_REGISTRY,
+        confidence=0.95,
+    )
 
 
 async def enrich_stage(

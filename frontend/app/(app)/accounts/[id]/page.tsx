@@ -41,6 +41,8 @@ function Overview({ account, refresh }: { account: Account360; refresh: () => vo
           <dd>{account.industry ?? "Unknown"}</dd>
           <dt className="text-muted">Location</dt>
           <dd>{[account.hq_city, account.hq_country].filter(Boolean).join(", ") || "Unknown"}</dd>
+          <dt className="text-muted">Size</dt>
+          <dd>{account.company_size_band ? `${label(account.company_size_band)} (Companies House accounts)` : "Unknown"}</dd>
           <dt className="text-muted">Type</dt>
           <dd>{label(account.account_type)}</dd>
           <dt className="text-muted">Owner</dt>

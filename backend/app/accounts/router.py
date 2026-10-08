@@ -148,6 +148,7 @@ async def account_360(account_id: uuid.UUID, user: Member, db: DbSession) -> Acc
         website_url=account.website_url,
         description=account.description,
         hq_city=account.hq_city,
+        company_size_band=account.company_size_band,
         source=account.source,
         linkedin_company_url=account.linkedin_company_url,
         domains=[d.domain for d in found["domains"]],

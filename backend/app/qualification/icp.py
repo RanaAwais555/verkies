@@ -307,6 +307,23 @@ def _negative_hits(
             facts.evidence("registry.companies_house"),
             f"Companies House status: {registered.get('status')}",
         )
+    if registered and registered.get("active") and registered.get("has_insolvency_history"):
+        add(
+            "closed",
+            RejectionReason.INACTIVE_COMPANY,
+            facts.evidence("registry.companies_house"),
+            "Companies House shows an insolvency history; check before contacting",
+            severity="review",
+        )
+    accounts = facts.value("registry.accounts") or {}
+    if accounts.get("size_band") == "dormant":
+        add(
+            "closed",
+            RejectionReason.INACTIVE_COMPANY,
+            facts.evidence("registry.accounts"),
+            "The latest accounts filed are dormant-company accounts",
+            severity="review",
+        )
     personal = facts.value("company.personal_site_signals") or []
     if personal:
         freelance = any(any(w in p for w in FREELANCE_WORDS) for p in personal)

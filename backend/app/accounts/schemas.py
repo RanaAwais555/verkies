@@ -140,6 +140,7 @@ class Account360Out(AccountSummaryOut):
     website_url: str | None
     description: str | None
     hq_city: str | None
+    company_size_band: str | None
     source: str | None
     linkedin_company_url: str | None
     domains: list[str]

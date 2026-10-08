@@ -9,7 +9,7 @@ from dataclasses import dataclass
 from sqlalchemy import String, column, func, select, values
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.accounts.models import Account, AccountDomain, Suppression
+from app.accounts.models import Account, AccountDomain, AccountIdentifier, Suppression
 from app.audit import service as audit
 from app.auth.models import User
 from app.config import Settings
@@ -23,6 +23,7 @@ from app.core.enums import (
 from app.core.errors import Conflict, NotFound, ValidationFailed
 from app.discovery import csv_import
 from app.discovery.models import DiscoveredCompany, DiscoveryJob
+from app.registry.companies_house import RegistryCompany
 from app.research import service as research
 from app.research.models import ResearchRun
 from app.research.urls import normalised_domain
@@ -102,6 +103,70 @@ async def create_search(
         new_value={"query": job.name, "results": len(rows)},
     )
     await check(db, user=user, job=job, mapping=SEARCH_MAPPING)
+    return job
+
+
+REGISTRY_COLUMNS = [
+    "name",
+    "number",
+    "website",
+    "locality",
+    "postal_code",
+    "sic_codes",
+    "incorporated",
+    "notes",
+]
+
+
+async def create_registry_search(
+    db: AsyncSession, *, user: User, label: str, companies: list[RegistryCompany]
+) -> DiscoveryJob:
+    """A discovery job from a Companies House search. Rows wait for the worker to find each
+    company's website (only a site showing the same number counts)."""
+    if not companies:
+        raise ValidationFailed("Companies House found no active companies for that search.")
+    job = DiscoveryJob(
+        kind=DiscoveryKind.REGISTRY,
+        name=label[:200],
+        created_by_id=user.id,
+        status=DiscoveryStatus.RUNNING,
+        columns=REGISTRY_COLUMNS,
+        mapping={"name": "name", "website": "website", "notes": "notes"},
+        row_count=len(companies),
+        stats={CandidateStatus.FINDING_WEBSITE.value: len(companies)},
+    )
+    db.add(job)
+    await db.flush()
+    for i, company in enumerate(companies, start=1):
+        sic = ", ".join(company.sic_codes)
+        when = company.incorporated.isoformat() if company.incorporated else None
+        db.add(
+            DiscoveredCompany(
+                discovery_job_id=job.id,
+                row_number=i,
+                raw={
+                    "name": company.name,
+                    "number": company.number,
+                    "locality": company.locality,
+                    "postal_code": company.postal_code,
+                    "sic_codes": sic,
+                    "incorporated": when,
+                    "notes": f"Companies House {company.number}; SIC {sic or 'unknown'}"
+                    + (f"; incorporated {when}" if when else ""),
+                },
+                name=company.name[:300],
+                status=CandidateStatus.FINDING_WEBSITE,
+            )
+        )
+    audit.record(
+        db,
+        action="discovery.registry_searched",
+        object_table="discovery_jobs",
+        object_id=job.id,
+        user_id=user.id,
+        source=AuditSource.API,
+        new_value={"search": job.name, "results": len(companies)},
+    )
     return job
 
 
@@ -190,6 +255,22 @@ async def _lookups(db: AsyncSession, domains: set[str], names: set[str]) -> _Loo
     return _Lookups(accounts_by_domain, suppressed, runs_by_domain, similar)
 
 
+async def accounts_by_number(db: AsyncSession, numbers: set[str]) -> dict[str, uuid.UUID]:
+    """Companies House number -> live account, from account identifiers."""
+    if not numbers:
+        return {}
+    found = await db.execute(
+        select(AccountIdentifier.value, AccountIdentifier.account_id)
+        .join(Account, Account.id == AccountIdentifier.account_id)
+        .where(
+            AccountIdentifier.scheme == "companies_house",
+            AccountIdentifier.value.in_(numbers),
+            Account.deleted_at.is_(None),
+        )
+    )
+    return {n: a for n, a in found.all()}
+
+
 async def check(
     db: AsyncSession, *, user: User, job: DiscoveryJob, mapping: dict[str, str]
 ) -> DiscoveryJob:
@@ -204,7 +285,7 @@ async def check(
         row.country = _cell(row, job.mapping, "country", 120)
         row.industry = _cell(row, job.mapping, "industry", 120)
         row.notes = _cell(row, job.mapping, "notes", 2000)
-        if row.status == CandidateStatus.QUEUED:
+        if row.status in (CandidateStatus.QUEUED, CandidateStatus.FINDING_WEBSITE):
             continue
         domain, problem = None, None
         if not row.website_url:
@@ -219,6 +300,9 @@ async def check(
     domains = {d for d, _ in parsed.values() if d}
     names = {r.name for r in rows if r.name and r.id in parsed}
     found = await _lookups(db, domains, names)
+    registered = await accounts_by_number(
+        db, {str(r.raw["number"]) for r in rows if r.id in parsed and r.raw.get("number")}
+    )
 
     first_row: dict[str, int] = {
         r.normalised_domain: r.row_number
@@ -232,7 +316,15 @@ async def check(
         row.normalised_domain = domain
         row.matched_account_id = None
         row.research_run_id = None
-        if problem or not domain:
+        number = str(row.raw.get("number") or "")
+        if number in registered:
+            row.status = CandidateStatus.EXISTING_ACCOUNT
+            row.matched_account_id = registered[number]
+            row.status_detail = f"Company {number} is already an account."
+        elif job.kind == DiscoveryKind.REGISTRY and not row.website_url:
+            row.status = CandidateStatus.NO_WEBSITE
+            row.status_detail = str(row.raw.get("website_note") or "No website was found.")
+        elif problem or not domain:
             row.status, row.status_detail = CandidateStatus.INVALID, problem
         elif domain in found.suppressed:
             row.status, row.status_detail = (

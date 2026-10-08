@@ -255,3 +255,149 @@ def test_the_registry_claim_in_the_brief_is_grounded() -> None:
     )
     _, dropped = validate(draft.claims(), evidence_index(facts), vocabulary(inputs))
     assert dropped == []
+
+
+# --- filing history, owners and advanced search (slice 2.5) ---------------------------
+
+FILINGS = {
+    "items": [
+        {
+            "category": "accounts",
+            "date": "2026-03-10",
+            "description": "accounts-with-accounts-type-micro-entity",
+            "description_values": {"made_up_date": "2025-06-30"},
+        },
+        {
+            "category": "officers",
+            "date": "2026-08-01",
+            "description": "appointment-of-director-with-name-date",
+            "description_values": {"officer_name": "Priya Shah"},
+        },
+        {"category": "capital", "date": "2026-07-15", "description": "capital-allotment-shares"},
+        {
+            "category": "change-of-name",
+            "date": "2026-02-01",
+            "description": "change-of-name-by-resolution",
+        },
+        {
+            "category": "mortgage",
+            "date": "2024-01-01",
+            "description": "mortgage-create-with-deed",
+        },  # too old
+        {
+            "category": "accounts",
+            "date": "2025-03-01",
+            "description": "accounts-with-accounts-type-small",
+        },
+    ]
+}
+TODAY_2 = __import__("datetime").date(2026, 10, 8)
+
+
+def test_filings_give_the_latest_accounts_and_recent_change_events() -> None:
+    accounts, events = ch.parse_filings(FILINGS, TODAY_2)
+    assert accounts is not None and accounts.size_band == "micro"
+    assert accounts.made_up_to and accounts.made_up_to.isoformat() == "2025-06-30"
+    assert [(e.signal, e.title) for e in events] == [
+        ("new_leader", "Director appointed: Priya Shah"),
+        ("funding", "New shares allotted"),
+        ("rebrand", "Change of company name filed"),
+    ]
+
+
+def test_owners_are_current_individuals_only() -> None:
+    owners = ch.parse_owners(
+        {
+            "items": [
+                {
+                    "kind": "individual-person-with-significant-control",
+                    "name": "Ms Amelia Jane Hart",
+                    "name_elements": {
+                        "title": "Ms",
+                        "forename": "Amelia",
+                        "middle_name": "Jane",
+                        "surname": "Hart",
+                    },
+                    "natures_of_control": ["ownership-of-shares-75-to-100-percent"],
+                },
+                {"kind": "corporate-entity-person-with-significant-control", "name": "Holdco Ltd"},
+                {
+                    "kind": "individual-person-with-significant-control",
+                    "name": "Mr Old",
+                    "ceased_on": "2020-01-01",
+                },
+            ]
+        }
+    )
+    assert [(o.name, o.natures) for o in owners] == [
+        ("Amelia Jane Hart", ("ownership-of-shares-75-to-100-percent",))
+    ]
+
+
+def test_advanced_search_results_parse() -> None:
+    found = ch.parse_search(
+        {
+            "items": [
+                {
+                    "company_number": "12345678",
+                    "company_name": "BRIGHT  LEGAL LTD",
+                    "company_status": "active",
+                    "date_of_creation": "2018-05-01",
+                    "registered_office_address": {"locality": "Leeds", "postal_code": "LS1 1AA"},
+                    "sic_codes": ["69109"],
+                },
+                {"company_name": "no number"},
+            ]
+        }
+    )
+    assert len(found) == 1 and found[0].name == "BRIGHT LEGAL LTD" and found[0].locality == "Leeds"
+
+
+def test_registry_depth_feeds_signals_size_owners_and_review_flags() -> None:
+    from app.registry.stage import accounts_observation, filing_observation, owner_observation
+    from app.scoring.dimensions import commercial_potential, intent, timing
+
+    accounts, events = ch.parse_filings(FILINGS, TODAY_2)
+    assert accounts is not None
+    owner = ch.Owner("Kemi Bello", ("ownership-of-shares-75-to-100-percent",), None)
+    obs = [
+        *analyse(*IMMIGRATION)[0],
+        *_registry_facts(),
+        accounts_observation("06812345", accounts),
+        *[filing_observation("06812345", e) for e in events],
+        owner_observation("06812345", owner),
+    ]
+    facts = facts_from_observations(obs)
+    assert intent(facts).score == 85  # funding is the strongest signal; weaker ones do not add
+    assert timing(facts, today=TODAY_2).score == 75  # newest filing 68 days ago
+    assert "files micro-entity accounts" in (commercial_potential(facts, "A").note or "")
+    people = {p.value["name"]: p.value["title"] for p in named_people(facts)}
+    assert people["Kemi Bello"] == "Owner (significant control)"
+
+    candidates, a = _assess(facts)
+    inputs = BriefInputs(facts, candidates, match_services(candidates, CATALOGUE), None, a, [])
+    draft = build(inputs)
+    why_now = [c.text for c in draft.sections["why_now"].claims]
+    assert "Companies House, 2026-08-01: Director appointed: Priya Shah." in why_now
+    assert any(
+        c.text.startswith("Latest accounts filed: micro entity")
+        for c in draft.sections["company_overview"].claims
+    )
+    _, dropped = validate(draft.claims(), evidence_index(facts), vocabulary(inputs))
+    assert dropped == []
+
+    dormant = ch.AccountsInfo("dormant", "dormant", None, None)
+    insolvent = ch.parse_company({**COMPANY, "has_insolvency_history": True})
+    from app.registry.stage import company_observation
+
+    flagged = facts_from_observations(
+        [
+            *analyse(*IMMIGRATION)[0],
+            company_observation(insolvent),
+            accounts_observation("06812345", dormant),
+        ]
+    )
+    _, b = _assess(flagged)
+    notes = [h.note for h in b.icp.hits if h.severity == "review"]
+    assert any("insolvency history" in n for n in notes) and any("dormant" in n for n in notes)
+    assert not b.icp.hard_reject  # flagged for a person, not rejected

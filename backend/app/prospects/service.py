@@ -516,6 +516,8 @@ async def _resolve_account(
     registered = _first_value(facts, "registry.companies_house")
     if not city and isinstance(registered, dict):
         city = registered.get("locality")
+    filed = _first_value(facts, "registry.accounts")
+    size_band = filed.get("size_band") if isinstance(filed, dict) else None
     description = _first_value(facts, "company.description")
     account = Account(
         name=(company or run.normalised_domain)[:300],
@@ -528,6 +530,7 @@ async def _resolve_account(
         account_type=AccountType.QUALIFIED_PROSPECT,
         owner_id=owner.id,
         source="url_research",
+        company_size_band=str(size_band)[:40] if size_band else None,
     )
     linkedin = _first_value(facts, "company.linkedin_company_url")
     if isinstance(linkedin, str):

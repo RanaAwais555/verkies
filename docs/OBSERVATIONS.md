@@ -136,9 +136,19 @@ When each source is used:
 - **Companies House:** looked up only by the registered number, never by a name search. The record is kept only if its name shares a distinctive word with the site's name or domain.
 - **Wikidata:** used only when exactly one item gives this domain as its official website.
 
+Added in slice 2.5 (filing history and the PSC register):
+
+| Key | Value | Evidence |
+| --- | --- | --- |
+| `registry.accounts` | `{type, size_band, made_up_to, filed}`. The size band comes from the accounts type: micro-entity → micro; small, abridged or total exemption → small; medium; full; group; dormant | the filing-history page |
+| `registry.owner` | `{name, natures, notified, number}`: current individual persons with significant control | the PSC page |
+| `signal.filing` (area `signals`) | `{signal, title, published}` for filings in the last 365 days: director appointed → `new_leader`; change of name → `rebrand`; share allotment → `funding`; charge registered → `financing` | the filing-history page, dated |
+
 Where the facts go:
 - **Contacts:** officers join site people. The same person, matched by first and last name, counts once. Officers count as named decision makers.
-- **ICP:** an inactive status triggers the `closed` rule.
+- **ICP:** an inactive status triggers the `closed` rule. An insolvency history, or dormant accounts, flag the prospect for review without rejecting it.
+- **Scores:** the accounts size band adjusts Commercial Potential. Filing events feed Intent and Timing like other dated signals.
+- **People:** owners count as named decision makers.
 - **The brief:** the company overview cites the registration.
 - **Approval:** stores `account_identifiers` (companies_house, wikidata). A later run with the same identifier joins that account even under another domain.
 

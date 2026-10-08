@@ -126,7 +126,10 @@ def candidates(results: list[SearchResult]) -> list[dict[str, str]]:
         rows.append(
             {
                 "name": company_name(result.title) or domain,
-                "website": f"{parts.scheme}://{parts.hostname}/",
+                # The homepage, keeping a non-default port but never any userinfo.
+                "website": f"{parts.scheme}://{parts.hostname}"
+                + (f":{parts.port}" if parts.port else "")
+                + "/",
                 "notes": result.snippet,
                 "source_url": result.url,
             }
