@@ -13,7 +13,7 @@ Phases follow §20. Phase 1 must work reliably end to end before any later phase
 | 1.4 Opportunity, ICP, scoring ✅ | Detectors, ICP and negative-ICP engine, ten dimensions, priority score, gates, bands, config tables and seeds | Unit tests per rule/dimension/gate; golden fixtures pass |
 | 1.5 Matching and brief ✅ | Service catalogue and matching, reference projects and similarity (Unknown if no profile), brief assembly, template mode, optional AI mode with grounding validator | Grounding tests: no claim without valid evidence; invented-entity checks pass |
 | 1.6 Approval and CRM ✅ | Review queue, approve/reject, Account/Lead/Opportunity/Contact/Task creation in one transaction, dedupe, timeline | Integration test for both paths; rejected prospects off the queue but searchable |
-| 1.7 UI | Login, Home, New research with progress, brief review, Accounts, Account 360, Settings | Playwright e2e of the full DoD checklist (PRODUCT_SPEC.md §4) |
+| 1.7 UI ✅ | Login, Home, New research with progress, brief review, Accounts, Account 360, Settings | Playwright e2e of the full DoD checklist (PRODUCT_SPEC.md §4) |
 
 **Phase 1 done** when every box in the §20 checklist passes in the e2e test and the docs match the code.
 

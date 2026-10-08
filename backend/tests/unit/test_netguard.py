@@ -108,3 +108,16 @@ async def test_target_pins_ip_and_keeps_host() -> None:
     )
     assert target.ip_url == "https://93.184.216.34/a/b?q=1"
     assert target.host_header == "example.com"
+
+
+async def test_host_overrides_answer_without_dns_but_keep_the_address_policy() -> None:
+    from app.providers.fetch.netguard import OverrideResolver, parse_host_overrides
+
+    fallback = FakeResolver({"example.com": ["93.184.216.34"]})
+    resolver = OverrideResolver(parse_host_overrides(["Shop.test=127.0.0.1"]), fallback)
+    assert await resolver.resolve("shop.test", 80) == ["127.0.0.1"]
+    assert await resolver.resolve("example.com", 80) == ["93.184.216.34"]
+    with pytest.raises(FetchBlocked):  # loopback is still refused without the allowlist
+        await resolve_target("http://shop.test/", resolver=resolver, allowed_ports=PORTS)
+    with pytest.raises(ValueError):
+        parse_host_overrides(["no-equals-sign"])

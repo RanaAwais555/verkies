@@ -84,7 +84,10 @@ async def account_360(account_id: uuid.UUID, user: Member, db: DbSession) -> Acc
             )
             for lead in found["leads"]
         ],
-        opportunities=[OpportunityOut.of(o, reasons) for o, reasons in found["opportunities"]],
+        opportunities=[
+            OpportunityOut.of(o, reasons, labels=found["labels"])
+            for o, reasons in found["opportunities"]
+        ],
         contacts=[ContactOut.of(c) for c in found["contacts"]],
         tasks=[
             TaskOut.of(t, owner_name=names.get(t.owner_id) if t.owner_id else None)

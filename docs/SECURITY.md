@@ -46,7 +46,7 @@ Users submit URLs and the server fetches them, so this is the highest-risk surfa
 8. Respect robots.txt. Never bypass CAPTCHAs, authentication, paywalls or anti-bot measures (§17).
 
 9. Error responses (4xx/5xx) are recorded by status only; their bodies are never downloaded. `Set-Cookie` headers from crawled sites are never stored.
-10. `VROS_FETCH_PRIVATE_ALLOWLIST` (CIDRs the fetcher may reach) exists for tests and local development only; production refuses to start if it is set.
+10. `VROS_FETCH_PRIVATE_ALLOWLIST` (CIDRs the fetcher may reach) and `VROS_FETCH_HOST_OVERRIDES` (fixed DNS answers, `host=address`) exist for tests and local development only. Production refuses to start if either is set. An overridden answer still passes the address policy, so it reaches a private address only together with the allowlist.
 
 Tests cover each rule: every private, loopback, link-local, CGNAT, multicast, reserved and IPv4-mapped/6to4 range; mixed public/private DNS answers; DNS rebinding (the second answer is never used); redirects to internal addresses; redirect loops; size limits measured after decompression (zip bombs); slow-drip servers (hard per-request deadline); a real TLS server proving pinning still verifies the certificate hostname; and a hostile page whose JavaScript tries to reach cloud metadata, POST data and open a WebSocket.
 

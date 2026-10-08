@@ -11,6 +11,7 @@ from app.accounts.router import router as accounts_router
 from app.audit.router import router as audit_router
 from app.auth.admin_router import router as users_router
 from app.auth.router import router as auth_router
+from app.catalogue.router import router as catalogue_router
 from app.config import Settings, get_settings
 from app.core.errors import install_error_handlers
 from app.core.logging import configure_logging, request_id_var
@@ -80,6 +81,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         prospects_router,
         accounts_router,
         crm_router,
+        catalogue_router,
     ):
         app.include_router(router, prefix=API_PREFIX)
     return app

@@ -59,7 +59,9 @@ class OpportunityOut(BaseModel):
     name: str
     problem: str
     category_id: uuid.UUID | None
+    category_name: str | None = None
     service_id: uuid.UUID | None
+    service_name: str | None = None
     stage: str
     owner_id: uuid.UUID | None
     estimated_value: float | None
@@ -70,9 +72,17 @@ class OpportunityOut(BaseModel):
 
     @classmethod
     def of(
-        cls, o: Opportunity, reasons: list[str], *, account_name: str | None = None
+        cls,
+        o: Opportunity,
+        reasons: list[str],
+        *,
+        account_name: str | None = None,
+        labels: dict[uuid.UUID, tuple[str | None, str | None]] | None = None,
     ) -> "OpportunityOut":
+        category_name, service_name = (labels or {}).get(o.id, (None, None))
         return cls(
+            category_name=category_name,
+            service_name=service_name,
             id=o.id,
             account_id=o.account_id,
             account_name=account_name,
@@ -93,6 +103,15 @@ class OpportunityOut(BaseModel):
 
 class CompleteTask(BaseModel):
     note: str | None = Field(default=None, max_length=2000)
+
+
+class CreateTask(BaseModel):
+    account_id: uuid.UUID
+    title: str = Field(min_length=1, max_length=200)
+    owner_id: uuid.UUID | None = None
+    due_at: datetime | None = None
+    opportunity_id: uuid.UUID | None = None
+    description: str | None = Field(default=None, max_length=4000)
 
 
 class UpdateTask(BaseModel):

@@ -15,7 +15,7 @@ from app.core.enums import AccountType
 from app.core.errors import NotFound
 from app.core.search import contains_pattern
 from app.crm.models import Lead, Opportunity, Task, TimelineEvent
-from app.crm.service import attention_reasons
+from app.crm.service import attention_reasons, opportunity_labels
 from app.research.models import ResearchRun
 
 
@@ -125,6 +125,7 @@ async def account_360(db: AsyncSession, account: Account) -> dict[str, Any]:
         "tasks": tasks,
         "research_runs": runs,
         "latest_brief_run_id": brief_run,
+        "labels": await opportunity_labels(db, opportunities),
         "owners": owners,
     }
 

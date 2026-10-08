@@ -12,7 +12,7 @@ from app.auth.models import User
 from app.core.enums import TaskStatus
 from app.core.errors import ValidationFailed
 from app.crm import service
-from app.crm.schemas import CompleteTask, OpportunityOut, TaskOut, UpdateTask
+from app.crm.schemas import CompleteTask, CreateTask, OpportunityOut, TaskOut, UpdateTask
 
 router = APIRouter(tags=["crm"])
 
@@ -44,6 +44,13 @@ async def list_tasks(
     ]
 
 
+@router.post("/tasks", status_code=201)
+async def create_task(body: CreateTask, user: Member, db: DbSession) -> TaskOut:
+    task = await service.create_task(db, user=user, **body.model_dump())
+    await db.commit()
+    return await _task_out(db, task.id, user)
+
+
 @router.post("/tasks/{task_id}/complete")
 async def complete_task(
     task_id: uuid.UUID, body: CompleteTask, user: Member, db: DbSession
@@ -70,4 +77,7 @@ async def requiring_attention(
     user: Member, db: DbSession, limit: Annotated[int, Query(ge=1, le=200)] = 50
 ) -> list[OpportunityOut]:
     found = await service.requiring_attention(db, user=user, limit=limit)
-    return [OpportunityOut.of(o, reasons, account_name=a.name) for o, a, reasons in found]
+    labels = await service.opportunity_labels(db, [o for o, _, _ in found])
+    return [
+        OpportunityOut.of(o, reasons, account_name=a.name, labels=labels) for o, a, reasons in found
+    ]
