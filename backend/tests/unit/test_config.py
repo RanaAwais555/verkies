@@ -65,6 +65,8 @@ def test_secure_production_config_is_accepted() -> None:
         ({"public_url": "http://vros.example.com"}, "https"),
         ({"database_url": "postgresql+psycopg://vros:vros@postgres/vros"}, "database password"),
         ({"database_url": "postgresql+psycopg://vros@postgres/vros"}, "database password"),
+        ({"fetch_private_allowlist": ["10.0.0.0/8"]}, "PRIVATE_ALLOWLIST"),
+        ({"fetch_host_overrides": ["shop.test=127.0.0.1"]}, "HOST_OVERRIDES"),
     ],
 )
 def test_insecure_production_config_is_refused(override: dict[str, Any], message: str) -> None:

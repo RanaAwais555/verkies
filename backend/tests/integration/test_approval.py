@@ -421,6 +421,33 @@ def test_tasks_attention_and_visibility(
     assert account["next_activity_at"] is None and account["open_tasks"] == 0
     events = [e["event_type"] for e in client.get(f"/accounts/{account_id}/timeline").json()]
     assert events[:2] == ["task.completed", "task.updated"]
+
+    # A new next action on the opportunity clears "requires attention".
+    wrong = client.send(
+        "POST",
+        "/tasks",
+        json={"account_id": account_id, "title": "x", "opportunity_id": str(uuid.uuid4())},
+    )
+    assert wrong.status_code == 422
+    created = client.send(
+        "POST",
+        "/tasks",
+        json={
+            "account_id": account_id,
+            "title": "Call Amelia about the intake process",
+            "owner_id": str(seller_a),
+            "due_at": later.isoformat(),
+            "opportunity_id": approval["opportunity_id"],
+        },
+    )
+    assert created.status_code == 201, created.text
+    assert client.get("/opportunities/requires-attention").json() == []
+    account = client.get(f"/accounts/{account_id}").json()
+    assert (
+        account["open_tasks"] == 1
+        and account["opportunities"][0]["next_action_task_id"] == (created.json()["id"])
+    )
+    assert datetime.fromisoformat(account["next_activity_at"]) == later
     assert client.get(f"/accounts/{account_id}/audit").status_code == 403  # no audit.read
     client.send("POST", "/auth/logout")
 
@@ -428,6 +455,8 @@ def test_tasks_attention_and_visibility(
     assert client.get(f"/accounts/{account_id}").status_code == 404
     assert client.get("/accounts").json() == []
     assert client.send("POST", f"/tasks/{task_id}/complete", json={}).status_code == 404
+    hidden = client.send("POST", "/tasks", json={"account_id": account_id, "title": "Sneaky"})
+    assert hidden.status_code == 404
     assert client.get("/opportunities/requires-attention").json() == []
     client.send("POST", "/auth/logout")
 

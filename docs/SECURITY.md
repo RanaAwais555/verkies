@@ -46,7 +46,7 @@ Users submit URLs and the server fetches them, so this is the highest-risk surfa
 8. Respect robots.txt. Never bypass CAPTCHAs, authentication, paywalls or anti-bot measures (§17).
 
 9. Error responses (4xx/5xx) are recorded by status only; their bodies are never downloaded. `Set-Cookie` headers from crawled sites are never stored.
-10. `VROS_FETCH_PRIVATE_ALLOWLIST` (CIDRs the fetcher may reach) exists for tests and local development only; production refuses to start if it is set.
+10. `VROS_FETCH_PRIVATE_ALLOWLIST` (CIDRs the fetcher may reach) and `VROS_FETCH_HOST_OVERRIDES` (fixed DNS answers, `host=address`) exist for tests and local development only. Production refuses to start if either is set. An overridden answer still passes the address policy, so it reaches a private address only together with the allowlist.
 
 Tests cover each rule: every private, loopback, link-local, CGNAT, multicast, reserved and IPv4-mapped/6to4 range; mixed public/private DNS answers; DNS rebinding (the second answer is never used); redirects to internal addresses; redirect loops; size limits measured after decompression (zip bombs); slow-drip servers (hard per-request deadline); a real TLS server proving pinning still verifies the certificate hostname; and a hostile page whose JavaScript tries to reach cloud metadata, POST data and open a WebSocket.
 
@@ -63,6 +63,17 @@ Tests cover each rule: every private, loopback, link-local, CGNAT, multicast, re
 - Secrets in environment or a secrets manager; `.env` is git-ignored; encrypted-at-rest for stored provider credentials (Phase 3 mailboxes).
 - Dependency pinning and automated vulnerability checks in CI.
 - Secure headers on API and frontend.
+
+### Imports and exports
+
+- **CSV import:**
+  - The browser sends the file's text in a JSON body. No file is stored on disk, and the server never executes or evaluates it.
+  - Limits are enforced: 2 MB, 5,000 rows, 50 columns, 2,000 characters per cell.
+  - Rows are only data until a person starts research. Research then goes through the same SSRF-safe fetcher and URL validation as any other run.
+- **Export:**
+  - It includes only the accounts the user may see.
+  - CSV cells starting with `=`, `+`, `-`, `@`, tab or carriage return are prefixed with `'` so spreadsheets do not run them as formulas.
+  - Every export is audited (`accounts.exported`, with format and count).
 
 ## 5. Audit
 

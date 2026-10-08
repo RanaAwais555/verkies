@@ -35,6 +35,33 @@ class SystemResolver:
         return list(dict.fromkeys(str(info[4][0]) for info in infos))
 
 
+class OverrideResolver:
+    """Fixed answers for some hostnames (tests and local end-to-end runs only; production
+    refuses the setting). Every answer still goes through the address policy."""
+
+    def __init__(self, overrides: dict[str, list[str]], fallback: Resolver) -> None:
+        self.overrides = overrides
+        self.fallback = fallback
+
+    async def resolve(self, host: str, port: int) -> list[str]:
+        if host.lower() in self.overrides:
+            return self.overrides[host.lower()]
+        return await self.fallback.resolve(host, port)
+
+
+def parse_host_overrides(entries: list[str]) -> dict[str, list[str]]:
+    """["shop.test=127.0.0.1", ...] -> {"shop.test": ["127.0.0.1"]}."""
+    overrides: dict[str, list[str]] = {}
+    for entry in entries:
+        host, sep, address = entry.partition("=")
+        if not sep or not host.strip():
+            raise ValueError(f"host override must look like host=address: {entry!r}")
+        overrides.setdefault(host.strip().lower(), []).append(
+            str(ipaddress.ip_address(address.strip()))
+        )
+    return overrides
+
+
 @dataclass(frozen=True)
 class Target:
     """A URL that passed the policy, with the address to connect to."""

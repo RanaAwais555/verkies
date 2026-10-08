@@ -2,7 +2,7 @@
 
 An intelligence-first revenue platform for Verkies Private Limited: prospect intelligence, qualification, CRM, client lifecycle and learning around a permanent Account. Built for team use, deployable to a live domain.
 
-**Status:** Phase 1, slices 1.0 (foundation), 1.1 (schema, team access, audit) 1.2 (safe fetch, crawl, research runs), 1.3 (analysis and evidence) 1.4 (opportunities, ICP, scoring) 1.5 (service matching, lead brief) and 1.6 (approval and CRM) done. Next: 1.7 the user interface. See [`docs/ROADMAP.md`](docs/ROADMAP.md).
+**Status:** Phase 1, slices 1.0 (foundation), 1.1 (schema, team access, audit) 1.2 (safe fetch, crawl, research runs), 1.3 (analysis and evidence) 1.4 (opportunities, ICP, scoring) 1.5 (service matching, lead brief), 1.6 (approval and CRM) and 1.7 (the user interface, with a browser test of the whole Phase 1 checklist) done: Phase 1 is complete. Phase 2 (discovery): 2.1 (CSV import and bulk research, export) 2.2 (buying signals from job boards and company news feeds) and 2.3 (Companies House and Wikidata registry facts) done; next 2.4 search. See [`docs/ROADMAP.md`](docs/ROADMAP.md).
 
 ## Run it locally
 
@@ -12,7 +12,18 @@ Everything in Docker (needs Docker with Compose v2.24+):
 docker compose up --build
 # open http://localhost:8080        (app, through Caddy, same routing as production)
 #      http://localhost:8000/api/v1/docs   (API docs, development only)
+docker compose exec api python -m app.cli create-admin --email you@verkies.co --name "Your Name"
 ```
+
+If another program already uses one of the ports (8080, 8000, 5432 or 6379), Docker reports "port is already allocated", or the browser shows that other program's page instead of VROS. Pick free ports:
+
+```bash
+VROS_HTTP_PORT=8090 VROS_PUBLIC_URL=http://localhost:8090 VROS_API_PORT=8001 \
+VROS_DB_PORT=5433 VROS_REDIS_PORT=6380 docker compose up --build
+# open http://localhost:8090
+```
+
+The same variables can go in a `.env` file next to `docker-compose.yml`.
 
 Or run the parts directly (needs PostgreSQL 16 and Redis 7 on localhost, user/password/db `vros`):
 
@@ -28,11 +39,16 @@ cd frontend && npm install && npm run dev                                # UI on
 cd backend  && uv run ruff check . && uv run ruff format --check . && uv run mypy && uv run pytest
 cd backend  && VROS_RUN_INTEGRATION=1 uv run pytest tests/integration    # needs Postgres + Redis
 cd frontend && npm run lint && npm run typecheck && npm run build
+cd frontend && npm run build:e2e && npm run e2e                         # browser test; RESETS the database
 ```
+
+The browser test (`frontend/e2e/`) starts the API, a worker, the built app and two local fixture websites, then signs in, invites a teammate, researches a company, reads the brief and its evidence, approves one prospect and rejects another. It needs PostgreSQL and Redis on localhost, `uv`, and Chromium (`npx playwright install chromium`).
 
 CI runs all of these plus Compose and Caddyfile validation and image builds (`.github/workflows/ci.yml`).
 
 ## Deploy to a live domain
+
+Step by step for Hetzner Cloud: [`docs/DEPLOY_HETZNER.md`](docs/DEPLOY_HETZNER.md). The short version, for any server with Docker:
 
 One small VPS (2 vCPU / 4 GB is enough for the team stack without local AI) with Docker installed.
 
@@ -54,7 +70,7 @@ One small VPS (2 vCPU / 4 GB is enough for the team stack without local AI) with
 
 Production fails closed: the deploy stops if a required value is missing, and the API refuses to start with a short secret key, a non-HTTPS URL or the development database password. Only Caddy (80/443) is exposed; the database, Redis and API are reachable only inside the Docker network. Nightly database dumps go to the `backups` volume (14 days kept); copy them off the server.
 
-Team accounts are invite-only (no public sign-up). The admin invites teammates with `POST /api/v1/users/invites`, which returns a single-use link valid for 7 days to send to them; the sign-in and team screens arrive with the UI slice (1.7). Database migrations run automatically on every deploy (`migrate` service).
+Team accounts are invite-only (no public sign-up). The admin invites teammates under **Settings → Team**, which shows a single-use link valid for 7 days to send to them. They choose their own password on that link. Database migrations run automatically on every deploy (`migrate` service).
 
 To update: `git pull` then rerun the `up -d --build` command.
 

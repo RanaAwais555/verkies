@@ -1,8 +1,11 @@
 import type { NextConfig } from "next";
 
-// `npm run dev` outside Docker has no reverse proxy, so forward /api to the backend to keep
-// the browser on one origin. In Docker (dev and production) Caddy routes /api instead.
-const devApiUrl = process.env.VROS_API_INTERNAL_URL ?? "http://localhost:8000";
+// Outside Docker there is no reverse proxy, so forward /api to the backend to keep the browser
+// on one origin: always in `npm run dev`, and in a production build only when
+// VROS_API_INTERNAL_URL is set at build time (the end-to-end tests). In Docker, Caddy routes
+// /api to the API and the image is built without it.
+const apiUrl = process.env.VROS_API_INTERNAL_URL ?? "http://localhost:8000";
+const proxyApi = process.env.NODE_ENV !== "production" || !!process.env.VROS_API_INTERNAL_URL;
 
 const nextConfig: NextConfig = {
   output: "standalone",
@@ -18,8 +21,8 @@ const nextConfig: NextConfig = {
     },
   },
   async rewrites() {
-    if (process.env.NODE_ENV === "production") return [];
-    return [{ source: "/api/:path*", destination: `${devApiUrl}/api/:path*` }];
+    if (!proxyApi) return [];
+    return [{ source: "/api/:path*", destination: `${apiUrl}/api/:path*` }];
   },
 };
 

@@ -21,6 +21,16 @@ class RobotsPolicy:
         return cls(parser=parser, sitemaps=list(parser.site_maps() or []), source="parsed")
 
     @classmethod
+    def from_response(cls, status: int, text: str) -> "RobotsPolicy":
+        """RFC 9309: 200 is parsed, 4xx (except 429) means no rules, anything else means do
+        not crawl."""
+        if status == 200:
+            return cls.parse(text)
+        if 400 <= status < 500 and status != 429:
+            return cls(source="missing")
+        return cls.deny_all("unreachable")
+
+    @classmethod
     def deny_all(cls, source: str) -> "RobotsPolicy":
         parser = RobotFileParser()
         parser.parse(["User-agent: *", "Disallow: /"])

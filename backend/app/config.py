@@ -77,9 +77,17 @@ class Settings(BaseSettings):
     crawl_allowed_ports: Annotated[list[int], NoDecode] = Field(default_factory=lambda: [80, 443])
     # Private networks the fetcher may reach. For tests only; refused in production.
     fetch_private_allowlist: Annotated[list[str], NoDecode] = Field(default_factory=list)
+    # host=address pairs answered without DNS, e.g. "shop.test=127.0.0.1". For local
+    # end-to-end runs only; refused in production.
+    fetch_host_overrides: Annotated[list[str], NoDecode] = Field(default_factory=list)
     # JavaScript rendering with headless Chromium, for pages whose static HTML is too thin.
     render_enabled: bool = True
     chromium_executable: str | None = None
+
+    # Company registries (slice 2.3). Companies House needs a free API key from
+    # developer.company-information.service.gov.uk; without one that lookup is skipped.
+    companies_house_api_key: SecretStr | None = None
+    wikidata_enabled: bool = True
 
     # Optional local AI for brief wording (AI_SPEC.md). "none" = template mode only.
     ai_provider: Literal["none", "ollama"] = "none"
@@ -92,7 +100,11 @@ class Settings(BaseSettings):
     storage_dir: str = "./var/storage"
 
     @field_validator(
-        "cors_origins", "fetch_private_allowlist", "crawl_allowed_ports", mode="before"
+        "cors_origins",
+        "fetch_private_allowlist",
+        "fetch_host_overrides",
+        "crawl_allowed_ports",
+        mode="before",
     )
     @classmethod
     def _split_csv(cls, value: object) -> object:
@@ -126,6 +138,8 @@ class Settings(BaseSettings):
             problems.append("VROS_DATABASE_URL must use a non-default database password")
         if self.fetch_private_allowlist:
             problems.append("VROS_FETCH_PRIVATE_ALLOWLIST must be empty (it disables SSRF checks)")
+        if self.fetch_host_overrides:
+            problems.append("VROS_FETCH_HOST_OVERRIDES must be empty (it bypasses DNS)")
         if problems:
             raise ValueError("insecure production configuration: " + "; ".join(problems))
         return self

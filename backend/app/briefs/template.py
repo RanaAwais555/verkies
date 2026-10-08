@@ -11,10 +11,12 @@ from app.briefs.claims import Draft, DraftClaim, Section
 from app.briefs.grounding import Evidence
 from app.catalogue.matching import Match
 from app.core.enums import ClaimClass, ServiceSlot
-from app.intelligence.facts import Facts
+from app.intelligence.facts import Fact, Facts
+from app.intelligence.people import named_people
 from app.opportunities.detectors import Candidate
 from app.scoring.dimensions import DECISION_ROLE
 from app.scoring.engine import Assessment
+from app.signals.jobs import PROVIDER_NAMES
 from app.similarity.engine import SimilarityResult
 
 SALES_ANGLES = {
@@ -89,7 +91,7 @@ def company_name(facts: Facts) -> str | None:
 
 
 def decision_maker(facts: Facts):  # type: ignore[no-untyped-def]
-    people = facts.all("company.person")
+    people = named_people(facts)
     deciders = [p for p in people if DECISION_ROLE.search(str(p.value.get("title", "")))]
     found = deciders or people
     return found[0] if found else None
@@ -158,6 +160,21 @@ def build(inputs: BriefInputs) -> Draft:
                 [address.evidence_id],
                 subject="company.location",
                 ref="overview.2",
+            )
+        )
+    registered = facts.first("registry.companies_house")
+    if registered:
+        v = registered.value
+        since = f", incorporated {v['incorporated']}" if v.get("incorporated") else ""
+        overview.append(
+            DraftClaim(
+                ClaimClass.FACT,
+                f"Registered with Companies House as {v['name']} ({v['number']}), "
+                f"status {v['status']}{since}.",
+                [registered.evidence_id],
+                subject="company.registry",
+                ref="overview.registry",
+                confidence=registered.confidence,
             )
         )
     sections["company_overview"] = Section(
@@ -241,6 +258,7 @@ def build(inputs: BriefInputs) -> Draft:
                 ref="why_now.1",
             )
         )
+    now += _signal_claims(facts)
     sections["why_now"] = Section(now, unknown=None if now else "No time-bound signal found.")
 
     services: list[DraftClaim] = []
@@ -280,7 +298,10 @@ def build(inputs: BriefInputs) -> Draft:
             )
         )
     sections["best_buyer"] = Section(
-        buyer_claims, unknown=None if buyer_claims else "No named decision maker found on the site."
+        buyer_claims,
+        unknown=None
+        if buyer_claims
+        else "No named decision maker found on the site or in the register.",
     )
 
     sections["similar_project"] = (
@@ -364,3 +385,53 @@ def _next_action(
             )
         ]
     )
+
+
+PRIORITY_JOBS = ("cto_hiring", "developer_hiring", "product_hiring")
+
+
+def _signal_claims(facts: Facts) -> list[DraftClaim]:
+    """Dated buying signals from the company's job board and its own news feed. The wording
+    only repeats what each cited posting or headline says (titles, board, dates)."""
+    claims: list[DraftClaim] = []
+    postings = facts.all("signal.job_posting")
+    by_board: dict[str, list[Fact]] = {}
+    for fact in postings:
+        by_board.setdefault(str(fact.value.get("provider")), []).append(fact)
+    for n, (provider, group) in enumerate(sorted(by_board.items())):
+        # Newest first, then technology and product roles ahead of the rest (stable sorts).
+        group.sort(key=lambda f: str(f.value.get("published") or ""), reverse=True)
+        group.sort(key=lambda f: f.value.get("signal") not in PRIORITY_JOBS)
+        shown = group[:3]
+        titles = "; ".join(str(f.value["title"]) for f in shown)
+        ids = [f.evidence_id for f in shown]
+        dated = [f for f in group if f.value.get("published")]
+        latest = max(dated, key=lambda f: str(f.value["published"])) if dated else None
+        text = f"Hiring now on {PROVIDER_NAMES.get(provider, provider)}: {titles}"
+        if latest is not None:
+            text += f" (latest posted {latest.value['published']})"
+            if latest.evidence_id not in ids:
+                ids.append(latest.evidence_id)
+        claims.append(
+            DraftClaim(
+                ClaimClass.FACT,
+                text + ".",
+                ids,
+                subject="why_now.job_postings",
+                ref=f"why_now.jobs.{n}",
+            )
+        )
+    news = sorted(
+        facts.all("signal.news"), key=lambda f: str(f.value.get("published")), reverse=True
+    )
+    for n, fact in enumerate(news[:2]):
+        claims.append(
+            DraftClaim(
+                ClaimClass.FACT,
+                f"{fact.value['published']}: {fact.value['title'].rstrip('.')}.",
+                [fact.evidence_id],
+                subject=f"why_now.{fact.value.get('signal')}",
+                ref=f"why_now.news.{n}",
+            )
+        )
+    return claims

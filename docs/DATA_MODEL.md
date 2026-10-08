@@ -38,7 +38,7 @@ Relational PostgreSQL 16 with pgvector and pg_trgm. Account-centric (§6). This 
 Cached scores are denormalised copies of the latest `score_snapshots`; the snapshot is the source of truth.
 
 **account_domains**: `account_id`, `domain` (unique, normalised), `is_primary`. Supports duplicate detection (§16).
-**account_identifiers**: `account_id`, `scheme` (companies_house, sec_cik, wikidata, …), `value`; unique `(scheme, value)`.
+**account_identifiers**: `account_id`, `scheme` (companies_house, sec_cik, wikidata, …), `value`; unique `(scheme, value)`. Written on approval from registry facts (slice 2.3); duplicate detection treats a shared identifier as the same legal entity.
 
 Indexes: trigram on `accounts.name`, `account_domains.domain`; btree on `account_type`, `owner_id`, `priority_score desc`.
 
@@ -109,6 +109,11 @@ Constraint: every open opportunity must have a next-action task with owner and d
 
 **suppressions**: `kind` (email, domain, account), `value`, `reason`, `added_by`, `added_at`. Checked before any research approval creates an owner-assigned lead (§5 "suppressed account").
 
+### Discovery (Phase 2, migration `0008`)
+
+**discovery_jobs**: `kind` (csv_import), `name` (file name), `created_by_id`, `status` (uploaded, checked), `columns jsonb` (header row), `mapping jsonb` (field → column), `row_count`, `stats jsonb` (rows per status).
+**discovered_companies**: one row of an import. `discovery_job_id` (cascade), `row_number` (unique per job), `raw jsonb` (the row as uploaded), mapped `name`, `website_url`, `normalised_domain`, `country`, `industry`, `notes`, `status` (pending, new, invalid, duplicate_in_file, existing_account, possible_duplicate, already_researched, suppressed, queued), `status_detail`, `matched_account_id`, `research_run_id`. A discovered company is never an Account; it can only become one through research and approval.
+
 ## 3. Duplicate handling (§16)
 
 On research start and on approval, candidates are looked up by normalised domain (exact via `account_domains`), name similarity (`pg_trgm` ≥ 0.6), and identifiers. A hit is never merged silently: the run is flagged `possible_duplicate_of` with the matching accounts and the reviewer decides.
@@ -127,7 +132,7 @@ As implemented (slice 1.6):
 
 | Phase | Tables |
 | --- | --- |
-| 2 | `discovery_jobs`, `discovered_companies`, `buying_signals`, `signal_sources`, `job_postings` |
+| 2 | `discovery_jobs` and `discovered_companies` exist since slice 2.1. Buying signals (slice 2.2) are observations in the `signals` area with dated evidence (migration `0009`), so they share evidence, attempts and append-only history with all other findings; no separate signal tables were needed |
 | 3 | `pipelines`, `pipeline_stages`, `deals`, `communications`, `meetings`, `proposals`, `documents`, `mailboxes`, `templates`, `sequences`, `sequence_steps`, `enrollments`, `messages`, `linkedin_imports` |
 | 4 | `projects`, `milestones`, `project_risks`, `client_health_snapshots`, `expansion_opportunities`, `referrals` |
 | 5 | `feedback`, `deal_outcomes`, `learned_weights` |

@@ -15,10 +15,12 @@ from app.accounts import access
 from app.accounts.models import Account
 from app.audit import service as audit
 from app.auth.models import User
+from app.catalogue.models import Service
 from app.core.enums import AuditSource, TaskStatus
 from app.core.errors import Conflict, NotFound, ValidationFailed
 from app.crm import timeline
 from app.crm.models import Opportunity, Task
+from app.opportunities.models import OpportunityCategory
 
 OPEN = (TaskStatus.OPEN, TaskStatus.IN_PROGRESS)
 
@@ -123,6 +125,76 @@ async def complete_task(
     return task
 
 
+async def create_task(
+    db: AsyncSession,
+    *,
+    user: User,
+    account_id: uuid.UUID,
+    title: str,
+    owner_id: uuid.UUID | None,
+    due_at: datetime | None,
+    opportunity_id: uuid.UUID | None,
+    description: str | None,
+) -> Task:
+    """A new task on an account. With an opportunity, it becomes that opportunity's next
+    action, which clears "requires attention" once it has an owner and a due date."""
+    account = await db.get(Account, account_id)
+    if (
+        account is None
+        or account.deleted_at is not None
+        or not access.can_see(user, account.owner_id)
+    ):
+        raise NotFound("Account not found.")
+    owner = await db.get(User, owner_id) if owner_id is not None else None
+    if owner_id is not None and (owner is None or not owner.is_active):
+        raise ValidationFailed("The owner must be an active team member.", code="invalid_owner")
+    opportunity = None
+    if opportunity_id is not None:
+        opportunity = await db.get(Opportunity, opportunity_id)
+        if opportunity is None or opportunity.account_id != account.id:
+            raise ValidationFailed("That opportunity is not on this account.")
+    task = Task(
+        account_id=account.id,
+        opportunity_id=opportunity_id,
+        lead_id=opportunity.lead_id if opportunity else None,
+        title=title.strip()[:200],
+        description=description,
+        owner_id=owner_id,
+        due_at=due_at,
+    )
+    db.add(task)
+    await db.flush()
+    if opportunity is not None:
+        opportunity.next_action_task_id = task.id
+    await _refresh_next_activity(db, account)
+    owner_name = owner.name if owner else "nobody"
+    due = due_at.date().isoformat() if due_at else "no date"
+    timeline.add(
+        db,
+        account_id=account.id,
+        event_type="task.created",
+        summary=f"Task for {owner_name}, due {due}: {task.title}",
+        actor_id=user.id,
+        ref_table="tasks",
+        ref_id=task.id,
+    )
+    audit.record(
+        db,
+        action="task.created",
+        object_table="tasks",
+        object_id=task.id,
+        user_id=user.id,
+        source=AuditSource.API,
+        new_value={
+            "title": task.title,
+            "owner_id": str(owner_id) if owner_id else None,
+            "due_at": due_at.isoformat() if due_at else None,
+            "opportunity_id": str(opportunity_id) if opportunity_id else None,
+        },
+    )
+    return task
+
+
 async def update_task(
     db: AsyncSession, *, user: User, task_id: uuid.UUID, changes: dict[str, Any]
 ) -> Task:
@@ -209,3 +281,36 @@ async def requiring_attention(
             if len(found) >= limit:
                 break
     return found
+
+
+async def opportunity_labels(
+    db: AsyncSession, opportunities: list[Opportunity]
+) -> dict[uuid.UUID, tuple[str | None, str | None]]:
+    """Category and service names for display, keyed by opportunity id."""
+    if not opportunities:
+        return {}
+    categories = {
+        c.id: c.name
+        for c in (
+            await db.execute(
+                select(OpportunityCategory).where(
+                    OpportunityCategory.id.in_({o.category_id for o in opportunities})
+                )
+            )
+        ).scalars()
+    }
+    services = {
+        s.id: s.name
+        for s in (
+            await db.execute(
+                select(Service).where(Service.id.in_({o.service_id for o in opportunities}))
+            )
+        ).scalars()
+    }
+    return {
+        o.id: (
+            categories.get(o.category_id) if o.category_id else None,
+            services.get(o.service_id) if o.service_id else None,
+        )
+        for o in opportunities
+    }

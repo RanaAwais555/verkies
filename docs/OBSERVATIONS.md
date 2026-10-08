@@ -106,6 +106,42 @@ About 40 rules in `extractors/technology.py`, covering the technologies the mast
 | `hiring.job_board` | `{provider, token, url}` for Greenhouse, Lever, Ashby, Workable, Teamtailor, BambooHR, Recruitee, Workday, Personio. The token is what the Phase 2 job-board APIs need |
 | `hiring.tech_roles` | engineering/product role titles on the careers page |
 
+Feeds are found by the company extractor: `company.feed` is `{url, format}` for an RSS or Atom `<link rel="alternate">` on the company's own site (at most two, comment feeds ignored).
+
+## Signals (slice 2.2, the `signals` stage)
+
+Dated buying signals (master context §9), read only from sources the company's own site points to.
+
+| Key | Value | Evidence |
+| --- | --- | --- |
+| `signal.job_posting` | `{signal, provider, title, location, department, url, published}`. `signal` is `developer_hiring`, `cto_hiring`, `product_hiring` or `hiring` | `job_posting`: "Title (Location) — posted DATE on Board"; `published_at` set when the board gives a date |
+| `signal.news` | `{signal, title, url, published}`. `signal` is `funding`, `acquisition`, `new_leader`, `expansion`, `new_service` or `product_launch` | `news_item`: "Headline — published DATE"; confidence 0.75, because a headline keyword is not a confirmed event |
+
+Rules:
+- **Job postings:** come from the public APIs of Greenhouse, Lever, Ashby and Workable, and only for the board the site links to. At most 50 per board.
+- **News:** comes from the company's own feed, fetched under its robots.txt. An item is kept only if its headline clearly names a signal type and it is dated within the last 365 days. At most 10.
+- **Failures:** a board or feed that fails is listed in the stage's `errors` and never fails the run.
+
+## Registry (slice 2.3, the `enrich` stage)
+
+Found on the site by the company extractor: `company.registration_number` is `{number, jurisdiction}`. It is the registered number UK companies must print on their site (e.g. "Company number 06812345", "Registered in England and Wales No. SC123456"), normalised to the Companies House form.
+
+| Key | Value | Evidence |
+| --- | --- | --- |
+| `registry.companies_house` | `{number, name, status, active, incorporated, type, sic_codes, locality, postal_code}` | `company_registry`, citing the public Companies House page; confidence 0.95 |
+| `registry.officer` | `{name, role, appointed, number}`: current directors and LLP members only | the company's officers page; confidence 0.95 |
+| `registry.wikidata` | `{qid, label, inception, employees, country, industries}` | the Wikidata item; confidence 0.8 |
+
+When each source is used:
+- **Companies House:** looked up only by the registered number, never by a name search. The record is kept only if its name shares a distinctive word with the site's name or domain.
+- **Wikidata:** used only when exactly one item gives this domain as its official website.
+
+Where the facts go:
+- **Contacts:** officers join site people. The same person, matched by first and last name, counts once. Officers count as named decision makers.
+- **ICP:** an inactive status triggers the `closed` rule.
+- **The brief:** the company overview cites the registration.
+- **Approval:** stores `account_identifiers` (companies_house, wikidata). A later run with the same identifier joins that account even under another domain.
+
 ## Site status and industry
 
 | Key | Value | Notes |

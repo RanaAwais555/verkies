@@ -1,7 +1,12 @@
 """Builds the fetcher and renderer from settings, so callers never wire budgets by hand."""
 
 from app.config import Settings
-from app.providers.fetch.netguard import parse_networks
+from app.providers.fetch.netguard import (
+    OverrideResolver,
+    SystemResolver,
+    parse_host_overrides,
+    parse_networks,
+)
 from app.providers.fetch.render import PlaywrightRenderer
 from app.providers.fetch.safe_http import SafeHttpFetcher
 from app.providers.fetch.types import FetchBudget
@@ -17,6 +22,11 @@ def build_fetcher(settings: Settings) -> SafeHttpFetcher:
             allowed_ports=frozenset(settings.crawl_allowed_ports),
         ),
         allowlist=parse_networks(settings.fetch_private_allowlist),
+        resolver=OverrideResolver(
+            parse_host_overrides(settings.fetch_host_overrides), SystemResolver()
+        )
+        if settings.fetch_host_overrides
+        else None,
     )
 
 

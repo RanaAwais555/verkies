@@ -214,13 +214,7 @@ class Crawler:
         else:
             outcome.fetched = fetched
             await self.on_page(outcome)
-            status = fetched.result.status
-            if status == 200:
-                policy = RobotsPolicy.parse(fetched.result.text())
-            elif 400 <= status < 500 and status != 429:
-                policy = RobotsPolicy(source="missing")  # RFC 9309: 4xx means no rules
-            else:
-                policy = RobotsPolicy.deny_all("unreachable")
+            policy = RobotsPolicy.from_response(fetched.result.status, fetched.result.text())
         delay = policy.crawl_delay()
         if delay is not None:
             self._interval = max(self._interval, delay)
