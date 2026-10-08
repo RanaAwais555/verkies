@@ -8,6 +8,7 @@ from sqlalchemy import (
     BigInteger,
     CheckConstraint,
     ForeignKey,
+    Index,
     SmallInteger,
     String,
     Text,
@@ -29,6 +30,7 @@ from app.core.models import Base, CreatedMixin, IdMixin, TimestampMixin, text_en
 
 class ResearchRun(IdMixin, TimestampMixin, Base):
     __tablename__ = "research_runs"
+    __table_args__ = (Index("ix_research_runs_status_review", "status", "review_status"),)
 
     input_url: Mapped[str] = mapped_column(Text)
     normalised_domain: Mapped[str] = mapped_column(String(253), index=True)

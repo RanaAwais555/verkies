@@ -26,6 +26,12 @@ Phase 1 defaults:
 | View audit log | ✓ | ✓ | ✓ | | | | |
 | Manage users | ✓ | | | | | | |
 
+As implemented (slice 1.6):
+- **Accounts:** `accounts.read` sees every account. `accounts.read_own` (Salesperson) sees accounts it owns or that have no owner, with their tasks, opportunities and timeline. Another person's account answers 404, not 403, so its existence is not revealed.
+- **Research runs:** reviewers (`prospects.review`) and `accounts.read` see every run, because the review queue holds everyone's research. Only the person who started a run, or someone with `accounts.read`, may cancel or retry it.
+- **Approval:** a reviewer can only attach research to an account they can see.
+- **Known limit:** a possible-duplicate warning names the matching accounts even when the reviewer cannot open them. This lets the reviewer avoid creating a duplicate.
+
 ## 3. Crawler and SSRF protection
 
 Users submit URLs and the server fetches them, so this is the highest-risk surface.

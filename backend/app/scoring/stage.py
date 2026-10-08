@@ -106,7 +106,7 @@ async def references(db: AsyncSession) -> list[ReferenceProfile]:
     ]
 
 
-async def _suppressed(db: AsyncSession, domain: str) -> str | None:
+async def suppression_for(db: AsyncSession, domain: str) -> str | None:
     hit = (
         await db.execute(
             select(Suppression).where(
@@ -153,7 +153,7 @@ async def load_context(db: AsyncSession, run_id: uuid.UUID) -> Context:
         icp_config=IcpConfigModel.model_validate(icp_row.config),
         scoring_config_id=scoring_row.id,
         scoring_config=ScoringConfigModel.model_validate(scoring_row.config),
-        suppressed_by=await _suppressed(db, run.normalised_domain),
+        suppressed_by=await suppression_for(db, run.normalised_domain),
     )
 
 

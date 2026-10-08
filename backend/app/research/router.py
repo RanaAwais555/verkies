@@ -9,6 +9,7 @@ from fastapi import APIRouter, Depends, Query, status
 
 from app.auth.deps import AppSettings, DbSession, require_permission
 from app.auth.models import User
+from app.core.enums import ReviewStatus
 from app.core.errors import AppError
 from app.research import service
 from app.research.schemas import (
@@ -34,7 +35,10 @@ router = APIRouter(prefix="/research-runs", tags=["research"])
 
 Researcher = Annotated[User, Depends(require_permission("research.run"))]
 Viewer = Annotated[
-    User, Depends(require_permission("research.run", "accounts.read", "accounts.read_own"))
+    User,
+    Depends(
+        require_permission("research.run", "prospects.review", "accounts.read", "accounts.read_own")
+    ),
 ]
 
 
@@ -84,9 +88,14 @@ async def start(
 
 @router.get("")
 async def list_runs(
-    user: Viewer, db: DbSession, limit: Annotated[int, Query(ge=1, le=100)] = 25
+    user: Viewer,
+    db: DbSession,
+    limit: Annotated[int, Query(ge=1, le=100)] = 25,
+    review_status: ReviewStatus | None = None,
+    q: Annotated[str | None, Query(max_length=253)] = None,
 ) -> list[RunOut]:
-    runs = await service.list_runs(db, user=user, limit=limit)
+    """Every run, including rejected prospects (searchable for audit, never in the queue)."""
+    runs = await service.list_runs(db, user=user, limit=limit, review_status=review_status, query=q)
     return [RunOut.of(r, await service.stages_of(db, r.id)) for r in runs]
 
 

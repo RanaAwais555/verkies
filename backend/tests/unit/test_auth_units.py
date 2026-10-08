@@ -52,7 +52,8 @@ def test_uuid7_is_version_7_and_time_ordered() -> None:
     assert all(i.version == 7 and i.variant == uuid.RFC_4122 for i in ids)
     timestamps = [i.int >> 80 for i in ids]
     assert timestamps == sorted(timestamps)
-    assert len(set(ids)) == len(ids)
+    # Strictly increasing even within one millisecond, so same-transaction rows keep order.
+    assert ids == sorted(ids) and len(set(ids)) == len(ids)
 
 
 def test_cookies_use_host_prefix_only_over_https() -> None:

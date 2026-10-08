@@ -67,6 +67,12 @@ Company · Priority · ICP Fit · Opportunity · Intent · Buyer Confidence · D
 
 Approval creates one task: title derived from the recommended next action, owner = approving user unless changed, due date = default SLA from config (2 business days). An opportunity without owner, action or due date is shown as "Opportunity requires attention" (§12).
 
+As implemented (slice 1.6):
+- The task title is the brief's recommended next action. It can be edited on approval or later.
+- The due date is `VROS_TASK_DUE_BUSINESS_DAYS` business days after approval (default 2), with weekends skipped. Holidays are not yet known to the system.
+- Priority follows the band: hot is urgent, high is high, everything else normal.
+- Contacts are created only for people named on the company's own pages, with their stated title. The buying role comes from title keywords, or stays Unknown. Email and phone stay empty: they are never invented.
+
 ## 7. Traceability
 
 | Master context | Covered by |

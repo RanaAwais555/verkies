@@ -2,7 +2,7 @@
 
 An intelligence-first revenue platform for Verkies Private Limited: prospect intelligence, qualification, CRM, client lifecycle and learning around a permanent Account. Built for team use, deployable to a live domain.
 
-**Status:** Phase 1, slices 1.0 (foundation), 1.1 (schema, team access, audit) 1.2 (safe fetch, crawl, research runs), 1.3 (analysis and evidence) 1.4 (opportunities, ICP, scoring) and 1.5 (service matching, lead brief) done. Next: 1.6 approval and CRM. See [`docs/ROADMAP.md`](docs/ROADMAP.md).
+**Status:** Phase 1, slices 1.0 (foundation), 1.1 (schema, team access, audit) 1.2 (safe fetch, crawl, research runs), 1.3 (analysis and evidence) 1.4 (opportunities, ICP, scoring) 1.5 (service matching, lead brief) and 1.6 (approval and CRM) done. Next: 1.7 the user interface. See [`docs/ROADMAP.md`](docs/ROADMAP.md).
 
 ## Run it locally
 

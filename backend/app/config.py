@@ -60,6 +60,9 @@ class Settings(BaseSettings):
     login_max_failures: int = Field(default=5, gt=0)
     login_lockout_minutes: int = Field(default=15, gt=0)
 
+    # Approval (PRODUCT_SPEC.md §5): the next-action task is due this many business days later.
+    task_due_business_days: int = Field(default=2, ge=0, le=30)
+
     # Crawler (PROVIDER_SPEC.md §4). Identifies itself and how to reach Verkies.
     crawler_contact_url: str = "https://www.verkies.co"
     crawl_max_pages: int = Field(default=15, gt=0, le=100)

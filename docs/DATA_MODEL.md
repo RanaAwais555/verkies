@@ -113,6 +113,12 @@ Constraint: every open opportunity must have a next-action task with owner and d
 
 On research start and on approval, candidates are looked up by normalised domain (exact via `account_domains`), name similarity (`pg_trgm` ≥ 0.6), and identifiers. A hit is never merged silently: the run is flagged `possible_duplicate_of` with the matching accounts and the reviewer decides.
 
+As implemented (slice 1.6):
+- An exact domain match means the same company: approval attaches to that account. Its name, owner and description are kept, its cached scores are refreshed, and a `prospect` becomes a `qualified_prospect`.
+- A name match blocks approval until the reviewer either chooses the account (the new domain is added to it) or confirms a new company.
+- Contacts are de-duplicated by name within the account.
+- Identifier matching arrives with the registries in Phase 2.
+
 ## 4. Search
 
 `pg_trgm` indexes on account names and domains exist from Phase 1 (duplicate detection). `tsvector` generated columns and the single `search` service fanning out over accounts, contacts, leads, opportunities, tasks and evidence (§16) are added in the slice that builds global search.
@@ -138,3 +144,4 @@ Implemented in migration `0002_integrity_rules` and covered by `tests/integratio
 - Enumerations are text columns with CHECK constraints.
 - At most one active `icp_configs` and one active `scoring_configs` row.
 - `service_matches` has at most one row per slot (primary, secondary, expansion), so at most three per run.
+- `leads.research_run_id` is unique (migration `0007`): a research run becomes at most one lead, so a prospect cannot be approved twice.

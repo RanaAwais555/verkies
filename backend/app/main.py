@@ -7,13 +7,16 @@ from fastapi import FastAPI, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.trustedhost import TrustedHostMiddleware
 
+from app.accounts.router import router as accounts_router
 from app.audit.router import router as audit_router
 from app.auth.admin_router import router as users_router
 from app.auth.router import router as auth_router
 from app.config import Settings, get_settings
 from app.core.errors import install_error_handlers
 from app.core.logging import configure_logging, request_id_var
+from app.crm.router import router as crm_router
 from app.health.router import router as health_router
+from app.prospects.router import router as prospects_router
 from app.research.router import router as research_router
 from app.scoring.config_router import router as config_router
 
@@ -74,6 +77,9 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         audit_router,
         research_router,
         config_router,
+        prospects_router,
+        accounts_router,
+        crm_router,
     ):
         app.include_router(router, prefix=API_PREFIX)
     return app

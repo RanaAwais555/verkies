@@ -35,7 +35,16 @@ from app.core.models import (
 
 class Lead(IdMixin, TimestampMixin, SoftDeleteMixin, Base):
     __tablename__ = "leads"
-    __table_args__ = score_checks("priority_score")
+    __table_args__ = (
+        # One lead per research run, so a run can never be approved twice.
+        Index(
+            "uq_leads_research_run",
+            "research_run_id",
+            unique=True,
+            postgresql_where=text("research_run_id IS NOT NULL"),
+        ),
+        *score_checks("priority_score"),
+    )
 
     account_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("accounts.id"), index=True)
     research_run_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("research_runs.id"))
@@ -66,7 +75,7 @@ class Opportunity(IdMixin, TimestampMixin, SoftDeleteMixin, Base):
     )
 
     account_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("accounts.id"), index=True)
-    lead_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("leads.id"))
+    lead_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("leads.id"), index=True)
     name: Mapped[str] = mapped_column(String(200))
     problem: Mapped[str] = mapped_column(Text)
     category_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("opportunity_categories.id"))

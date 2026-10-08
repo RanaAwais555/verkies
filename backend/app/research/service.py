@@ -13,8 +13,9 @@ from app.auth.models import User
 from app.briefs.models import LeadBrief
 from app.catalogue.models import ServiceMatch
 from app.config import Settings
-from app.core.enums import AuditSource, JobStatus
+from app.core.enums import AuditSource, JobStatus, ReviewStatus
 from app.core.errors import Conflict, NotFound, PermissionDenied, ValidationFailed
+from app.core.search import contains_pattern
 from app.evidence.models import Evidence
 from app.evidence.models import Observation as ObservationRow
 from app.opportunities.models import (
@@ -33,14 +34,26 @@ from app.similarity.models import SimilarityResult as SimilarityRow
 
 ACTIVE = frozenset({JobStatus.QUEUED, JobStatus.RUNNING, JobStatus.RETRYING})
 SEE_ALL_PERMISSION = "accounts.read"
+REVIEW_PERMISSION = "prospects.review"
 
 
 def _now() -> datetime:
     return datetime.now(UTC)
 
 
+def _sees_all(user: User) -> bool:
+    # Reviewers decide on any prospect, so they see every run.
+    return bool(user.permission_keys & {SEE_ALL_PERMISSION, REVIEW_PERMISSION})
+
+
 def _can_see(user: User, run: ResearchRun) -> bool:
-    return SEE_ALL_PERMISSION in user.permission_keys or run.requested_by_id == user.id
+    return _sees_all(user) or run.requested_by_id == user.id
+
+
+def _ensure_can_manage(user: User, run: ResearchRun) -> None:
+    """Cancel and retry: the person who started the run, or someone who sees all accounts."""
+    if run.requested_by_id != user.id and SEE_ALL_PERMISSION not in user.permission_keys:
+        raise PermissionDenied("Only the person who started this run can change it.")
 
 
 async def start_run(db: AsyncSession, *, user: User, url: str, settings: Settings) -> ResearchRun:
@@ -116,15 +129,28 @@ async def pages_of(db: AsyncSession, run_id: uuid.UUID) -> list[ResearchPage]:
     )
 
 
-async def list_runs(db: AsyncSession, *, user: User, limit: int) -> list[ResearchRun]:
-    query = select(ResearchRun).order_by(ResearchRun.created_at.desc()).limit(limit)
-    if SEE_ALL_PERMISSION not in user.permission_keys:
-        query = query.where(ResearchRun.requested_by_id == user.id)
-    return list((await db.execute(query)).scalars())
+async def list_runs(
+    db: AsyncSession,
+    *,
+    user: User,
+    limit: int,
+    review_status: ReviewStatus | None = None,
+    query: str | None = None,
+) -> list[ResearchRun]:
+    stmt = select(ResearchRun).order_by(ResearchRun.created_at.desc()).limit(limit)
+    if not _sees_all(user):
+        stmt = stmt.where(ResearchRun.requested_by_id == user.id)
+    if review_status is not None:
+        stmt = stmt.where(ResearchRun.review_status == review_status)
+    if query and query.strip():
+        pattern = contains_pattern(query.lower())
+        stmt = stmt.where(ResearchRun.normalised_domain.like(pattern))
+    return list((await db.execute(stmt)).scalars())
 
 
 async def cancel_run(db: AsyncSession, *, user: User, run_id: uuid.UUID) -> ResearchRun:
     run = await get_run(db, user=user, run_id=run_id)
+    _ensure_can_manage(user, run)
     if run.status not in ACTIVE:
         raise Conflict(f"This run is {run.status.value} and cannot be cancelled.")
     run.status = JobStatus.CANCELLED
@@ -142,8 +168,7 @@ async def cancel_run(db: AsyncSession, *, user: User, run_id: uuid.UUID) -> Rese
 
 async def retry_run(db: AsyncSession, *, user: User, run_id: uuid.UUID) -> ResearchRun:
     run = await get_run(db, user=user, run_id=run_id)
-    if run.requested_by_id != user.id and SEE_ALL_PERMISSION not in user.permission_keys:
-        raise PermissionDenied("Only the person who started this run can retry it.")
+    _ensure_can_manage(user, run)
     if run.status not in (JobStatus.FAILED, JobStatus.CANCELLED):
         raise Conflict(f"This run is {run.status.value}; only failed or cancelled runs can retry.")
     active = (

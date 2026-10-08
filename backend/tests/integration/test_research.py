@@ -107,13 +107,19 @@ def research_api(
         yield ApiClient(http)
 
 
-def run_pipeline(run_id: uuid.UUID, settings: Settings, *, render: bool = True) -> None:
+def run_pipeline(
+    run_id: uuid.UUID,
+    settings: Settings,
+    *,
+    render: bool = True,
+    hosts: tuple[str, ...] = ("acme.test",),
+) -> None:
     async def go() -> None:
         engine = create_async_engine(settings.database_url, poolclass=NullPool)
         fetcher = SafeHttpFetcher(
             user_agent=settings.crawler_user_agent,
             budget=FetchBudget(allowed_ports=frozenset(settings.crawl_allowed_ports)),
-            resolver=FakeResolver({"acme.test": ["127.0.0.1"]}),
+            resolver=FakeResolver({host: ["127.0.0.1"] for host in hosts}),
             allowlist=parse_networks(settings.fetch_private_allowlist),
         )
         renderer = (
@@ -299,9 +305,11 @@ def test_permissions_and_visibility(
         kim.login("kim@verkies.test")
         run = _start(sam, f"http://acme.test:{port}")
         assert [r["id"] for r in sam.get("/research-runs").json()] == [run["id"]]
-        assert kim.get("/research-runs").json() == []  # salespeople see their own runs
-        assert kim.get(f"/research-runs/{run['id']}").status_code == 404
-        assert kim.send("POST", f"/research-runs/{run['id']}/cancel").status_code == 404
+        # Salespeople review prospects, so they see every run, but only change their own.
+        assert [r["id"] for r in kim.get("/research-runs").json()] == [run["id"]]
+        assert kim.get(f"/research-runs/{run['id']}").status_code == 200
+        assert kim.send("POST", f"/research-runs/{run['id']}/cancel").status_code == 403
+        assert kim.send("POST", f"/research-runs/{run['id']}/retry").status_code == 403
     assert [r["id"] for r in research_api.get("/research-runs").json()] == [
         run["id"]
     ]  # viewer: all

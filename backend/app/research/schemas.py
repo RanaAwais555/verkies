@@ -77,6 +77,11 @@ class RunOut(BaseModel):
     error: str | None
     retry_count: int
     possible_duplicate_of: list[str]
+    account_id: uuid.UUID | None
+    reviewed_by_id: uuid.UUID | None
+    reviewed_at: datetime | None
+    rejection_reason: str | None
+    rejection_note: str | None
     # Overall progress across the stages this run has.
     progress_pct: int
     stages: list[StageOut]
@@ -100,6 +105,11 @@ class RunOut(BaseModel):
             error=run.error,
             retry_count=run.retry_count,
             possible_duplicate_of=run.possible_duplicate_of,
+            account_id=run.account_id,
+            reviewed_by_id=run.reviewed_by_id,
+            reviewed_at=run.reviewed_at,
+            rejection_reason=run.rejection_reason.value if run.rejection_reason else None,
+            rejection_note=run.rejection_note,
             progress_pct=progress,
             stages=[StageOut.of(s) for s in stages],
         )

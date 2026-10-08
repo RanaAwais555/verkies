@@ -12,6 +12,7 @@ x-prod-backend-env: &prod-backend-env
   VROS_LOG_LEVEL: ${VROS_LOG_LEVEL:-INFO}
   VROS_AI_PROVIDER: ${VROS_AI_PROVIDER:-none}
   VROS_OLLAMA_MODEL: ${VROS_OLLAMA_MODEL:-granite4.2:8b}
+  VROS_TASK_DUE_BUSINESS_DAYS: ${VROS_TASK_DUE_BUSINESS_DAYS:-2}
 
 services:
   postgres:
