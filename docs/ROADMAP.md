@@ -1,0 +1,41 @@
+# VROS Roadmap
+
+Phases follow §20. Phase 1 must work reliably end to end before any later phase starts (§20). Each slice below is demonstrable on its own and ends with passing tests.
+
+## Phase 1: Vertical slice (URL → intelligence → qualification → scoring → CRM)
+
+| Slice | Delivers | Exit criteria |
+| --- | --- | --- |
+| 1.0 Foundation | Repo layout, Docker Compose (api, worker, frontend, postgres+pgvector, redis), settings, CI (lint, types, tests), health endpoint | `docker compose up` gives a healthy stack; CI green |
+| 1.1 Schema and auth | Alembic migrations for DATA_MODEL.md Phase 1 tables, append-only triggers, users/roles/permissions, login, RBAC deps, audit writer | Migration up/down clean; constraint tests pass (unique domain, evidence-required claims, append-only) |
+| 1.2 Safe fetch and crawl | `Fetcher` (httpx, Playwright), SSRF guard, robots, budgets, raw response cache, job runner with stages and progress | SSRF, redirect, rebinding, size and robots tests pass; progress visible via API |
+| 1.3 Analysis and evidence | Website/SEO/conversion/product/technology extractors; observations written as Evidence | Fixture-site tests assert exact observations and evidence fields |
+| 1.4 Opportunity, ICP, scoring | Detectors, ICP and negative-ICP engine, ten dimensions, priority score, gates, bands, config tables and seeds | Unit tests per rule/dimension/gate; golden fixtures pass |
+| 1.5 Matching and brief | Service catalogue and matching, reference projects and similarity (Unknown if no profile), brief assembly, template mode, optional AI mode with grounding validator | Grounding tests: no claim without valid evidence; invented-entity checks pass |
+| 1.6 Approval and CRM | Review queue, approve/reject, Account/Lead/Opportunity/Contact/Task creation in one transaction, dedupe, timeline | Integration test for both paths; rejected prospects off the queue but searchable |
+| 1.7 UI | Login, Home, New research with progress, brief review, Accounts, Account 360, Settings | Playwright e2e of the full DoD checklist (PRODUCT_SPEC.md §4) |
+
+**Phase 1 done** when every box in the §20 checklist passes in the e2e test and the docs match the code.
+
+## Later phases
+
+| Phase | Theme | Headline deliverables |
+| --- | --- | --- |
+| 2 | Discovery | Search providers (CSV, SearXNG, Companies House bulk), deduplication UI, enrichment, job-board and news signals, decision-maker research, natural-language search, top-leads mode |
+| 3 | Full CRM and outreach | Contacts, activities, pipelines (New Business, Existing Client Expansion, Partnership), deals, forecasting, unified inbox, mailbox connect with SPF/DKIM/DMARC checks, sequences with approval, LinkedIn assisted queue, suppression and compliance controls |
+| 4 | Client lifecycle | Convert Opportunity → Client, projects/milestones, client health, retention engine, expansion engine, referrals, documents |
+| 5 | Learning | Feedback capture, win/loss analysis, learned ICP and weight proposals (human-activated), signal effectiveness, similarity learning |
+| 6 | Monitoring | Watchlists, website diffs, funding, hiring and leadership changes, alerts and auto-tasks |
+| 7 | Hardening | Performance, security review, RBAC refinement, observability (Prometheus/Grafana), backups, DR, scalability |
+
+## Decisions needed (from GAP_ANALYSIS.md §6)
+
+1. Verkies service catalogue (blocks real service matching content).
+2. Reference project profiles (blocks real similarity content).
+3. Production hosting target (Phase 7).
+4. GPU class for Ollama.
+5. Initial users and roles.
+
+## Change control
+
+Scope changes update `PRODUCT_SPEC.md` first. Any change to scoring, ICP or AI grounding updates the matching spec in the same pull request.
