@@ -45,3 +45,21 @@ test("import a CSV, see every row checked, and research the new ones", async ({ 
   await page.goto("/discover");
   await expect(page.getByTestId("imports")).toContainText("prospects.csv");
 });
+
+test("search the web: results are checked like an import", async ({ page }) => {
+  await page.goto("/login");
+  await page.getByLabel("Email").fill(ADMIN.email);
+  await page.getByLabel("Password").fill(ADMIN.password);
+  await page.getByRole("button", { name: "Sign in" }).click();
+  await expect(page.getByTestId("signed-in-as")).toBeVisible();
+
+  await page.goto("/discover");
+  await page.getByLabel("Search query").fill("immigration advisers in London");
+  await page.getByRole("button", { name: "Search", exact: true }).click();
+  await expect(page.getByRole("heading", { name: "Search: immigration advisers in London" })).toBeVisible();
+  const rows = page.getByTestId("import-rows");
+  await expect(rows.locator("tr", { hasText: "harbour.test" })).toContainText("Existing account");
+  await expect(rows.locator("tr", { hasText: "pixelforge.test" })).toContainText("Already researched");
+  await expect(rows).not.toContainText("linkedin");
+  await expect(page.getByText("Which column is which?")).toHaveCount(0);
+});

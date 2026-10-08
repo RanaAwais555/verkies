@@ -15,6 +15,8 @@ x-backend-env: &backend-env
   VROS_TASK_DUE_BUSINESS_DAYS: ${VROS_TASK_DUE_BUSINESS_DAYS:-2}
   VROS_COMPANIES_HOUSE_API_KEY: ${VROS_COMPANIES_HOUSE_API_KEY:-}
   VROS_WIKIDATA_ENABLED: ${VROS_WIKIDATA_ENABLED:-true}
+  VROS_SEARCH_PROVIDER: ${VROS_SEARCH_PROVIDER:-none}
+  VROS_SEARXNG_URL: ${VROS_SEARXNG_URL:-http://searxng:8080}
 
 services:
   postgres:
@@ -120,6 +122,20 @@ services:
     depends_on:
       api: { condition: service_healthy }
       frontend: { condition: service_healthy }
+
+  # Optional self-hosted web search for discovery: docker compose --profile search up,
+  # with VROS_SEARCH_PROVIDER=searxng. Internal only (no published port).
+  searxng:
+    image: searxng/searxng:2026.9.22-2ed96e6fc
+    profiles: ["search"]
+    restart: unless-stopped
+    environment:
+      SEARXNG_SECRET: ${VROS_SEARXNG_SECRET:-${VROS_SECRET_KEY:-dev-only-searxng-secret-not-for-production}}
+      SEARXNG_BASE_URL: http://searxng:8080/
+      # The image binds IPv6 "::" by default, which fails on IPv4-only Docker networks.
+      GRANIAN_HOST: 0.0.0.0
+    volumes:
+      - ./ops/searxng/settings.yml:/etc/searxng/settings.yml:ro
 
 volumes:
   pgdata:

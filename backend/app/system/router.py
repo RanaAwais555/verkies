@@ -50,6 +50,13 @@ async def providers(_: CurrentUser, settings: AppSettings) -> list[ProviderStatu
             else "No API key: registry facts are skipped (set VROS_COMPANIES_HOUSE_API_KEY)",
         ),
         ProviderStatus(
+            name="Web search",
+            status="ok" if settings.search_provider != "none" else "off",
+            detail="SearXNG (self-hosted) finds candidate company websites"
+            if settings.search_provider != "none"
+            else "Off: Discover offers CSV import only (start Compose with --profile search)",
+        ),
+        ProviderStatus(
             name="Wikidata",
             status="ok" if settings.wikidata_enabled else "off",
             detail="Company facts by official website" if settings.wikidata_enabled else "Off",

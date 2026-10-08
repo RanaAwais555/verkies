@@ -6,6 +6,7 @@ Point the crawler at it with VROS_FETCH_HOST_OVERRIDES=harbour.test=127.0.0.1,..
 VROS_FETCH_PRIVATE_ALLOWLIST=127.0.0.0/8 (development only; refused in production).
 """
 
+import json
 import sys
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
@@ -30,9 +31,27 @@ SITES = {
 }
 
 
+def _search_results(port: int) -> bytes:
+    """A stand-in for SearXNG's JSON API (VROS_SEARXNG_URL pointed at this server)."""
+    results = [
+        {"url": f"http://harbour.test:{port}/about-us/", "title": "Harbour Immigration | Visas"},
+        {"url": f"http://pixelforge.test:{port}/", "title": "Pixelforge - Digital Agency"},
+        {"url": "https://uk.linkedin.com/company/harbour", "title": "Harbour | LinkedIn"},
+    ]
+    return json.dumps({"results": results}).encode()
+
+
 class Handler(BaseHTTPRequestHandler):
     def do_GET(self) -> None:
         host = (self.headers.get("Host") or "").split(":")[0].lower()
+        if self.path.startswith("/search?"):
+            body = _search_results(self.server.server_address[1])
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json")
+            self.send_header("Content-Length", str(len(body)))
+            self.end_headers()
+            self.wfile.write(body)
+            return
         page = SITES.get(host, {}).get(self.path)
         if page is None:
             self.send_response(404)

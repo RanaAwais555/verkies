@@ -11,8 +11,12 @@ from pydantic import BaseModel, Field
 from app.auth.deps import AppSettings, DbSession, require_permission
 from app.auth.models import User
 from app.core.enums import CandidateStatus
+from app.core.errors import AppError
 from app.discovery import csv_import, service
 from app.discovery.models import DiscoveredCompany, DiscoveryJob
+from app.discovery.web_search import candidates as web_search_rows
+from app.providers.errors import ProviderError, ProviderUnavailable
+from app.providers.search import MAX_PAGES, SearchProvider, build_search_provider
 from app.research.models import ResearchRun
 from app.research.router import Enqueuer
 
@@ -174,3 +178,48 @@ async def research_rows(
     await db.commit()
     failures = await service.enqueue_all(db, runs, enqueue)
     return ResearchStarted(started=[r.id for r in runs], skipped=skipped, queue_failures=failures)
+
+
+search_router = APIRouter(prefix="/discovery/searches", tags=["discovery"])
+
+
+class SearchUnavailable(AppError):
+    status_code = 503
+    code = "search_unavailable"
+
+
+class SearchFailed(AppError):
+    status_code = 502
+    code = "search_failed"
+
+
+class SearchBody(BaseModel):
+    query: str = Field(min_length=3, max_length=200)
+    pages: int = Field(default=1, ge=1, le=MAX_PAGES)
+    # Search language/region for the engine, e.g. "en-GB".
+    language: str | None = Field(default="en-GB", pattern=r"^[a-z]{2}(-[A-Z]{2})?$")
+
+
+def get_search_provider(settings: AppSettings) -> SearchProvider:
+    return build_search_provider(settings)
+
+
+Searcher = Annotated[SearchProvider, Depends(get_search_provider)]
+
+
+@search_router.post("", status_code=status.HTTP_201_CREATED)
+async def web_search(
+    body: SearchBody, user: Researcher, db: DbSession, provider: Searcher
+) -> JobDetail:
+    """Search the web for companies; results become a checked discovery job."""
+    try:
+        results = await provider.search(body.query, pages=body.pages, language=body.language)
+    except ProviderUnavailable as exc:
+        raise SearchUnavailable(exc.message) from exc
+    except ProviderError as exc:
+        raise SearchFailed(exc.message) from exc
+    job = await service.create_search(
+        db, user=user, query=body.query, rows=web_search_rows(results)
+    )
+    await db.commit()
+    return await _detail(db, job, None)

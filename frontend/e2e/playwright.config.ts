@@ -25,6 +25,8 @@ const backendEnv = {
   VROS_CRAWL_MIN_INTERVAL_SECONDS: "0",
   VROS_RENDER_ENABLED: "false",
   VROS_WIKIDATA_ENABLED: "false", // no outside network in tests
+  VROS_SEARCH_PROVIDER: "searxng", // answered by the fixture server
+  VROS_SEARXNG_URL: `http://127.0.0.1:${SITE_PORT}`,
   VROS_ADMIN_PASSWORD: ADMIN.password,
 };
 

@@ -89,6 +89,12 @@ class Settings(BaseSettings):
     companies_house_api_key: SecretStr | None = None
     wikidata_enabled: bool = True
 
+    # Web search for discovery (slice 2.4): "none", or a self-hosted SearXNG instance
+    # (docker compose --profile search).
+    search_provider: Literal["none", "searxng"] = "none"
+    searxng_url: str = "http://searxng:8080"
+    search_timeout_seconds: float = Field(default=20.0, gt=0)
+
     # Optional local AI for brief wording (AI_SPEC.md). "none" = template mode only.
     ai_provider: Literal["none", "ollama"] = "none"
     ollama_url: str = "http://ollama:11434"

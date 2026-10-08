@@ -105,10 +105,12 @@ export default function ImportPage() {
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center gap-3">
-        <h1 className="text-xl font-semibold">{job.name}</h1>
-        <span className="text-sm text-muted">{job.row_count} rows</span>
+        <h1 className="text-xl font-semibold">{job.kind === "search" ? `Search: ${job.name}` : job.name}</h1>
+        <span className="text-sm text-muted">{job.row_count} {job.kind === "search" ? "company websites found" : "rows"}</span>
       </div>
-      <Mapping job={job} onChecked={(checked) => { setSelected(new Set()); mutate(checked, { revalidate: false }); }} />
+      {job.kind !== "search" && (
+        <Mapping job={job} onChecked={(checked) => { setSelected(new Set()); mutate(checked, { revalidate: false }); }} />
+      )}
       {job.status === "checked" && (
         <Card
           title="Rows"

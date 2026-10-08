@@ -208,6 +208,7 @@ class AuditSource(StrEnum):
 
 class DiscoveryKind(StrEnum):
     CSV_IMPORT = "csv_import"
+    SEARCH = "search"  # web search through the configured SearchProvider (slice 2.4)
 
 
 class DiscoveryStatus(StrEnum):
