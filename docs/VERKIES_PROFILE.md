@@ -32,21 +32,42 @@ Pricing amounts: **Unknown** (scoped per project on the first call).
 
 ## 3. Service catalogue seed
 
-`confirmed = false` for every row. "Evidence" shows where the site supports the row.
+### 3a. Confirmed services
 
-| Key | Name | What it covers (per site) | Evidence | Note |
-| --- | --- | --- | --- | --- |
-| `mvp_build` | MVP / product development | Web apps, mobile apps, SaaS platforms, marketplaces, internal tools, software layer for hardware products; design, build, deploy, host | `/` FAQ, process, engagements | Core offer. Target buyer on site: founders, often non-technical |
-| `product_partner` | Ongoing product partner | Dedicated team, monthly: custom architecture, integrations, scaling, continuous iteration | `/` engagements | |
-| `post_launch` | Post-launch support | Bug fixes, feature iterations, scaling support | `/` | Natural expansion from `mvp_build` |
-| `web_build` | Website design and build | Marketing and service websites | Case studies: ShiftRow, Wesbridge, THEOO | Shown in portfolio, not listed as a standalone service on the homepage. **Confirm** |
-| `crm_portal` | CRM, practice systems and client portals | Lead, matter, document, appointment and payment management in one system with a client portal | Case studies: Wesbridge, ShiftRow, THEOO, LumiNexis TBG, Ask iDeer | Five of six case studies include a CRM. Shown in portfolio, not listed as a service. **Confirm** |
-| `public_tools` | Public interactive tools | Instant-quote, eligibility and booking tools | Case studies: ShiftRow ("instant quotes", "booking tools"), Wesbridge ("public eligibility tools") | **Confirm** |
-| `seo_content` | SEO and content engine | Search-led content (29 reference route pages at Wesbridge), organic enquiry growth | `/case/wesbridge` | Evidence is one case study; the site presents the result as a claim. **Confirm** |
-| `brand` | Brand and identity | Brand work | ShiftRow ("brand, website, tools, CRM"); homepage text "marketing, branding, and growth" | **Confirm** |
-| `growth_marketing` | Growth marketing | Paid acquisition, brand and content, SEO ("Q3 growth retainers") | `/marketing` | **Low reliability**: the page mixes placeholder text and claims that contradict the homepage (see §6). Do not recommend until confirmed |
+Provided by Verkies (Rana Awais, Head of Growth) on 2026-10-08. These load with `confirmed = true`. This is the authoritative catalogue, and service matching recommends only from it unless an admin confirms more.
 
-These keys map onto the opportunity categories in §9 of the master context (MVP development, SaaS development, CRM, client portal, website rebuild, SEO, content strategy, growth marketing, ongoing product support, and so on).
+| Key | Service | Maps to opportunity categories (master context §9) | Site evidence |
+| --- | --- | --- | --- |
+| `custom_software` | Custom Software Development | product rebuild, technical rescue, application modernization, internal tools, workflow automation, integrations, digital transformation | Homepage: "internal tools", "custom architecture, integrations" |
+| `saas_dev` | SaaS Development | SaaS development, marketplace | Homepage FAQ: "SaaS platforms, marketplaces" |
+| `mvp_startups` | MVPs for startups | MVP development | Homepage: core offer, fixed-scope 4–6 weeks |
+| `web_dev` | Web Development | website rebuild, booking system, client portal | Case studies: ShiftRow, Wesbridge, THEOO |
+| `mobile_dev` | Mobile Application Development | mobile application | Homepage FAQ: "mobile apps", React Native |
+| `database_dev` | Database Development | integrations, document workflow, analytics | Not described on the site |
+| `ux_design` | User Experience Design (UED) | conversion optimization, product rebuild | Homepage: "clickable design" in step 1 |
+| `project_management` | Project Management | ongoing product support | Not described on the site as a standalone service |
+| `growth_marketing` | Growth Marketing | growth marketing, paid acquisition, content strategy, analytics | `/marketing` (low reliability) and homepage "marketing and GTM work" |
+| `demand_generation` | Demand Generation | paid acquisition, growth marketing | Not described on the site |
+| `business_consulting` | Business Consulting | digital transformation | Not described on the site |
+
+Where the "Site evidence" column says "not described", the service is confirmed by Verkies but nothing on the public site supports it, so briefs may recommend it but must not cite site evidence for it.
+
+### 3b. Engagement models (not services)
+
+Fixed-Scope MVP, Ongoing Partner and post-launch support (bug fixes, feature iterations, scaling) describe *how* Verkies engages (§2). They attach to a recommendation as the engagement type and are not separate catalogue rows.
+
+### 3c. Capabilities evidenced in the portfolio but not in the confirmed list
+
+`confirmed = false`. Each is shown as a capability of its nearest confirmed service, and is never recommended as a standalone service until Verkies confirms.
+
+| Key | Capability | Evidence | Presumed parent service (unconfirmed) |
+| --- | --- | --- | --- |
+| `crm_portal` | CRM, practice systems and client portals | Case studies: Wesbridge, ShiftRow, THEOO, LumiNexis TBG, Ask iDeer (five of six) | `custom_software` |
+| `public_tools` | Public instant-quote, eligibility and booking tools | ShiftRow, Wesbridge | `custom_software` / `web_dev` |
+| `seo_content` | SEO and content engine | Wesbridge case study | `growth_marketing` |
+| `brand` | Brand and identity | ShiftRow | none in the confirmed list |
+
+The five CRM case studies are the strongest delivery evidence on the site, yet CRM is not on the confirmed list. Worth deciding whether CRM/portal should be a named service, since it is what the similarity engine will lean on most.
 
 ## 4. Reference project seed
 
@@ -77,7 +98,7 @@ The master context ICP (§5) includes established professional-service firms (im
 
 ## 7. Open confirmations for Verkies
 
-1. Which seeded services are real, standalone, sellable offers (especially `web_build`, `crm_portal`, `public_tools`, `seo_content`, `brand`, `growth_marketing`)?
+1. Should CRM/portal, public tools, SEO and brand become named services (§3c)? Also, for each confirmed service, what problem signals indicate a need for it (drives the opportunity detectors)?
 2. Complete the Unknown fields for each reference project (technologies, size and stage, buyer role, typical value). Client names and figures should only be entered where the client has agreed.
 3. Whether `/marketing` is live, planned or leftover template content.
 4. Relative priority of founder-MVP buyers vs. service-firm CRM/website buyers.

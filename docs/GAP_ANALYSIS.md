@@ -64,7 +64,7 @@ See `ARCHITECTURE.md`. In one line: a modular FastAPI monolith with a Celery wor
 
 These do not block the documents. Items 1 and 2 block the *content* of two Phase 1 features.
 
-1. **Verkies service catalogue: partly resolved.** The public site (verkies.co) was read on 2026-10-08 and a seed catalogue is in `VERKIES_PROFILE.md` §3. Rows are loaded unconfirmed. Verkies still needs to confirm which are real standalone offers, especially the CRM/portal, website, SEO and growth-marketing rows, and to supply the problem signals each service answers.
+1. **Verkies service catalogue: mostly resolved.** Verkies confirmed eleven services on 2026-10-08 (`VERKIES_PROFILE.md` §3a). Still open: whether CRM/portal, public tools, SEO and brand should be named services (§3c), and the problem signals each service answers (needed to tune the opportunity detectors).
 2. **Reference project profiles: partly resolved.** Names, industry, service delivered and status for all six archetypes are in `VERKIES_PROFILE.md` §4. Technologies, company size, growth stage, buyer role and value are **Unknown** and stay so until Verkies fills them in; similarity returns Unknown until a profile is complete.
 3. **ICP priority between two buyer types** (founder MVP vs. service-firm CRM/website), see `VERKIES_PROFILE.md` §5.
 4. **Hosting target** for production (single VPS vs. other). Affects only Phase 7.
