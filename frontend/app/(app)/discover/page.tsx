@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState, type ChangeEvent, type FormEvent } from "react";
 
-import { Badge, Button, Card, Empty, ErrorNote, Field, formatDate, inputClass, Loading } from "@/components/ui";
+import { Badge, Button, Card, Empty, ErrorNote, Field, formatDate, inputClass, Loading, PageHeader } from "@/components/ui";
 import { api } from "@/lib/client";
 import { useApi } from "@/lib/hooks";
 import type { ImportDetail, ImportJob } from "@/lib/types";
@@ -171,7 +171,10 @@ export default function DiscoverPage() {
 
   return (
     <div className="space-y-6">
-      <h1 className="text-xl font-semibold">Discover</h1>
+      <PageHeader
+        title="Discover"
+        description="Find new companies: search the web, search Companies House or import a list. Nothing reaches Accounts until you approve it."
+      />
       <WebSearch />
       <RegistrySearch />
       <Card title="Import companies from a CSV file">
@@ -179,7 +182,7 @@ export default function DiscoverPage() {
           One company per row, with a header row. A website column is required; name, country, industry and notes are optional.
           Nothing is added to Accounts: you choose which rows to research, then approve or reject each one as usual.
         </p>
-        <label className="inline-flex cursor-pointer items-center gap-2 rounded-md bg-foreground px-3 py-1.5 text-sm font-medium text-background">
+        <label className="inline-flex cursor-pointer items-center gap-2 rounded-lg bg-accent px-3.5 py-2 text-sm font-medium text-accent-foreground shadow-sm hover:bg-accent-hover">
           <input type="file" accept=".csv,text/csv,text/plain" onChange={upload} disabled={busy} className="sr-only" aria-label="CSV file" />
           {busy ? "Uploading…" : "Choose CSV file"}
         </label>
@@ -190,11 +193,11 @@ export default function DiscoverPage() {
         {!imports && !error && <Loading />}
         {imports?.length === 0 && <Empty>No imports yet.</Empty>}
         {imports && imports.length > 0 && (
-          <ul className="divide-y divide-border text-sm" data-testid="imports">
+          <ul className="-mx-5 -my-5 divide-y divide-border text-sm" data-testid="imports">
             {imports.map((job) => (
-              <li key={job.id} className="flex flex-wrap items-center gap-2 py-2">
+              <li key={job.id} className="flex flex-wrap items-center gap-2 px-5 py-3 transition-colors hover:bg-surface/50">
                 <Badge>{job.kind === "search" ? "Search" : job.kind === "registry" ? "Companies House" : "CSV"}</Badge>
-                <Link href={`/discover/${job.id}`} className="font-medium hover:underline">{job.name}</Link>
+                <Link href={`/discover/${job.id}`} className="font-medium hover:text-accent">{job.name}</Link>
                 <span className="text-muted">{job.row_count} rows · {formatDate(job.created_at, true)}</span>
                 {job.status === "running" ? <Badge tone="blue">Finding websites…</Badge> : job.status === "uploaded" ? <Badge tone="amber">Columns not mapped</Badge> : (
                   <span className="flex gap-1">

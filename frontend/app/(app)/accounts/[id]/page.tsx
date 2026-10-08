@@ -17,6 +17,7 @@ import {
   inputClass,
   label,
   Loading,
+  PageHeader,
   Score,
   ScoreBar,
   SourceLink,
@@ -33,7 +34,7 @@ function Overview({ account, refresh }: { account: Account360; refresh: () => vo
   return (
     <div className="grid gap-4 lg:grid-cols-2">
       <Card title="Company">
-        <dl className="grid grid-cols-[8rem_1fr] gap-x-3 gap-y-1 text-sm">
+        <dl className="grid grid-cols-[8rem_1fr] gap-x-3 gap-y-2 text-sm">
           <dt className="text-muted">Website</dt>
           <dd>{account.website_url ? <SourceLink url={account.website_url} /> : "Unknown"}</dd>
           <dt className="text-muted">Domains</dt>
@@ -266,13 +267,24 @@ export default function AccountPage() {
     ...(can(session, "audit.read") ? [{ key: "audit", label: "Audit" }] : []),
   ];
   return (
-    <div className="space-y-4">
-      {back}
-      <div className="flex flex-wrap items-center gap-3">
-        <h1 className="text-xl font-semibold">{account.name}</h1>
-        <Badge>{label(account.account_type)}</Badge>
-        <span className="text-sm text-muted">{account.primary_domain}</span>
-      </div>
+    <div className="space-y-5">
+      <PageHeader
+        back={back}
+        title={account.name}
+        badges={
+          <>
+            <Badge tone="purple">{label(account.account_type)}</Badge>
+            <BandBadge band={account.priority_band} />
+          </>
+        }
+        description={
+          <>
+            {account.primary_domain ?? "No website"}
+            {account.industry ? ` · ${account.industry}` : ""}
+            {` · owner ${account.owner?.name ?? "unassigned"}`}
+          </>
+        }
+      />
       <Tabs tabs={tabs} active={tab} onChange={setTab} />
       {tab === "overview" && <Overview account={account} refresh={() => mutate()} />}
       {tab === "leads" && <Leads account={account} />}

@@ -4,7 +4,7 @@ import { useParams } from "next/navigation";
 import { useState, type FormEvent } from "react";
 
 import { BackLink } from "@/components/back";
-import { Badge, Button, Card, ErrorNote, Field, inputClass, label, Loading, StatusBadge, TextLink } from "@/components/ui";
+import { Badge, Button, Card, ErrorNote, Field, inputClass, label, Loading, PageHeader, StatusBadge, Success, Table, TextLink } from "@/components/ui";
 import { api } from "@/lib/client";
 import { useApi } from "@/lib/hooks";
 import type { ImportDetail, ImportRow } from "@/lib/types";
@@ -111,13 +111,11 @@ export default function ImportPage() {
 
   return (
     <div className="space-y-4">
-      {back}
-      <div className="flex flex-wrap items-center gap-3">
-        <h1 className="text-xl font-semibold">
-          {job.kind === "search" ? `Search: ${job.name}` : job.kind === "registry" ? `Companies House: ${job.name}` : job.name}
-        </h1>
-        <span className="text-sm text-muted">{job.row_count} {job.kind === "search" ? "company websites found" : "rows"}</span>
-      </div>
+      <PageHeader
+        back={back}
+        title={job.kind === "search" ? `Search: ${job.name}` : job.kind === "registry" ? `Companies House: ${job.name}` : job.name}
+        description={`${job.row_count} ${job.kind === "search" ? "company websites found" : "rows"}`}
+      />
       {job.status === "running" && (
         <Card>
           <p className="text-sm" role="status" data-testid="finding-websites">
@@ -141,57 +139,55 @@ export default function ImportPage() {
             </div>
           }
         >
-          <div className="mb-3 flex flex-wrap gap-1">
+          <div className="mb-4 flex flex-wrap gap-1.5">
             {Object.entries(job.stats).map(([s, n]) => <Badge key={s} tone={STATUS_TONE[s as ImportRow["status"]]}>{n} {label(s).toLowerCase()}</Badge>)}
           </div>
           <ErrorNote error={actionError} />
-          {result && <p className="mb-2 text-sm text-green-700" data-testid="research-result">{result}</p>}
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-sm" data-testid="import-rows">
-              <thead className="text-xs text-muted">
-                <tr>
-                  <th className="w-8 py-1" />
-                  <th className="py-1 pr-3 font-medium">Row</th>
-                  <th className="py-1 pr-3 font-medium">Company</th>
-                  <th className="py-1 pr-3 font-medium">Website</th>
-                  <th className="py-1 pr-3 font-medium">Check</th>
-                  <th className="py-1 pr-3 font-medium">Research</th>
+          {result && <div className="mb-3"><Success testId="research-result">{result}</Success></div>}
+          <Table testId="import-rows">
+            <thead>
+              <tr>
+                <th className="w-8" />
+                <th>Row</th>
+                <th>Company</th>
+                <th>Website</th>
+                <th>Check</th>
+                <th>Research</th>
+              </tr>
+            </thead>
+            <tbody>
+              {job.rows.map((r) => (
+                <tr key={r.id}>
+                  <td>
+                    {RESEARCHABLE.has(r.status) && (
+                      <input type="checkbox" className="accent-[var(--accent)]" aria-label={`Select row ${r.row_number}`} checked={selected.has(r.id)} onChange={() => toggle(r.id)} />
+                    )}
+                  </td>
+                  <td className="tabular-nums text-muted">{r.row_number}</td>
+                  <td>
+                    <span className="font-medium">{r.name ?? "—"}</span>
+                    {r.industry && <span className="text-xs text-muted"> · {r.industry}</span>}
+                    {r.raw.number && <span className="block text-xs text-muted">No. {r.raw.number}{r.raw.locality ? ` · ${r.raw.locality}` : ""}</span>}
+                  </td>
+                  <td>{r.normalised_domain ?? r.website_url ?? "—"}</td>
+                  <td>
+                    <Badge tone={STATUS_TONE[r.status]}>{label(r.status)}</Badge>
+                    {r.status_detail && <div className="mt-1 text-xs text-muted">{r.status_detail}</div>}
+                    {r.matched_account_id && <div className="mt-1"><TextLink href={`/accounts/${r.matched_account_id}`}>Account</TextLink></div>}
+                  </td>
+                  <td>
+                    {r.research_run_id ? (
+                      <span className="flex flex-wrap items-center gap-1">
+                        {r.run_status && <StatusBadge status={r.run_status} />}
+                        {r.run_review_status && <StatusBadge status={r.run_review_status} />}
+                        <TextLink href={`/research/${r.research_run_id}`}>Open</TextLink>
+                      </span>
+                    ) : "—"}
+                  </td>
                 </tr>
-              </thead>
-              <tbody className="divide-y divide-border">
-                {job.rows.map((r) => (
-                  <tr key={r.id}>
-                    <td className="py-1.5">
-                      {RESEARCHABLE.has(r.status) && (
-                        <input type="checkbox" aria-label={`Select row ${r.row_number}`} checked={selected.has(r.id)} onChange={() => toggle(r.id)} />
-                      )}
-                    </td>
-                    <td className="py-1.5 pr-3 tabular-nums text-muted">{r.row_number}</td>
-                    <td className="py-1.5 pr-3">
-                      {r.name ?? "—"}
-                      {r.industry && <span className="text-xs text-muted"> · {r.industry}</span>}
-                      {r.raw.number && <span className="block text-xs text-muted">No. {r.raw.number}{r.raw.locality ? ` · ${r.raw.locality}` : ""}</span>}
-                    </td>
-                    <td className="py-1.5 pr-3">{r.normalised_domain ?? r.website_url ?? "—"}</td>
-                    <td className="py-1.5 pr-3">
-                      <Badge tone={STATUS_TONE[r.status]}>{label(r.status)}</Badge>
-                      {r.status_detail && <div className="text-xs text-muted">{r.status_detail}</div>}
-                      {r.matched_account_id && <TextLink href={`/accounts/${r.matched_account_id}`}>Account</TextLink>}
-                    </td>
-                    <td className="py-1.5 pr-3">
-                      {r.research_run_id ? (
-                        <span className="flex items-center gap-1">
-                          {r.run_status && <StatusBadge status={r.run_status} />}
-                          {r.run_review_status && <StatusBadge status={r.run_review_status} />}
-                          <TextLink href={`/research/${r.research_run_id}`}>Open</TextLink>
-                        </span>
-                      ) : "—"}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+              ))}
+            </tbody>
+          </Table>
         </Card>
       )}
     </div>

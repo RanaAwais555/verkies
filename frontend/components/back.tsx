@@ -3,6 +3,8 @@
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect } from "react";
 
+import { Icon } from "@/components/icons";
+
 // The pages visited in this tab since the app loaded, so Back can return to the page someone
 // came from, or to a sensible list page when they opened a link directly.
 const visited: string[] = [];
@@ -24,10 +26,10 @@ export function BackLink({ fallback }: { fallback: string }) {
     <button
       type="button"
       onClick={() => (visited.length > 1 ? router.back() : router.push(fallback))}
-      className="inline-flex items-center gap-1 text-sm text-muted hover:text-foreground"
+      className="-ml-1 inline-flex items-center gap-1 rounded-md px-1 py-0.5 text-sm text-muted transition-colors hover:text-foreground"
       data-testid="back"
     >
-      <span aria-hidden>←</span> Back
+      <Icon name="back" /> Back
     </button>
   );
 }

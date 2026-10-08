@@ -4,6 +4,7 @@ import { useState, useSyncExternalStore, type FormEvent } from "react";
 import useSWR from "swr";
 import { useRouter } from "next/navigation";
 
+import { AuthFrame } from "@/components/auth-frame";
 import { Button, ErrorNote, Field, inputClass, Loading } from "@/components/ui";
 import { api } from "@/lib/client";
 
@@ -55,11 +56,10 @@ export default function InvitePage() {
   }
 
   return (
-    <main className="mx-auto w-full max-w-sm px-4 py-20">
-      <h1 className="text-xl font-semibold">Join VROS</h1>
+    <AuthFrame title="Join VROS" subtitle="Choose your name and a password to finish setting up your account.">
       {!info && !error && <Loading what="Checking your invite" />}
       {info && (
-        <form onSubmit={submit} className="mt-6 space-y-4">
+        <form onSubmit={submit} className="space-y-4">
           <p className="text-sm text-muted">
             Invited as <strong className="text-foreground">{info.email}</strong> ({info.roles.join(", ")}).
           </p>
@@ -76,7 +76,7 @@ export default function InvitePage() {
           <Button type="submit" busy={busy} className="w-full">Create account</Button>
         </form>
       )}
-      {!info && error ? <div className="mt-6"><ErrorNote error={error} /></div> : null}
-    </main>
+      {!info && error ? <ErrorNote error={error} /> : null}
+    </AuthFrame>
   );
 }

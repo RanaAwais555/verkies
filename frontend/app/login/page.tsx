@@ -3,6 +3,7 @@
 import { Suspense, useState, type FormEvent } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 
+import { AuthFrame } from "@/components/auth-frame";
 import { Button, ErrorNote, Field, inputClass } from "@/components/ui";
 import { api } from "@/lib/client";
 
@@ -50,12 +51,10 @@ function LoginForm() {
 
 export default function LoginPage() {
   return (
-    <main className="mx-auto w-full max-w-sm px-4 py-20">
-      <h1 className="text-xl font-semibold">Sign in to VROS</h1>
-      <p className="mb-6 mt-1 text-sm text-muted">Verkies Revenue Operating System. Access is by invitation.</p>
+    <AuthFrame title="Sign in to VROS" subtitle="Access is by invitation from your team.">
       <Suspense>
         <LoginForm />
       </Suspense>
-    </main>
+    </AuthFrame>
   );
 }
