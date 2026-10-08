@@ -3,7 +3,7 @@ from typing import Any
 import pytest
 from pydantic import ValidationError
 
-from app.config import Environment, Settings
+from app.config import ConfigurationError, Environment, Settings, load_settings
 
 SECURE_PROD: dict[str, Any] = {
     "environment": "production",
@@ -74,3 +74,18 @@ def test_insecure_production_config_is_refused(override: dict[str, Any], message
 
 def test_secret_key_is_not_exposed_in_repr() -> None:
     assert "x" * 32 not in repr(_settings(**SECURE_PROD))
+
+
+def test_configuration_error_never_echoes_secret_values(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("VROS_ENVIRONMENT", "production")
+    monkeypatch.setenv("VROS_PUBLIC_URL", "https://vros.example.com")
+    monkeypatch.setenv("VROS_SECRET_KEY", "leaky-but-too-short")
+    monkeypatch.setenv("VROS_DATABASE_URL", "postgresql+psycopg://vros:hunter2-db-pass@db/vros")
+    with pytest.raises(ConfigurationError) as caught:
+        load_settings()
+    message = str(caught.value)
+    assert "VROS_SECRET_KEY must be set" in message
+    assert "leaky-but-too-short" not in message
+    assert "hunter2-db-pass" not in message
+    assert caught.value.__cause__ is None
+    assert caught.value.__suppress_context__ is True

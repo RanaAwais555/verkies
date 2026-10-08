@@ -2,10 +2,6 @@
 # VROS_SITE_ADDRESS is ":80" in development (plain HTTP on localhost) and the public
 # hostname in production, e.g. "vros.verkies.co", where Caddy obtains and renews a
 # Let's Encrypt certificate automatically and redirects HTTP to HTTPS.
-{
-	email {$VROS_ACME_EMAIL:}
-}
-
 {$VROS_SITE_ADDRESS::80} {
 	encode zstd gzip
 

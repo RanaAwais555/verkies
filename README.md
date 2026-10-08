@@ -43,6 +43,8 @@ One small VPS (2 vCPU / 4 GB is enough for the team stack without local AI) with
    docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build
    ```
    Caddy obtains the TLS certificate automatically on first request.
+
+   Needs Docker Compose v2.24 or newer (the production overlay uses `!reset` and `!override`).
 4. Check `https://<your-domain>/api/v1/health/ready` returns `"status":"ok"`.
 
 Production fails closed: the deploy stops if a required value is missing, and the API refuses to start with a short secret key, a non-HTTPS URL or the development database password. Only Caddy (80/443) is exposed; the database, Redis and API are reachable only inside the Docker network. Nightly database dumps go to the `backups` volume (14 days kept); copy them off the server.
@@ -50,6 +52,8 @@ Production fails closed: the deploy stops if a required value is missing, and th
 Team accounts are invite-only (no public sign-up). The first admin is created from the server's command line; this arrives in slice 1.1.
 
 To update: `git pull` then rerun the `up -d --build` command.
+
+`VROS_DB_PASSWORD` is applied when the database volume is first created. Changing it later in `.env` does not change the password inside PostgreSQL; change it there first (`ALTER ROLE vros PASSWORD '...'`), then update `.env`.
 
 ## Documents
 

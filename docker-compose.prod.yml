@@ -38,7 +38,6 @@ services:
     restart: unless-stopped
     environment:
       VROS_SITE_ADDRESS: ${VROS_SITE_ADDRESS:?set VROS_SITE_ADDRESS to the public hostname, e.g. vros.verkies.co}
-      VROS_ACME_EMAIL: ${VROS_ACME_EMAIL:?set VROS_ACME_EMAIL for Let's Encrypt notices}
     ports: !override
       - "80:80"
       - "443:443"

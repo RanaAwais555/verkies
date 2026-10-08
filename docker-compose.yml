@@ -86,7 +86,6 @@ services:
     image: caddy:2-alpine
     environment:
       VROS_SITE_ADDRESS: ${VROS_SITE_ADDRESS:-:80}
-      VROS_ACME_EMAIL: ${VROS_ACME_EMAIL:-}
     volumes:
       - ./ops/Caddyfile:/etc/caddy/Caddyfile:ro
       - caddydata:/data

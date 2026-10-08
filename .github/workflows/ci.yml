@@ -2,7 +2,6 @@ name: CI
 
 on:
   push:
-    branches: [main]
   pull_request:
 
 permissions:
@@ -77,13 +76,12 @@ jobs:
         env:
           VROS_PUBLIC_URL: https://vros.example.com
           VROS_SITE_ADDRESS: vros.example.com
-          VROS_ACME_EMAIL: ci@example.com
           VROS_SECRET_KEY: ci-only-not-a-real-secret-0123456789abcdef
           VROS_DB_PASSWORD: ci-only-db-password
         run: docker compose -f docker-compose.yml -f docker-compose.prod.yml config -q
       - name: Validate Caddyfile
         run: >-
-          docker run --rm -e VROS_SITE_ADDRESS=vros.example.com -e VROS_ACME_EMAIL=ci@example.com
+          docker run --rm -e VROS_SITE_ADDRESS=vros.example.com
           -v "$PWD/ops/Caddyfile:/etc/caddy/Caddyfile:ro" caddy:2-alpine
           caddy validate --config /etc/caddy/Caddyfile --adapter caddyfile
       - name: Build images

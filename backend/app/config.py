@@ -9,7 +9,7 @@ from functools import lru_cache
 from typing import Annotated, Self
 from urllib.parse import urlsplit
 
-from pydantic import Field, SecretStr, field_validator, model_validator
+from pydantic import Field, SecretStr, ValidationError, field_validator, model_validator
 from pydantic_settings import BaseSettings, NoDecode, SettingsConfigDict
 
 DEV_DATABASE_PASSWORD = "vros"  # noqa: S105 - the known development default we refuse in production
@@ -105,6 +105,22 @@ class Settings(BaseSettings):
         return self.cors_origins or ([] if self.is_production else [self.public_url])
 
 
+class ConfigurationError(RuntimeError):
+    """Settings are invalid. The message names each problem but never echoes input values,
+    which may include secrets (pydantic's own errors print the raw input)."""
+
+
+def load_settings() -> Settings:
+    try:
+        return Settings()
+    except ValidationError as exc:
+        problems = []
+        for error in exc.errors(include_input=False, include_url=False):
+            field = ".".join(str(part) for part in error["loc"]) or "settings"
+            problems.append(f"{field}: {error['msg']}")
+        raise ConfigurationError("invalid configuration: " + " | ".join(problems)) from None
+
+
 @lru_cache
 def get_settings() -> Settings:
-    return Settings()
+    return load_settings()
