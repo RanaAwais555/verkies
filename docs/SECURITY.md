@@ -4,11 +4,12 @@ Implements §17. Security for the user-submitted-URL crawler is Phase 1 scope; b
 
 ## 1. Authentication and sessions
 
-- **Invite-only team access.** There is no public sign-up. The first admin is created from the command line on the server; after that, admins invite teammates by email-bound, single-use, expiring invite links and can deactivate users at any time (deactivation revokes their sessions).
-- Email + password. Passwords hashed with Argon2id; never logged. Minimum length 12, checked against a breached-password list held locally.
-- Short-lived access tokens plus rotating refresh tokens in `HttpOnly`, `Secure`, `SameSite=Lax` cookies. Server-side session records so sessions can be revoked.
-- Login rate limiting and lockout backoff. Optional TOTP later.
-- No paid identity provider.
+- **Invite-only team access.** There is no public sign-up. The first admin is created on the server with `python -m app.cli create-admin`. After that, admins invite teammates: each invite is bound to one email address, single-use, expires after 7 days, and carries the roles the teammate will get. A new invite to the same address replaces the pending one. The invite link puts the token in the URL fragment (`/invite#token=…`), which browsers never send to servers, so it does not appear in proxy or access logs. Until outreach email exists (Phase 3) the admin copies the link to the teammate. Admins can deactivate a user at any time, which ends all their sessions. VROS refuses to remove or deactivate the last active admin.
+- Email + password. Passwords hashed with Argon2id (rehashed on login when parameters change); never logged. Policy: 12-256 characters, not trivially repetitive, not containing the email name. A breached-password check is not implemented; it would need either a bundled list or an outside service and is tracked for Phase 7.
+- **Sessions are server-side.** The browser holds a random 256-bit token in an `HttpOnly`, `SameSite=Lax` cookie (`Secure` and `__Host-` prefixed over HTTPS); the database stores only its HMAC (keyed with `VROS_SECRET_KEY`). A session ends after 12 hours idle or 14 days in total (configurable), on logout, on deactivation, or when the user changes password (other sessions only). There are no JWTs, so revocation is immediate.
+- **CSRF:** double-submit token. A second, readable cookie holds a random token that the frontend echoes in `X-CSRF-Token` on every state-changing request; the API rejects a mismatch. `SameSite=Lax` is a second layer.
+- **Lockout:** after 5 consecutive wrong passwords the account is locked for 15 minutes (configurable). Every response to a failed sign-in is the same generic message, and an unknown email still costs a full hash, so attackers cannot tell which accounts exist. Every failure, including attempts during a lockout, is audited.
+- Optional TOTP later. No paid identity provider.
 
 ## 2. Authorisation (RBAC)
 
@@ -45,7 +46,7 @@ Tests cover each rule, including a rebinding fake resolver and redirect-to-inter
 - Input validation with Pydantic on every request; typed responses.
 - SQL injection: SQLAlchemy parameterised queries only; no string-built SQL.
 - XSS: React escaping by default; crawled text is **untrusted** and always rendered as text. No `dangerouslySetInnerHTML` on crawled content. Strict CSP.
-- CSRF: cookie auth with `SameSite` plus a CSRF token on mutating requests.
+- CSRF: see §1 (double-submit token plus `SameSite=Lax`).
 - Prompt injection: crawled content is data. It is passed to models inside delimited blocks, the model has no tools and no authority, and output is schema-validated and grounded (AI_SPEC.md §3). A page that says "ignore previous instructions" cannot change a score or action.
 - Rate limiting on API and auth endpoints (Redis).
 - File handling: size and type limits, generated storage keys, no user-controlled paths.

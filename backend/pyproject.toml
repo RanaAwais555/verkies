@@ -12,6 +12,8 @@ dependencies = [
     "psycopg[binary]>=3.3,<4",
     "celery>=5.6,<6",
     "redis>=8.1,<9",
+    "argon2-cffi>=25.1,<26",
+    "pgvector>=0.5,<0.6",
 ]
 
 [dependency-groups]
@@ -37,6 +39,10 @@ target-version = "py313"
 [tool.ruff.lint]
 select = ["E", "F", "W", "I", "B", "UP", "S", "SIM", "RUF"]
 ignore = ["S101"]  # assert is fine in tests
+
+[tool.ruff.lint.per-file-ignores]
+# Generated migrations keep Alembic's long single-line column definitions.
+"alembic/versions/*" = ["E501"]
 
 [tool.mypy]
 python_version = "3.13"

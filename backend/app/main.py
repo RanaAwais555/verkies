@@ -7,7 +7,11 @@ from fastapi import FastAPI, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.trustedhost import TrustedHostMiddleware
 
+from app.audit.router import router as audit_router
+from app.auth.admin_router import router as users_router
+from app.auth.router import router as auth_router
 from app.config import Settings, get_settings
+from app.core.errors import install_error_handlers
 from app.core.logging import configure_logging, request_id_var
 from app.health.router import router as health_router
 
@@ -60,7 +64,9 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         response.headers[REQUEST_ID_HEADER] = rid
         return response
 
-    app.include_router(health_router, prefix=API_PREFIX)
+    install_error_handlers(app)
+    for router in (health_router, auth_router, users_router, audit_router):
+        app.include_router(router, prefix=API_PREFIX)
     return app
 
 

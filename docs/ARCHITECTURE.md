@@ -139,7 +139,7 @@ Internet ──443──▶ Caddy ──/api/*──▶ api:8000 ──▶ postg
 
 | File | Use |
 | --- | --- |
-| `docker-compose.yml` | Base services: `postgres` (pgvector), `redis`, `api`, `worker`, `frontend`. Development defaults; database and Redis ports published on localhost only |
+| `docker-compose.yml` | Base services: `postgres` (pgvector), `redis`, `migrate` (applies Alembic migrations and exits; `api` and `worker` start only if it succeeds), `api`, `worker`, `frontend`, `caddy`. Development defaults; database and Redis ports published on localhost only |
 | `docker-compose.prod.yml` | Production overlay: adds `caddy` and `backup`; no database or Redis ports published; `restart: unless-stopped`; all secrets from `.env` |
 
 Development: `docker compose up`. Production: `docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d` on one VPS with the domain's DNS `A` record pointing at it.

@@ -14,6 +14,8 @@ from pydantic_settings import BaseSettings, NoDecode, SettingsConfigDict
 
 DEV_DATABASE_PASSWORD = "vros"  # noqa: S105 - the known development default we refuse in production
 MIN_SECRET_KEY_LENGTH = 32
+# Used only outside production when no secret is configured.
+DEV_SIGNING_KEY = b"vros-development-signing-key-not-secret"
 
 
 class Environment(StrEnum):
@@ -49,6 +51,15 @@ class Settings(BaseSettings):
     # Seconds each readiness dependency check may take before it counts as down.
     health_check_timeout: float = Field(default=2.0, gt=0)
 
+    # Team sessions (SECURITY.md §1). A session ends after this much inactivity, or at the
+    # absolute limit, whichever comes first.
+    session_idle_minutes: int = Field(default=12 * 60, gt=0)
+    session_max_days: int = Field(default=14, gt=0)
+    invite_expiry_days: int = Field(default=7, gt=0)
+    # After this many consecutive wrong passwords the account is locked for the lockout period.
+    login_max_failures: int = Field(default=5, gt=0)
+    login_lockout_minutes: int = Field(default=15, gt=0)
+
     @field_validator("cors_origins", mode="before")
     @classmethod
     def _split_origins(cls, value: object) -> object:
@@ -83,6 +94,17 @@ class Settings(BaseSettings):
         if problems:
             raise ValueError("insecure production configuration: " + "; ".join(problems))
         return self
+
+    @property
+    def signing_key(self) -> bytes:
+        """Key for hashing session and invite tokens. Production guarantees a real secret."""
+        if self.secret_key is not None:
+            return self.secret_key.get_secret_value().encode()
+        return DEV_SIGNING_KEY
+
+    @property
+    def secure_cookies(self) -> bool:
+        return urlsplit(self.public_url).scheme == "https"
 
     @property
     def is_production(self) -> bool:

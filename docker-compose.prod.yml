@@ -22,6 +22,9 @@ services:
     restart: unless-stopped
     ports: !reset []
 
+  migrate:
+    environment: *prod-backend-env
+
   api:
     restart: unless-stopped
     environment: *prod-backend-env

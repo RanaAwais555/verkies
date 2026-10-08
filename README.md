@@ -2,7 +2,7 @@
 
 An intelligence-first revenue platform for Verkies Private Limited: prospect intelligence, qualification, CRM, client lifecycle and learning around a permanent Account. Built for team use, deployable to a live domain.
 
-**Status:** Phase 1, slice 1.0 (foundation) done. Next: 1.1 schema, team auth and audit. See [`docs/ROADMAP.md`](docs/ROADMAP.md).
+**Status:** Phase 1, slices 1.0 (foundation) and 1.1 (schema, team access, audit) done. Next: 1.2 safe fetch and crawl. See [`docs/ROADMAP.md`](docs/ROADMAP.md).
 
 ## Run it locally
 
@@ -46,10 +46,15 @@ One small VPS (2 vCPU / 4 GB is enough for the team stack without local AI) with
 
    Needs Docker Compose v2.24 or newer (the production overlay uses `!reset` and `!override`).
 4. Check `https://<your-domain>/api/v1/health/ready` returns `"status":"ok"`.
+5. Create the first admin (prompts for a password, 12+ characters):
+   ```bash
+   docker compose -f docker-compose.yml -f docker-compose.prod.yml exec api \
+     python -m app.cli create-admin --email you@verkies.co --name "Your Name"
+   ```
 
 Production fails closed: the deploy stops if a required value is missing, and the API refuses to start with a short secret key, a non-HTTPS URL or the development database password. Only Caddy (80/443) is exposed; the database, Redis and API are reachable only inside the Docker network. Nightly database dumps go to the `backups` volume (14 days kept); copy them off the server.
 
-Team accounts are invite-only (no public sign-up). The first admin is created from the server's command line; this arrives in slice 1.1.
+Team accounts are invite-only (no public sign-up). The admin invites teammates with `POST /api/v1/users/invites`, which returns a single-use link valid for 7 days to send to them; the sign-in and team screens arrive with the UI slice (1.7). Database migrations run automatically on every deploy (`migrate` service).
 
 To update: `git pull` then rerun the `up -d --build` command.
 
