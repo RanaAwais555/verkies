@@ -29,6 +29,12 @@ class ResearchStageName(StrEnum):
     BRIEF = "brief"
 
 
+class PageKind(StrEnum):
+    PAGE = "page"
+    ROBOTS = "robots"
+    SITEMAP = "sitemap"
+
+
 class RejectionReason(StrEnum):
     """Master context §3."""
 

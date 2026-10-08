@@ -35,11 +35,14 @@ Users submit URLs and the server fetches them, so this is the highest-risk surfa
 3. **Pin the connection to the validated IP** (custom resolver/transport) so a second DNS lookup cannot rebind to an internal address.
 4. Re-validate every redirect hop with the same rules; cap hops at 5.
 5. Cap bytes, time and decompressed size (zip-bomb guard); validate content type.
-6. Playwright runs in a throwaway context with downloads, permissions, file URLs and non-HTTP schemes disabled, and the same request-interception IP check applied to every sub-request. The worker has no credentials or internal network routes it does not need; the Compose network isolates it from the database admin interface.
+6. **Chromium never touches the network itself.** Every request a rendered page makes is intercepted: non-GET requests, images, media, fonts and WebSockets are refused, and everything else is fetched by the same guarded fetcher (rules 1-5) and handed back to the browser. Chromium is also launched against a dead proxy (`127.0.0.1:9`), so a request that escaped interception fails instead of reaching the network; this backstop caught a real gap during development (Chromium does not re-route the target of a redirect it is handed), which is now handled by serving the final page directly. Service workers and downloads are blocked, background networking is disabled, and subrequests and bytes are capped per page. Playwright is installed only in the worker image.
 7. Never follow `file:`, `ftp:`, `gopher:` or similar.
 8. Respect robots.txt. Never bypass CAPTCHAs, authentication, paywalls or anti-bot measures (§17).
 
-Tests cover each rule, including a rebinding fake resolver and redirect-to-internal.
+9. Error responses (4xx/5xx) are recorded by status only; their bodies are never downloaded. `Set-Cookie` headers from crawled sites are never stored.
+10. `VROS_FETCH_PRIVATE_ALLOWLIST` (CIDRs the fetcher may reach) exists for tests and local development only; production refuses to start if it is set.
+
+Tests cover each rule: every private, loopback, link-local, CGNAT, multicast, reserved and IPv4-mapped/6to4 range; mixed public/private DNS answers; DNS rebinding (the second answer is never used); redirects to internal addresses; redirect loops; size limits measured after decompression (zip bombs); slow-drip servers (hard per-request deadline); a real TLS server proving pinning still verifies the certificate hostname; and a hostile page whose JavaScript tries to reach cloud metadata, POST data and open a WebSocket.
 
 ## 4. Application security
 

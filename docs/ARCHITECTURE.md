@@ -87,6 +87,9 @@ Tests use fakes for every interface. No test touches the network.
 
 ## 5. Research pipeline (Phase 1)
 
+Implemented so far: stages 1-2 (validate, crawl) with the run API (`/api/v1/research-runs`: start, list, detail with stages and pages, cancel, retry). The worker image (`backend/Dockerfile` target `worker`) adds headless Chromium; the API image does not. Fetched bodies live in the `storage` volume.
+
+
 A research run is one Celery job with ordered stages. Each stage writes its own progress row, so the UI shows crawl progress (§20).
 
 1. **Validate URL.** Scheme allowlist, resolve DNS, reject private/loopback/link-local/metadata addresses (SECURITY.md §3).

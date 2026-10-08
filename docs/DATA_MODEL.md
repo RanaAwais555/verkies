@@ -52,7 +52,7 @@ Indexes: trigram on `accounts.name`, `account_domains.domain`; btree on `account
 - `confidence numeric(3,2)` in `[0,1]`
 - `raw_response_id` → `raw_responses` (cached fetch)
 
-**raw_responses**: `url`, `fetched_at`, `status_code`, `headers jsonb`, `body_ref` (storage key), `content_type`, `bytes`, `content_hash`. Cache key is `(url, content_hash)`.
+**raw_responses**: `url`, `final_url`, `rendered`, `fetched_at`, `status_code`, `headers jsonb` (never `Set-Cookie`), `body_ref` (content-addressed storage key), `content_type`, `bytes`, `content_hash`. Unique on `(url, rendered, content_hash)`; refetching identical content refreshes `fetched_at`.
 
 **claims**: a stated finding in the system. `account_id`, `research_run_id`, `claim_class` enum (fact, inference, recommendation), `subject` (e.g. `conversion.primary_cta`), `statement`, `confidence`.
 **claim_evidence**: `claim_id`, `evidence_id`. A `fact` claim must have at least one row, enforced by a deferred constraint trigger. An `inference` must too. A `recommendation` links to the claims it rests on via `claim_support`.
@@ -60,7 +60,8 @@ Indexes: trigram on `accounts.name`, `account_domains.domain`; btree on `account
 ### Research runs and jobs
 
 **research_runs**: `input_url`, `normalised_domain`, `account_id` null (set on approval or when matched to an existing account), `requested_by`, `status` (queued, running, completed, failed, cancelled, retrying), `review_status` (pending, approved, rejected), `started_at`, `finished_at`, `error`, `retry_count`, `crawl_budget jsonb`.
-**research_stages**: `research_run_id`, `stage` (validate, crawl, extract, detect, qualify, score, match, brief), `status`, `progress_pct`, `started_at`, `finished_at`, `detail jsonb`, `error`. Drives the progress UI.
+**research_stages**: `research_run_id`, `stage` (validate, crawl, extract, detect, qualify, score, match, brief), `status`, `progress_pct`, `started_at`, `finished_at`, `detail jsonb`, `error`. Drives the progress UI. A run only gets rows for the stages that exist in the pipeline today (validate and crawl as of slice 1.2); later slices add theirs.
+**research_pages**: what a run fetched, reused, skipped or was refused: `kind` (page, robots, sitemap), `url`, `final_url`, `discovered_via` (start, link, sitemap, robots), `category`, `status_code`, `content_type`, `bytes`, `raw_response_id`, `from_cache`, `rendered`, `title`, `canonical_url`, `duplicate_of_url`, `fetched_at`, `skip_reason`, `error`. Analysis (slice 1.3) reads pages from here.
 
 ### Opportunity detection
 

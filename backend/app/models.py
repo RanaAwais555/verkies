@@ -10,7 +10,7 @@ from app.crm.models import Activity, Lead, Opportunity, Task, TimelineEvent
 from app.evidence.models import Claim, Evidence
 from app.opportunities.models import OpportunityCandidate, OpportunityCategory
 from app.qualification.models import IcpConfig, QualificationResult
-from app.research.models import RawResponse, ResearchRun, ResearchStage
+from app.research.models import RawResponse, ResearchPage, ResearchRun, ResearchStage
 from app.scoring.models import ScoreSnapshot, ScoringConfig
 from app.similarity.models import SimilarityResult
 
@@ -35,6 +35,7 @@ __all__ = [
     "QualificationResult",
     "RawResponse",
     "ReferenceProject",
+    "ResearchPage",
     "ResearchRun",
     "ResearchStage",
     "Role",

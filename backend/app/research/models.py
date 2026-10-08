@@ -17,8 +17,14 @@ from sqlalchemy import (
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column
 
-from app.core.enums import JobStatus, RejectionReason, ResearchStageName, ReviewStatus
-from app.core.models import Base, IdMixin, TimestampMixin, text_enum
+from app.core.enums import (
+    JobStatus,
+    PageKind,
+    RejectionReason,
+    ResearchStageName,
+    ReviewStatus,
+)
+from app.core.models import Base, CreatedMixin, IdMixin, TimestampMixin, text_enum
 
 
 class ResearchRun(IdMixin, TimestampMixin, Base):
@@ -67,12 +73,15 @@ class ResearchStage(IdMixin, TimestampMixin, Base):
 
 
 class RawResponse(IdMixin, Base):
-    """A cached fetch. The body lives in storage under body_ref (PROVIDER_SPEC.md §1)."""
+    """A cached fetch. The body lives in storage under body_ref (PROVIDER_SPEC.md §1).
+    A rendered page (JavaScript executed) is cached separately from its static HTML."""
 
     __tablename__ = "raw_responses"
-    __table_args__ = (UniqueConstraint("url", "content_hash"),)
+    __table_args__ = (UniqueConstraint("url", "rendered", "content_hash"),)
 
     url: Mapped[str] = mapped_column(Text, index=True)
+    final_url: Mapped[str] = mapped_column(Text)
+    rendered: Mapped[bool] = mapped_column(default=False)
     fetched_at: Mapped[datetime] = mapped_column(server_default=func.now())
     status_code: Mapped[int] = mapped_column(SmallInteger)
     headers: Mapped[dict[str, Any]] = mapped_column(JSONB, default=dict)
@@ -80,3 +89,32 @@ class RawResponse(IdMixin, Base):
     content_type: Mapped[str | None] = mapped_column(String(200))
     bytes: Mapped[int] = mapped_column(BigInteger, default=0)
     content_hash: Mapped[str] = mapped_column(String(64))
+
+
+class ResearchPage(IdMixin, CreatedMixin, Base):
+    """What a run fetched, skipped or was refused, and why. Analysis reads pages from here."""
+
+    __tablename__ = "research_pages"
+
+    research_run_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("research_runs.id", ondelete="CASCADE"), index=True
+    )
+    kind: Mapped[PageKind] = mapped_column(text_enum(PageKind))
+    url: Mapped[str] = mapped_column(Text)
+    final_url: Mapped[str | None] = mapped_column(Text)
+    # Why it was chosen: start, link, sitemap, robots.
+    discovered_via: Mapped[str] = mapped_column(String(20))
+    category: Mapped[str | None] = mapped_column(String(40))
+    status_code: Mapped[int | None] = mapped_column(SmallInteger)
+    content_type: Mapped[str | None] = mapped_column(String(200))
+    bytes: Mapped[int] = mapped_column(BigInteger, default=0)
+    raw_response_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("raw_responses.id"))
+    from_cache: Mapped[bool] = mapped_column(default=False)
+    rendered: Mapped[bool] = mapped_column(default=False)
+    title: Mapped[str | None] = mapped_column(Text)
+    canonical_url: Mapped[str | None] = mapped_column(Text)
+    duplicate_of_url: Mapped[str | None] = mapped_column(Text)
+    fetched_at: Mapped[datetime | None]
+    # Set when nothing usable was fetched: robots_disallowed, fetch_blocked:<code>, ...
+    skip_reason: Mapped[str | None] = mapped_column(String(80))
+    error: Mapped[str | None] = mapped_column(Text)

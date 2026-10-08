@@ -60,11 +60,34 @@ class Settings(BaseSettings):
     login_max_failures: int = Field(default=5, gt=0)
     login_lockout_minutes: int = Field(default=15, gt=0)
 
-    @field_validator("cors_origins", mode="before")
+    # Crawler (PROVIDER_SPEC.md §4). Identifies itself and how to reach Verkies.
+    crawler_contact_url: str = "https://www.verkies.co"
+    crawl_max_pages: int = Field(default=15, gt=0, le=100)
+    crawl_max_bytes_per_response: int = Field(default=2 * 1024 * 1024, gt=0)
+    crawl_max_total_bytes: int = Field(default=15 * 1024 * 1024, gt=0)
+    crawl_max_redirects: int = Field(default=5, ge=0, le=10)
+    crawl_request_timeout_seconds: float = Field(default=15.0, gt=0)
+    crawl_wall_clock_seconds: float = Field(default=120.0, gt=0)
+    crawl_min_interval_seconds: float = Field(default=1.0, ge=0)
+    crawl_concurrency: int = Field(default=2, ge=1, le=4)
+    crawl_cache_days: int = Field(default=7, ge=0)
+    crawl_allowed_ports: Annotated[list[int], NoDecode] = Field(default_factory=lambda: [80, 443])
+    # Private networks the fetcher may reach. For tests only; refused in production.
+    fetch_private_allowlist: Annotated[list[str], NoDecode] = Field(default_factory=list)
+    # JavaScript rendering with headless Chromium, for pages whose static HTML is too thin.
+    render_enabled: bool = True
+    chromium_executable: str | None = None
+
+    # Where fetched bodies are stored (StorageProvider). Docker mounts a volume here.
+    storage_dir: str = "./var/storage"
+
+    @field_validator(
+        "cors_origins", "fetch_private_allowlist", "crawl_allowed_ports", mode="before"
+    )
     @classmethod
-    def _split_origins(cls, value: object) -> object:
+    def _split_csv(cls, value: object) -> object:
         if isinstance(value, str):
-            return [origin.strip() for origin in value.split(",") if origin.strip()]
+            return [item.strip() for item in value.split(",") if item.strip()]
         return value
 
     @field_validator("public_url")
@@ -91,6 +114,8 @@ class Settings(BaseSettings):
             problems.append("VROS_PUBLIC_URL must use https")
         if urlsplit(self.database_url).password in (None, "", DEV_DATABASE_PASSWORD):
             problems.append("VROS_DATABASE_URL must use a non-default database password")
+        if self.fetch_private_allowlist:
+            problems.append("VROS_FETCH_PRIVATE_ALLOWLIST must be empty (it disables SSRF checks)")
         if problems:
             raise ValueError("insecure production configuration: " + "; ".join(problems))
         return self
@@ -105,6 +130,10 @@ class Settings(BaseSettings):
     @property
     def secure_cookies(self) -> bool:
         return urlsplit(self.public_url).scheme == "https"
+
+    @property
+    def crawler_user_agent(self) -> str:
+        return f"VROSBot/{self.app_version} (+{self.crawler_contact_url})"
 
     @property
     def is_production(self) -> bool:

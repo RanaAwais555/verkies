@@ -41,14 +41,14 @@ services:
 
   # Applies database migrations, then exits. The API and worker start only if it succeeds.
   migrate:
-    build: ./backend
+    build: { context: ./backend, target: api }
     command: ["alembic", "upgrade", "head"]
     environment: *backend-env
     depends_on:
       postgres: { condition: service_healthy }
 
   api:
-    build: ./backend
+    build: { context: ./backend, target: api }
     environment: *backend-env
     depends_on:
       migrate: { condition: service_completed_successfully }
@@ -66,9 +66,10 @@ services:
       retries: 10
 
   worker:
-    build: ./backend
-    command: ["celery", "-A", "app.workers.celery_app:celery_app", "worker", "--loglevel=INFO", "--concurrency=2"]
+    build: { context: ./backend, target: worker }
     environment: *backend-env
+    volumes:
+      - storage:/data/storage
     depends_on:
       migrate: { condition: service_completed_successfully }
       redis: { condition: service_healthy }
@@ -106,6 +107,7 @@ services:
 
 volumes:
   pgdata:
+  storage:
   redisdata:
   caddydata:
   caddyconfig:

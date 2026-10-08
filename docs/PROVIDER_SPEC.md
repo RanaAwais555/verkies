@@ -79,7 +79,15 @@ Defaults, all configurable per run and bounded by global maximums:
 | Run wall-clock | 120 s |
 | Content types accepted | `text/html`, `application/xhtml+xml`, `text/plain`, `application/xml` (sitemap), `application/json` (structured feeds) |
 
-The crawler identifies itself with a descriptive `User-Agent` including a contact URL, honours robots.txt (disallowed paths are not fetched and the fact is recorded), normalises and de-duplicates URLs, follows canonical tags, and never submits forms, logs in or solves challenges. A 403/429 or challenge page ends the crawl of that domain and is recorded as a limitation, not retried around.
+The crawler identifies itself as `VROSBot/<version> (+<contact URL>)` (`VROS_CRAWLER_CONTACT_URL`), normalises and de-duplicates URLs (tracking parameters dropped), records canonical duplicates, and never submits forms, logs in or solves challenges. A 403/429 ends the crawl of that domain and is recorded as a limitation, not retried around.
+
+**robots.txt** follows RFC 9309: a 200 is parsed (`VROSBot` or `*` rules, `Crawl-delay` honoured up to 10 s); a 4xx means no rules; a 5xx or unreachable robots.txt means do not crawl. Disallowed pages are recorded with `skip_reason = robots_disallowed`.
+
+**What is fetched:** robots.txt, the homepage, up to 4 sitemaps (following a sitemap index), then the highest-value same-site pages from homepage links and sitemap entries: about, team, services, product, pricing, contact, careers, account (login/signup/portal), work (case studies, clients) and blog, at most two per category, homepage links before sitemap entries, shallow paths first. Keywords match whole words of the path and link text. Pages whose static HTML has under 400 characters of text, or an empty app root (`#root`, `#__next`, `#app`), are rendered with JavaScript; if rendering is unavailable the static HTML is kept.
+
+**Cache:** each fetch is stored in `raw_responses` (body in storage, content-addressed) and reused for `VROS_CRAWL_CACHE_DAYS` (default 7) when it was a 200; rendered pages are cached separately. Every page a run fetched, reused, skipped or was refused is recorded in `research_pages` with the reason.
+
+Settings: `VROS_CRAWL_MAX_PAGES`, `VROS_CRAWL_MAX_BYTES_PER_RESPONSE`, `VROS_CRAWL_MAX_TOTAL_BYTES`, `VROS_CRAWL_MAX_REDIRECTS`, `VROS_CRAWL_REQUEST_TIMEOUT_SECONDS`, `VROS_CRAWL_WALL_CLOCK_SECONDS`, `VROS_CRAWL_MIN_INTERVAL_SECONDS`, `VROS_CRAWL_CONCURRENCY`, `VROS_CRAWL_ALLOWED_PORTS`, `VROS_RENDER_ENABLED`, `VROS_CHROMIUM_EXECUTABLE`, `VROS_STORAGE_DIR`.
 
 ## 5. Provider health
 

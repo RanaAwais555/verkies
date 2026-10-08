@@ -38,12 +38,15 @@ jobs:
       VROS_RUN_INTEGRATION: "1"
       VROS_DATABASE_URL: postgresql+psycopg://vros:vros@localhost:5432/vros
       VROS_REDIS_URL: redis://localhost:6379/0
+      VROS_TEST_CHROMIUM: playwright
     steps:
       - uses: actions/checkout@v4
       - uses: astral-sh/setup-uv@v6
         with:
           python-version: "3.13"
       - run: uv sync --frozen
+      - name: Install Chromium for rendering tests
+        run: uv run playwright install --with-deps --only-shell chromium
       - run: uv run ruff check .
       - run: uv run ruff format --check .
       - run: uv run mypy

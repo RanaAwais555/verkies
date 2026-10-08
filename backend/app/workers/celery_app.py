@@ -2,6 +2,7 @@
 
 from celery import Celery
 
+import app.models  # noqa: F401 - the worker must know every table (foreign keys span modules)
 from app.config import get_settings
 
 
