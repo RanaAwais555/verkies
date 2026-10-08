@@ -51,7 +51,7 @@ Every requirement in the master context is currently a gap. The table orders the
 
 1. **No hallucination rule vs. AI-written briefs.** The brief's prose is AI-generated, so every sentence must be traceable. Mitigation: AI input is restricted to stored evidence items with IDs, output is schema-validated, and any claim that cites no real evidence ID is dropped or shown as Unknown (AI_SPEC.md).
 2. **Ollama not available here.** Opportunity detection, ICP evaluation and scoring are deterministic rules, so the slice works end to end without a model. AI adds the prose layer and is optional.
-3. **Reference clients are unknown.** The master context names six reference archetypes (Wesbridge Associates, Oerno, ShiftRow, THEOO Property, LumiNexis TBG, Ask iDeer) but gives no details about them. The system must not invent their profiles.
+3. **Reference clients are only partly known.** The six archetypes (Wesbridge Associates, Oerno, ShiftRow, THEOO, LumiNexis TBG, Ask iDeer) are described on the public site, but only at marketing level (`VERKIES_PROFILE.md`). The system must not invent the missing fields.
 4. **JS-heavy sites.** The static fetch will under-read some sites. Playwright fallback is in Phase 1 but kept behind the same fetch interface.
 5. **Crawler is an SSRF surface** because users submit URLs. SSRF controls are Phase 1 scope, not Phase 7 (SECURITY.md §3).
 6. **Scope size.** The master context describes 38 modules. Only the Phase 1 vertical slice is committed to here.
@@ -64,11 +64,12 @@ See `ARCHITECTURE.md`. In one line: a modular FastAPI monolith with a Celery wor
 
 These do not block the documents. Items 1 and 2 block the *content* of two Phase 1 features.
 
-1. **Verkies service catalogue.** Names, one-line descriptions and the problem signals each service answers. Service matching (§11) cannot recommend a service without it. Until provided, the matcher ships with the opportunity categories from §9 as the catalogue and an admin screen to edit it.
-2. **Reference project profiles.** For each of the six archetypes: industry, business model, problem solved, service delivered, technologies, growth stage, buyer type. Until provided, similarity returns **Unknown** and the brief says so.
-3. **Hosting target** for production (single VPS vs. other). Affects only Phase 7.
-4. **GPU class** of the machine that will run Ollama (8, 16 or 24 GB). Picks the default models in `AI_SPEC.md` §5.
-5. **Initial users and roles** to seed.
+1. **Verkies service catalogue: resolved.** Verkies confirmed fifteen services on 2026-10-08 (`VERKIES_PROFILE.md` §3a). Still useful: the problem signals each service answers, to tune the opportunity detectors.
+2. **Reference project profiles: partly resolved.** Names, industry, service delivered and status for all six archetypes are in `VERKIES_PROFILE.md` §4. Technologies, company size, growth stage, buyer role and value are **Unknown** and stay so until Verkies fills them in; similarity returns Unknown until a profile is complete.
+3. **ICP priority between two buyer types** (founder MVP vs. service-firm CRM/website), see `VERKIES_PROFILE.md` §5.
+4. **Production domain and VPS.** VROS is built for team use on a live domain (single origin behind Caddy, `ARCHITECTURE.md` §9). The domain and server are only needed at go-live.
+5. **GPU class** of the machine that will run Ollama (8, 16 or 24 GB). Picks the default models in `AI_SPEC.md` §5.
+6. **Initial users and roles** to seed.
 
 ## 7. Proposed next step
 

@@ -1,0 +1,28 @@
+# One public origin: /api/* goes to the API, everything else to the frontend.
+# VROS_SITE_ADDRESS is ":80" in development (plain HTTP on localhost) and the public
+# hostname in production, e.g. "vros.verkies.co", where Caddy obtains and renews a
+# Let's Encrypt certificate automatically and redirects HTTP to HTTPS.
+{$VROS_SITE_ADDRESS::80} {
+	encode zstd gzip
+
+	header {
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		X-Content-Type-Options "nosniff"
+		X-Frame-Options "DENY"
+		Referrer-Policy "strict-origin-when-cross-origin"
+		Permissions-Policy "camera=(), microphone=(), geolocation=()"
+		-Server
+	}
+
+	request_body {
+		max_size 10MB
+	}
+
+	handle /api/* {
+		reverse_proxy api:8000
+	}
+
+	handle {
+		reverse_proxy frontend:3000
+	}
+}

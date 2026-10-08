@@ -1,0 +1,69 @@
+# Production overlay for a live domain:
+#   docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build
+# Requires a .env file (copy .env.example). Missing secrets stop the deploy here, and the API
+# refuses to start with insecure settings (backend/app/config.py).
+
+x-prod-backend-env: &prod-backend-env
+  VROS_ENVIRONMENT: production
+  VROS_PUBLIC_URL: ${VROS_PUBLIC_URL:?set VROS_PUBLIC_URL, e.g. https://vros.verkies.co}
+  VROS_SECRET_KEY: ${VROS_SECRET_KEY:?set VROS_SECRET_KEY (openssl rand -hex 32)}
+  VROS_DATABASE_URL: postgresql+psycopg://vros:${VROS_DB_PASSWORD:?set VROS_DB_PASSWORD}@postgres:5432/vros
+  VROS_REDIS_URL: redis://redis:6379/0
+  VROS_LOG_LEVEL: ${VROS_LOG_LEVEL:-INFO}
+  VROS_AI_PROVIDER: ${VROS_AI_PROVIDER:-none}
+  VROS_OLLAMA_MODEL: ${VROS_OLLAMA_MODEL:-granite4.2:8b}
+  VROS_TASK_DUE_BUSINESS_DAYS: ${VROS_TASK_DUE_BUSINESS_DAYS:-2}
+
+services:
+  postgres:
+    restart: unless-stopped
+    environment:
+      POSTGRES_PASSWORD: ${VROS_DB_PASSWORD:?set VROS_DB_PASSWORD}
+    ports: !reset []
+
+  redis:
+    restart: unless-stopped
+    ports: !reset []
+
+  migrate:
+    environment: *prod-backend-env
+
+  api:
+    restart: unless-stopped
+    environment: *prod-backend-env
+    ports: !reset []
+
+  worker:
+    restart: unless-stopped
+    environment: *prod-backend-env
+
+  frontend:
+    restart: unless-stopped
+
+  caddy:
+    restart: unless-stopped
+    environment:
+      VROS_SITE_ADDRESS: ${VROS_SITE_ADDRESS:?set VROS_SITE_ADDRESS to the public hostname, e.g. vros.verkies.co}
+    ports: !override
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+
+  backup:
+    image: pgvector/pgvector:pg16
+    restart: unless-stopped
+    entrypoint: ["/bin/sh", "/ops/backup.sh"]
+    environment:
+      PGHOST: postgres
+      PGUSER: vros
+      PGDATABASE: vros
+      PGPASSWORD: ${VROS_DB_PASSWORD:?set VROS_DB_PASSWORD}
+      VROS_BACKUP_KEEP_DAYS: ${VROS_BACKUP_KEEP_DAYS:-14}
+    volumes:
+      - ./ops/backup.sh:/ops/backup.sh:ro
+      - backups:/backups
+    depends_on:
+      postgres: { condition: service_healthy }
+
+volumes:
+  backups:

@@ -1,0 +1,91 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  backend:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    services:
+      postgres:
+        image: pgvector/pgvector:pg16
+        env:
+          POSTGRES_USER: vros
+          POSTGRES_PASSWORD: vros
+          POSTGRES_DB: vros
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U vros -d vros"
+          --health-interval 5s --health-timeout 3s --health-retries 20
+      redis:
+        image: redis:7-alpine
+        ports: ["6379:6379"]
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s --health-timeout 3s --health-retries 20
+    env:
+      VROS_RUN_INTEGRATION: "1"
+      VROS_DATABASE_URL: postgresql+psycopg://vros:vros@localhost:5432/vros
+      VROS_REDIS_URL: redis://localhost:6379/0
+      VROS_TEST_CHROMIUM: playwright
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with:
+          python-version: "3.13"
+      - run: uv sync --frozen
+      - name: Install Chromium for rendering tests
+        run: uv run playwright install --with-deps --only-shell chromium
+      - run: uv run ruff check .
+      - run: uv run ruff format --check .
+      - run: uv run mypy
+      - run: uv run pytest -q
+
+  frontend:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: npm ci --no-audit --no-fund
+      - run: npm run lint
+      - run: npm run typecheck
+      - run: npm run build
+
+  deploy-config:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate development compose
+        run: docker compose config -q
+      - name: Validate production compose
+        env:
+          VROS_PUBLIC_URL: https://vros.example.com
+          VROS_SITE_ADDRESS: vros.example.com
+          VROS_SECRET_KEY: ci-only-not-a-real-secret-0123456789abcdef
+          VROS_DB_PASSWORD: ci-only-db-password
+        run: docker compose -f docker-compose.yml -f docker-compose.prod.yml config -q
+      - name: Validate Caddyfile
+        run: >-
+          docker run --rm -e VROS_SITE_ADDRESS=vros.example.com
+          -v "$PWD/ops/Caddyfile:/etc/caddy/Caddyfile:ro" caddy:2-alpine
+          caddy validate --config /etc/caddy/Caddyfile --adapter caddyfile
+      - name: Build images
+        run: docker compose build

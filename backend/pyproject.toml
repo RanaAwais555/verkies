@@ -1,0 +1,80 @@
+[project]
+name = "vros-backend"
+version = "0.1.0"
+description = "Verkies Revenue Operating System backend"
+requires-python = ">=3.13"
+dependencies = [
+    "fastapi>=0.143,<0.144",
+    "uvicorn[standard]>=0.54,<0.55",
+    "pydantic-settings>=2.15,<3",
+    "sqlalchemy[asyncio]>=2.1,<2.2",
+    "alembic>=1.20,<2",
+    "psycopg[binary]>=3.3,<4",
+    "celery>=5.6,<6",
+    "redis>=8.1,<9",
+    "argon2-cffi>=25.1,<26",
+    "pgvector>=0.5,<0.6",
+    "httpx>=0.28,<0.29",
+    "selectolax>=1.0,<2",
+]
+
+[project.optional-dependencies]
+# Headless-browser rendering. Installed in the worker image only; the API never renders.
+render = ["playwright>=1.63,<2"]
+
+[dependency-groups]
+dev = [
+    "vros-backend[render]",
+    "pytest>=9.1,<10",
+    "pytest-asyncio>=1.0",
+    "httpx2>=2.13,<3",
+    "trustme>=1.2",
+    "ruff>=0.16,<0.17",
+    "mypy>=2.4,<3",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["app"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py313"
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "B", "UP", "S", "SIM", "RUF"]
+ignore = ["S101"]  # assert is fine in tests
+
+[tool.ruff.lint.per-file-ignores]
+# Generated migrations keep Alembic's long single-line column definitions.
+"alembic/versions/*" = ["E501"]
+# Fixture websites are HTML data: long lines and real-world punctuation are the point.
+"tests/fixtures/*" = ["E501", "RUF001"]
+"tests/unit/test_brief.py" = ["E501", "E741"]
+# Prose (sales angles, the AI system prompt) reads better unbroken; the validator must
+# recognise curly apostrophes in names.
+"app/briefs/template.py" = ["E501"]
+"app/briefs/ai_writer.py" = ["E501"]
+"app/briefs/grounding.py" = ["RUF001"]
+
+[tool.mypy]
+python_version = "3.13"
+strict = true
+packages = ["app"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
+markers = ["integration: needs a running PostgreSQL and Redis (VROS_DATABASE_URL, VROS_REDIS_URL)"]
+
+[[tool.mypy.overrides]]
+# Celery ships no type information.
+module = ["celery", "celery.*"]
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = ["app.workers.*"]
+disallow_untyped_decorators = false

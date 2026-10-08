@@ -1,0 +1,126 @@
+# Base stack. `docker compose up` runs it for development at http://localhost:8080.
+# Production adds docker-compose.prod.yml on top; see README.
+
+x-backend-env: &backend-env
+  VROS_ENVIRONMENT: ${VROS_ENVIRONMENT:-development}
+  VROS_PUBLIC_URL: ${VROS_PUBLIC_URL:-http://localhost:8080}
+  VROS_SECRET_KEY: ${VROS_SECRET_KEY:-}
+  VROS_DATABASE_URL: postgresql+psycopg://vros:${VROS_DB_PASSWORD:-vros}@postgres:5432/vros
+  VROS_REDIS_URL: redis://redis:6379/0
+  VROS_LOG_LEVEL: ${VROS_LOG_LEVEL:-INFO}
+  VROS_AI_PROVIDER: ${VROS_AI_PROVIDER:-none}
+  VROS_OLLAMA_MODEL: ${VROS_OLLAMA_MODEL:-granite4.2:8b}
+  VROS_TASK_DUE_BUSINESS_DAYS: ${VROS_TASK_DUE_BUSINESS_DAYS:-2}
+
+services:
+  postgres:
+    image: pgvector/pgvector:pg16
+    environment:
+      POSTGRES_USER: vros
+      POSTGRES_PASSWORD: ${VROS_DB_PASSWORD:-vros}
+      POSTGRES_DB: vros
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    ports:
+      - "127.0.0.1:5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U vros -d vros"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  redis:
+    image: redis:7-alpine
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes:
+      - redisdata:/data
+    ports:
+      - "127.0.0.1:6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  # Applies database migrations, then exits. The API and worker start only if it succeeds.
+  migrate:
+    build: { context: ./backend, target: api }
+    command: ["alembic", "upgrade", "head"]
+    environment: *backend-env
+    depends_on:
+      postgres: { condition: service_healthy }
+
+  api:
+    build: { context: ./backend, target: api }
+    environment: *backend-env
+    depends_on:
+      migrate: { condition: service_completed_successfully }
+      redis: { condition: service_healthy }
+    ports:
+      - "127.0.0.1:8000:8000"
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - "import urllib.request; urllib.request.urlopen('http://localhost:8000/api/v1/health/live', timeout=3)"
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  worker:
+    build: { context: ./backend, target: worker }
+    environment: *backend-env
+    volumes:
+      - storage:/data/storage
+    depends_on:
+      migrate: { condition: service_completed_successfully }
+      redis: { condition: service_healthy }
+    healthcheck:
+      test: ["CMD-SHELL", "celery -A app.workers.celery_app:celery_app inspect ping -d celery@$$HOSTNAME --timeout 5"]
+      interval: 30s
+      timeout: 15s
+      retries: 5
+
+  frontend:
+    build: ./frontend
+    environment:
+      VROS_API_INTERNAL_URL: http://api:8000
+    depends_on:
+      api: { condition: service_healthy }
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:3000/"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  # Optional local AI for brief wording. Off unless started with the "ai" profile:
+  #   docker compose --profile ai up -d   then   docker compose exec ollama ollama pull <model>
+  # and set VROS_AI_PROVIDER=ollama for the worker. Without it, briefs use template mode.
+  ollama:
+    image: ollama/ollama:latest
+    profiles: ["ai"]
+    volumes:
+      - ollama:/root/.ollama
+
+  caddy:
+    image: caddy:2-alpine
+    environment:
+      VROS_SITE_ADDRESS: ${VROS_SITE_ADDRESS:-:80}
+    volumes:
+      - ./ops/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddydata:/data
+      - caddyconfig:/config
+    ports:
+      - "127.0.0.1:8080:80"
+    depends_on:
+      api: { condition: service_healthy }
+      frontend: { condition: service_healthy }
+
+volumes:
+  pgdata:
+  storage:
+  ollama:
+  redisdata:
+  caddydata:
+  caddyconfig:
