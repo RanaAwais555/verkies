@@ -106,6 +106,22 @@ About 40 rules in `extractors/technology.py`, covering the technologies the mast
 | `hiring.job_board` | `{provider, token, url}` for Greenhouse, Lever, Ashby, Workable, Teamtailor, BambooHR, Recruitee, Workday, Personio. The token is what the Phase 2 job-board APIs need |
 | `hiring.tech_roles` | engineering/product role titles on the careers page |
 
+Feeds are found by the company extractor: `company.feed` is `{url, format}` for an RSS or Atom `<link rel="alternate">` on the company's own site (at most two, comment feeds ignored).
+
+## Signals (slice 2.2, the `signals` stage)
+
+Dated buying signals (master context §9), read only from sources the company's own site points to.
+
+| Key | Value | Evidence |
+| --- | --- | --- |
+| `signal.job_posting` | `{signal, provider, title, location, department, url, published}`. `signal` is `developer_hiring`, `cto_hiring`, `product_hiring` or `hiring` | `job_posting`: "Title (Location) — posted DATE on Board"; `published_at` set when the board gives a date |
+| `signal.news` | `{signal, title, url, published}`. `signal` is `funding`, `acquisition`, `new_leader`, `expansion`, `new_service` or `product_launch` | `news_item`: "Headline — published DATE"; confidence 0.75, because a headline keyword is not a confirmed event |
+
+Rules:
+- **Job postings:** come from the public APIs of Greenhouse, Lever, Ashby and Workable, and only for the board the site links to. At most 50 per board.
+- **News:** comes from the company's own feed, fetched under its robots.txt. An item is kept only if its headline clearly names a signal type and it is dated within the last 365 days. At most 10.
+- **Failures:** a board or feed that fails is listed in the stage's `errors` and never fails the run.
+
 ## Site status and industry
 
 | Key | Value | Notes |

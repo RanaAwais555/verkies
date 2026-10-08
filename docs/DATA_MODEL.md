@@ -132,7 +132,7 @@ As implemented (slice 1.6):
 
 | Phase | Tables |
 | --- | --- |
-| 2 | `buying_signals`, `signal_sources`, `job_postings` (`discovery_jobs` and `discovered_companies` exist since slice 2.1) |
+| 2 | `discovery_jobs` and `discovered_companies` exist since slice 2.1. Buying signals (slice 2.2) are observations in the `signals` area with dated evidence (migration `0009`), so they share evidence, attempts and append-only history with all other findings; no separate signal tables were needed |
 | 3 | `pipelines`, `pipeline_stages`, `deals`, `communications`, `meetings`, `proposals`, `documents`, `mailboxes`, `templates`, `sequences`, `sequence_steps`, `enrollments`, `messages`, `linkedin_imports` |
 | 4 | `projects`, `milestones`, `project_risks`, `client_health_snapshots`, `expansion_opportunities`, `referrals` |
 | 5 | `feedback`, `deal_outcomes`, `learned_weights` |

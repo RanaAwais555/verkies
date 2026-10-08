@@ -16,11 +16,11 @@ Implements §10. Every weight, threshold and gate below is a **default** stored 
 | --- | --- | --- | --- |
 | 1 | ICP Fit | Match to the Master ICP | ICP engine output (ICP_SPEC.md) |
 | 2 | Opportunity | Strength of the detected commercial opportunity | Opportunity candidates: count, confidence, evidence per candidate, category value weight |
-| 3 | Intent | Evidence the company is actively changing or building | Engineering/product roles on the careers page (80, +10 with a job board), pre-launch waitlist (60), careers page without technical roles (40); otherwise Unknown. Funding and news signals added in Phase 2 |
+| 3 | Intent | Evidence the company is actively changing or building | The strongest evidenced signal sets the score. Engineering/product roles on the careers page: 80, or 90 with a job board. Very strong signals (developer, CTO or product hiring on a job board; funding; product launch): 85, +5 per further type, up to 100. Strong signals (new leader, acquisition, expansion, new service): 70, +5 each, up to 80. Other hiring: 50. Pre-launch waitlist: 60. Careers page without technical roles: 40. Otherwise Unknown |
 | 4 | Buyer Confidence | A relevant decision maker is reasonably identifiable | Named decision maker (75, +5 each more, up to 90), named people without a deciding title (50), nobody named (15); +10 for a published email or phone. Warm paths in Phase 3 |
 | 5 | Data Confidence | How much of the account data is verified | Share of key account fields with evidence, mean evidence confidence, freshness |
 | 6 | Service Fit | A plausible Verkies service matches | Best service match confidence from the catalogue |
-| 7 | Timing | Urgency | Roles open at the time of research (75), about to launch (65); Unknown otherwise |
+| 7 | Timing | Urgency | Age of the newest dated signal: up to 30 days 90, up to 90 days 75, up to 180 days 55, up to 365 days 35. Undated job postings or roles open at the time of research: 75. About to launch: 65. Otherwise Unknown |
 | 8 | Commercial Potential | Likely deal size and budget indicators | Pricing page tier, enterprise indicators, team size bands, product complexity, industry tier |
 | 9 | Client Similarity | Likeness to Verkies' previous work | Best reference-project similarity; Unknown when no reference profile is complete |
 | 10 | Evidence Strength | Quantity, diversity and quality of evidence | Distinct evidence items, distinct source pages, evidence types, mean confidence |

@@ -6,6 +6,7 @@ from collections.abc import Callable
 from app.intelligence.extractors import (
     company,
     conversion,
+    feeds,
     hiring,
     industry,
     product,
@@ -27,6 +28,7 @@ EXTRACTORS: dict[str, Extractor] = {
     "technology": technology.extract,
     "company": company.extract,
     "hiring": hiring.extract,
+    "feeds": feeds.extract,
     "status": status.extract,
     "industry": industry.extract,
 }

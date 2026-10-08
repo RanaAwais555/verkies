@@ -22,6 +22,7 @@ class ResearchStageName(StrEnum):
     VALIDATE = "validate"
     CRAWL = "crawl"
     EXTRACT = "extract"
+    SIGNALS = "signals"
     DETECT = "detect"
     QUALIFY = "qualify"
     SCORE = "score"
@@ -37,6 +38,7 @@ class ObservationArea(StrEnum):
     TECHNOLOGY = "technology"
     COMPANY = "company"
     HIRING = "hiring"
+    SIGNALS = "signals"  # dated buying signals: job postings, announcements (slice 2.2)
 
 
 class PageKind(StrEnum):

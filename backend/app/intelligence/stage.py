@@ -113,7 +113,7 @@ async def extract_run(
     observations, failed = analyse(pages, ctx)
     async with sessionmaker() as db:
         for observation in observations:
-            _persist(db, run_id, attempt, observation)
+            persist_observation(db, run_id, attempt, observation)
         await db.commit()
     by_area = Counter(o.area.value for o in observations)
     return {
@@ -124,7 +124,9 @@ async def extract_run(
     }
 
 
-def _persist(db: AsyncSession, run_id: uuid.UUID, attempt: int, item: Observation) -> None:
+def persist_observation(
+    db: AsyncSession, run_id: uuid.UUID, attempt: int, item: Observation
+) -> None:
     now = datetime.now(UTC)
     evidence = Evidence(
         research_run_id=run_id,
@@ -135,6 +137,7 @@ def _persist(db: AsyncSession, run_id: uuid.UUID, attempt: int, item: Observatio
         evidence_text=item.excerpt,
         content_hash=hashlib.sha256(item.excerpt.encode()).hexdigest(),
         confidence=Decimal(str(round(item.confidence, 2))),
+        published_at=item.published_at,
     )
     db.add(evidence)
     db.add(

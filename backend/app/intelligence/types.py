@@ -7,6 +7,7 @@ beyond what the page shows; "absent" observations say which pages were checked.
 """
 
 from dataclasses import dataclass, field
+from datetime import datetime
 from functools import cached_property
 from typing import Any
 
@@ -62,6 +63,8 @@ class Observation:
     evidence_type: EvidenceType = EvidenceType.PAGE_CONTENT
     confidence: float = 0.9
     seen_on: list[str] = field(default_factory=list)
+    # When the source says the thing happened (a posting or article date), if it says.
+    published_at: datetime | None = None
 
     def identity(self) -> tuple[str, str]:
         import json

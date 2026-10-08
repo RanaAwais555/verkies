@@ -80,8 +80,13 @@ const BAND_TONE: Record<string, keyof typeof TONES> = {
 };
 
 export function BandBadge({ band }: { band: string | null }) {
-  if (!band) return <Badge>Unknown</Badge>;
-  return <Badge tone={BAND_TONE[band] ?? "neutral"}>{label(band)}</Badge>;
+  // Prefixed so a band never reads like an action ("Reject" next to Approve/Reject buttons).
+  if (!band) return <Badge title="Priority band: Unknown">Band: Unknown</Badge>;
+  return (
+    <Badge tone={BAND_TONE[band] ?? "neutral"} title="Priority band from the score">
+      Band: {label(band)}
+    </Badge>
+  );
 }
 
 const STATUS_TONE: Record<string, keyof typeof TONES> = {
