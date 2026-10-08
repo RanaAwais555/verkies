@@ -123,9 +123,32 @@ Next.js app router, TypeScript, Tailwind. Phase 1 screens: login; Home ("What sh
 - **Time:** all timestamps UTC `timestamptz`.
 - **IDs:** UUIDv7 primary keys.
 
-## 9. Deployment
+## 9. Deployment (team use, live domain)
 
-`docker compose up` starts `api`, `worker`, `frontend`, `postgres` (with pgvector), `redis`. Ollama runs on the host or an optional Compose profile. One machine or a small VPS.
+VROS is a multi-user team system, built from the start to run on a live domain.
+
+**Single origin.** One public hostname (e.g. `vros.verkies.co`). A Caddy reverse proxy terminates TLS (automatic Let's Encrypt certificates) and routes `/api/*` to the API and everything else to the frontend. The browser only ever talks to one origin, so session cookies are first-party, `SameSite=Lax` works and no CORS is needed in production.
+
+```
+Internet ──443──▶ Caddy ──/api/*──▶ api:8000 ──▶ postgres, redis
+                    └──── /* ─────▶ frontend:3000
+                                    worker ──▶ postgres, redis, outbound web
+```
+
+**Compose files.**
+
+| File | Use |
+| --- | --- |
+| `docker-compose.yml` | Base services: `postgres` (pgvector), `redis`, `api`, `worker`, `frontend`. Development defaults; database and Redis ports published on localhost only |
+| `docker-compose.prod.yml` | Production overlay: adds `caddy` and `backup`; no database or Redis ports published; `restart: unless-stopped`; all secrets from `.env` |
+
+Development: `docker compose up`. Production: `docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d` on one VPS with the domain's DNS `A` record pointing at it.
+
+**Production configuration fails closed.** With `VROS_ENVIRONMENT=production` the API refuses to start unless `VROS_SECRET_KEY` is set (≥ 32 characters), `VROS_PUBLIC_URL` is `https://`, and the database password is not the development default. OpenAPI docs are off, and only the public hostname is accepted as `Host`.
+
+**Backups.** The `backup` service runs a nightly `pg_dump` into a volume and keeps 14 days. Off-site copies and restore drills are Phase 7.
+
+**Ollama** runs on the host or an optional Compose profile; the worker reaches it over the internal network.
 
 ## 10. Quality gates
 

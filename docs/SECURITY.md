@@ -4,7 +4,8 @@ Implements §17. Security for the user-submitted-URL crawler is Phase 1 scope; b
 
 ## 1. Authentication and sessions
 
-- Email + password. Passwords hashed with Argon2id; never logged.
+- **Invite-only team access.** There is no public sign-up. The first admin is created from the command line on the server; after that, admins invite teammates by email-bound, single-use, expiring invite links and can deactivate users at any time (deactivation revokes their sessions).
+- Email + password. Passwords hashed with Argon2id; never logged. Minimum length 12, checked against a breached-password list held locally.
 - Short-lived access tokens plus rotating refresh tokens in `HttpOnly`, `Secure`, `SameSite=Lax` cookies. Server-side session records so sessions can be revoked.
 - Login rate limiting and lockout backoff. Optional TOTP later.
 - No paid identity provider.
@@ -48,6 +49,7 @@ Tests cover each rule, including a rebinding fake resolver and redirect-to-inter
 - Prompt injection: crawled content is data. It is passed to models inside delimited blocks, the model has no tools and no authority, and output is schema-validated and grounded (AI_SPEC.md §3). A page that says "ignore previous instructions" cannot change a score or action.
 - Rate limiting on API and auth endpoints (Redis).
 - File handling: size and type limits, generated storage keys, no user-controlled paths.
+- Production refuses to start with missing or default secrets (ARCHITECTURE.md §9). TLS everywhere via Caddy with HSTS.
 - Secrets in environment or a secrets manager; `.env` is git-ignored; encrypted-at-rest for stored provider credentials (Phase 3 mailboxes).
 - Dependency pinning and automated vulnerability checks in CI.
 - Secure headers on API and frontend.

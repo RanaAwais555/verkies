@@ -67,7 +67,7 @@ These do not block the documents. Items 1 and 2 block the *content* of two Phase
 1. **Verkies service catalogue: resolved.** Verkies confirmed fifteen services on 2026-10-08 (`VERKIES_PROFILE.md` §3a). Still useful: the problem signals each service answers, to tune the opportunity detectors.
 2. **Reference project profiles: partly resolved.** Names, industry, service delivered and status for all six archetypes are in `VERKIES_PROFILE.md` §4. Technologies, company size, growth stage, buyer role and value are **Unknown** and stay so until Verkies fills them in; similarity returns Unknown until a profile is complete.
 3. **ICP priority between two buyer types** (founder MVP vs. service-firm CRM/website), see `VERKIES_PROFILE.md` §5.
-4. **Hosting target** for production (single VPS vs. other). Affects only Phase 7.
+4. **Production domain and VPS.** VROS is built for team use on a live domain (single origin behind Caddy, `ARCHITECTURE.md` §9). The domain and server are only needed at go-live.
 5. **GPU class** of the machine that will run Ollama (8, 16 or 24 GB). Picks the default models in `AI_SPEC.md` §5.
 6. **Initial users and roles** to seed.
 

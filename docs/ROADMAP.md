@@ -6,8 +6,8 @@ Phases follow §20. Phase 1 must work reliably end to end before any later phase
 
 | Slice | Delivers | Exit criteria |
 | --- | --- | --- |
-| 1.0 Foundation | Repo layout, Docker Compose (api, worker, frontend, postgres+pgvector, redis), settings, CI (lint, types, tests), health endpoint | `docker compose up` gives a healthy stack; CI green |
-| 1.1 Schema and auth | Alembic migrations for DATA_MODEL.md Phase 1 tables, append-only triggers, users/roles/permissions, login, RBAC deps, audit writer | Migration up/down clean; constraint tests pass (unique domain, evidence-required claims, append-only) |
+| 1.0 Foundation | Repo layout, Docker Compose (api, worker, frontend, postgres+pgvector, redis), production overlay (Caddy TLS, single origin, nightly backups), fail-closed production settings, CI (lint, types, tests), health endpoints | `docker compose up` gives a healthy stack; production config refuses insecure settings; CI green |
+| 1.1 Schema and auth | Alembic migrations for DATA_MODEL.md Phase 1 tables, append-only triggers, users/roles/permissions, login, invite-only team onboarding, create-admin CLI, RBAC deps, audit writer | Migration up/down clean; constraint tests pass (unique domain, evidence-required claims, append-only) |
 | 1.2 Safe fetch and crawl | `Fetcher` (httpx, Playwright), SSRF guard, robots, budgets, raw response cache, job runner with stages and progress | SSRF, redirect, rebinding, size and robots tests pass; progress visible via API |
 | 1.3 Analysis and evidence | Website/SEO/conversion/product/technology extractors; observations written as Evidence | Fixture-site tests assert exact observations and evidence fields |
 | 1.4 Opportunity, ICP, scoring | Detectors, ICP and negative-ICP engine, ten dimensions, priority score, gates, bands, config tables and seeds | Unit tests per rule/dimension/gate; golden fixtures pass |
@@ -32,7 +32,7 @@ Phases follow §20. Phase 1 must work reliably end to end before any later phase
 
 1. Problem signals per confirmed service (`VERKIES_PROFILE.md` §3a), to tune the opportunity detectors.
 2. Complete the reference project profiles (`VERKIES_PROFILE.md` §4); until then similarity is Unknown.
-3. Production hosting target (Phase 7).
+3. Production domain and VPS (needed only at go-live; the stack is deployable from slice 1.0).
 4. GPU class for Ollama.
 5. Initial users and roles.
 
