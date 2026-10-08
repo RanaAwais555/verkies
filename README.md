@@ -2,7 +2,7 @@
 
 An intelligence-first revenue platform for Verkies Private Limited: prospect intelligence, qualification, CRM, client lifecycle and learning around a permanent Account. Built for team use, deployable to a live domain.
 
-**Status:** Phase 1, slices 1.0 (foundation), 1.1 (schema, team access, audit) 1.2 (safe fetch, crawl, research runs), 1.3 (analysis and evidence) 1.4 (opportunities, ICP, scoring) 1.5 (service matching, lead brief), 1.6 (approval and CRM) and 1.7 (the user interface, with a browser test of the whole Phase 1 checklist) done: Phase 1 is complete. Phase 2 (discovery): 2.1 (CSV import and bulk research, export) 2.2 (buying signals from job boards and company news feeds) and 2.3 (Companies House and Wikidata registry facts) done; next 2.4 search. See [`docs/ROADMAP.md`](docs/ROADMAP.md).
+**Status:** Phase 1, slices 1.0 (foundation), 1.1 (schema, team access, audit) 1.2 (safe fetch, crawl, research runs), 1.3 (analysis and evidence) 1.4 (opportunities, ICP, scoring) 1.5 (service matching, lead brief), 1.6 (approval and CRM) and 1.7 (the user interface, with a browser test of the whole Phase 1 checklist) done: Phase 1 is complete. Phase 2 (discovery): 2.1 (CSV import and bulk research, export) 2.2 (buying signals from job boards and company news feeds) 2.3 (Companies House and Wikidata registry facts) and 2.4 (web search discovery through a self-hosted SearXNG) done; next 2.5 plain-English search, top leads and duplicate review. See [`docs/ROADMAP.md`](docs/ROADMAP.md).
 
 ## Run it locally
 
@@ -15,7 +15,13 @@ docker compose up --build
 docker compose exec api python -m app.cli create-admin --email you@verkies.co --name "Your Name"
 ```
 
-If another program already uses one of the ports (8080, 8000, 5432 or 6379), Docker reports "port is already allocated", or the browser shows that other program's page instead of VROS. Pick free ports:
+If another program already uses one of the ports (8080, 8000, 5432 or 6379), Docker reports "port is already allocated", or the browser shows that other program's page instead of VROS. Optional web search on the Discover page (self-hosted SearXNG, no API keys):
+
+```bash
+VROS_SEARCH_PROVIDER=searxng docker compose --profile search up --build
+```
+
+Pick free ports:
 
 ```bash
 VROS_HTTP_PORT=8090 VROS_PUBLIC_URL=http://localhost:8090 VROS_API_PORT=8001 \

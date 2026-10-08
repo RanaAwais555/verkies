@@ -63,6 +63,48 @@ async def create_import(
     return job
 
 
+SEARCH_COLUMNS = ["name", "website", "notes", "source_url"]
+SEARCH_MAPPING = {"name": "name", "website": "website", "notes": "notes"}
+
+
+async def create_search(
+    db: AsyncSession, *, user: User, query: str, rows: list[dict[str, str]]
+) -> DiscoveryJob:
+    """A discovery job from web search results, checked like an import (duplicates,
+    suppression, previous research) so the reviewer only picks among new companies."""
+    if not rows:
+        raise ValidationFailed(
+            "The search found no company websites (directories, social networks and news "
+            "sites are left out). Try different words."
+        )
+    job = DiscoveryJob(
+        kind=DiscoveryKind.SEARCH,
+        name=query.strip()[:200],
+        created_by_id=user.id,
+        status=DiscoveryStatus.UPLOADED,
+        columns=SEARCH_COLUMNS,
+        mapping=SEARCH_MAPPING,
+        row_count=len(rows),
+        stats={},
+    )
+    db.add(job)
+    await db.flush()
+    for i, row in enumerate(rows, start=1):
+        db.add(DiscoveredCompany(discovery_job_id=job.id, row_number=i, raw=row))
+    await db.flush()
+    audit.record(
+        db,
+        action="discovery.searched",
+        object_table="discovery_jobs",
+        object_id=job.id,
+        user_id=user.id,
+        source=AuditSource.API,
+        new_value={"query": job.name, "results": len(rows)},
+    )
+    await check(db, user=user, job=job, mapping=SEARCH_MAPPING)
+    return job
+
+
 async def get_job(db: AsyncSession, *, user: User, job_id: uuid.UUID) -> DiscoveryJob:
     job = await db.get(DiscoveryJob, job_id)
     if job is None or (job.created_by_id != user.id and SEE_ALL not in user.permission_keys):

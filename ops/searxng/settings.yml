@@ -1,0 +1,25 @@
+# SearXNG for VROS web search discovery (docker compose --profile search).
+# Internal only: no published port, reached by the API at http://searxng:8080.
+# The secret comes from SEARXNG_SECRET (see docker-compose.yml), never from this file.
+use_default_settings: true
+
+general:
+  instance_name: "VROS search"
+  enable_metrics: false
+
+search:
+  safe_search: 1
+  autocomplete: ""
+  formats:
+    - html
+    - json
+
+server:
+  limiter: false          # only VROS calls it, from inside the Docker network
+  public_instance: false
+  image_proxy: false
+  method: "GET"
+
+outgoing:
+  request_timeout: 5.0
+  max_request_timeout: 10.0

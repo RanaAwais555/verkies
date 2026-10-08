@@ -57,7 +57,7 @@ Order of use: official API or structured feed first, crawling second.
 | Wikidata SPARQL | `Wikidata` (`app/registry/`) | 2 ✅ | Keyless; matched by official website (P856), used only when exactly one item claims the domain; `VROS_WIKIDATA_ENABLED` | 30 days |
 | Greenhouse, Lever, Ashby, Workable public job APIs | `JobBoards` (`app/signals/`) | 2 ✅ | Keyless JSON; only the board the company's site links to | 1 day |
 | Google News RSS, company blog/press RSS | `SignalProvider` | 2 | | 1 day |
-| SearXNG (self-hosted) | `SearchProvider` | 2 | Low request rate | 1 day |
+| SearXNG (self-hosted) | `SearchProvider` (`app/providers/search.py`) | 2 ✅ | Optional Compose profile `search`; internal only; JSON format enabled in `ops/searxng/settings.yml`; at most 3 result pages per search | n/a |
 | Common Crawl index | `SearchProvider` | 2 (batch) | | n/a |
 | Gmail API, Microsoft Graph, IMAP/SMTP | `EmailProvider` | 3 | Free with existing accounts | n/a |
 | Ollama | `AIProvider`, `EmbeddingProvider` | 1 | Local | n/a |
