@@ -30,7 +30,7 @@ Phases follow §20. Phase 1 must work reliably end to end before any later phase
 
 ## Decisions needed (from GAP_ANALYSIS.md §6)
 
-1. Decide whether CRM/portal, public tools, SEO and brand are named services (`VERKIES_PROFILE.md` §3c); the eleven confirmed services are already seeded.
+1. Problem signals per confirmed service (`VERKIES_PROFILE.md` §3a), to tune the opportunity detectors.
 2. Complete the reference project profiles (`VERKIES_PROFILE.md` §4); until then similarity is Unknown.
 3. Production hosting target (Phase 7).
 4. GPU class for Ollama.

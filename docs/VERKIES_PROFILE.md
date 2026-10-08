@@ -34,18 +34,22 @@ Pricing amounts: **Unknown** (scoped per project on the first call).
 
 ### 3a. Confirmed services
 
-Provided by Verkies (Rana Awais, Head of Growth) on 2026-10-08. These load with `confirmed = true`. This is the authoritative catalogue, and service matching recommends only from it unless an admin confirms more.
+Confirmed by Verkies (Rana Awais, Head of Growth) on 2026-10-08: the eleven services from the LinkedIn services list, plus the four capabilities evidenced in the portfolio. All fifteen load with `confirmed = true`. This is the authoritative catalogue, and service matching recommends only from it.
 
 | Key | Service | Maps to opportunity categories (master context §9) | Site evidence |
 | --- | --- | --- | --- |
 | `custom_software` | Custom Software Development | product rebuild, technical rescue, application modernization, internal tools, workflow automation, integrations, digital transformation | Homepage: "internal tools", "custom architecture, integrations" |
 | `saas_dev` | SaaS Development | SaaS development, marketplace | Homepage FAQ: "SaaS platforms, marketplaces" |
 | `mvp_startups` | MVPs for startups | MVP development | Homepage: core offer, fixed-scope 4–6 weeks |
-| `web_dev` | Web Development | website rebuild, booking system, client portal | Case studies: ShiftRow, Wesbridge, THEOO |
+| `web_dev` | Web Development | website rebuild | Case studies: ShiftRow, Wesbridge, THEOO |
 | `mobile_dev` | Mobile Application Development | mobile application | Homepage FAQ: "mobile apps", React Native |
+| `crm_portal` | CRM, practice systems and client portals | CRM, client portal, customer onboarding, document workflow, payment workflow, workflow automation | Case studies: Wesbridge, ShiftRow, THEOO, LumiNexis TBG, Ask iDeer (five of six) |
+| `public_tools` | Public tools (instant quote, eligibility, booking) | booking system, conversion optimization, customer onboarding | Case studies: ShiftRow, Wesbridge |
 | `database_dev` | Database Development | integrations, document workflow, analytics | Not described on the site |
 | `ux_design` | User Experience Design (UED) | conversion optimization, product rebuild | Homepage: "clickable design" in step 1 |
 | `project_management` | Project Management | ongoing product support | Not described on the site as a standalone service |
+| `seo_content` | SEO and content engine | SEO, content strategy | Case study: Wesbridge |
+| `brand` | Brand and identity | growth marketing (brand-led launches) | Case study: ShiftRow; homepage "marketing, branding, and growth" |
 | `growth_marketing` | Growth Marketing | growth marketing, paid acquisition, content strategy, analytics | `/marketing` (low reliability) and homepage "marketing and GTM work" |
 | `demand_generation` | Demand Generation | paid acquisition, growth marketing | Not described on the site |
 | `business_consulting` | Business Consulting | digital transformation | Not described on the site |
@@ -55,19 +59,6 @@ Where the "Site evidence" column says "not described", the service is confirmed 
 ### 3b. Engagement models (not services)
 
 Fixed-Scope MVP, Ongoing Partner and post-launch support (bug fixes, feature iterations, scaling) describe *how* Verkies engages (§2). They attach to a recommendation as the engagement type and are not separate catalogue rows.
-
-### 3c. Capabilities evidenced in the portfolio but not in the confirmed list
-
-`confirmed = false`. Each is shown as a capability of its nearest confirmed service, and is never recommended as a standalone service until Verkies confirms.
-
-| Key | Capability | Evidence | Presumed parent service (unconfirmed) |
-| --- | --- | --- | --- |
-| `crm_portal` | CRM, practice systems and client portals | Case studies: Wesbridge, ShiftRow, THEOO, LumiNexis TBG, Ask iDeer (five of six) | `custom_software` |
-| `public_tools` | Public instant-quote, eligibility and booking tools | ShiftRow, Wesbridge | `custom_software` / `web_dev` |
-| `seo_content` | SEO and content engine | Wesbridge case study | `growth_marketing` |
-| `brand` | Brand and identity | ShiftRow | none in the confirmed list |
-
-The five CRM case studies are the strongest delivery evidence on the site, yet CRM is not on the confirmed list. Worth deciding whether CRM/portal should be a named service, since it is what the similarity engine will lean on most.
 
 ## 4. Reference project seed
 
@@ -98,7 +89,7 @@ The master context ICP (§5) includes established professional-service firms (im
 
 ## 7. Open confirmations for Verkies
 
-1. Should CRM/portal, public tools, SEO and brand become named services (§3c)? Also, for each confirmed service, what problem signals indicate a need for it (drives the opportunity detectors)?
+1. For each confirmed service, what problem signals indicate a need for it (drives the opportunity detectors)?
 2. Complete the Unknown fields for each reference project (technologies, size and stage, buyer role, typical value). Client names and figures should only be entered where the client has agreed.
 3. Whether `/marketing` is live, planned or leftover template content.
 4. Relative priority of founder-MVP buyers vs. service-firm CRM/website buyers.
