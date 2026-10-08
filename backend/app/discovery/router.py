@@ -2,7 +2,8 @@
 research on the ones a person picks."""
 
 import uuid
-from datetime import datetime
+from collections.abc import Callable
+from datetime import date, datetime
 from typing import Annotated, Any
 
 from fastapi import APIRouter, Depends, Query, status
@@ -16,9 +17,12 @@ from app.discovery import csv_import, service
 from app.discovery.models import DiscoveredCompany, DiscoveryJob
 from app.discovery.web_search import candidates as web_search_rows
 from app.providers.errors import ProviderError, ProviderUnavailable
+from app.providers.fetch import build_fetcher
 from app.providers.search import MAX_PAGES, SearchProvider, build_search_provider
+from app.registry.companies_house import CompaniesHouse
+from app.registry.stage import Registries
 from app.research.models import ResearchRun
-from app.research.router import Enqueuer
+from app.research.router import Enqueuer, QueueUnavailable
 
 router = APIRouter(prefix="/discovery/imports", tags=["discovery"])
 
@@ -222,4 +226,77 @@ async def web_search(
         db, user=user, query=body.query, rows=web_search_rows(results)
     )
     await db.commit()
+    return await _detail(db, job, None)
+
+
+registry_router = APIRouter(prefix="/discovery/registry-searches", tags=["discovery"])
+
+SIC = r"^\d{5}$"
+
+
+class RegistrySearchBody(BaseModel):
+    sic_codes: list[Annotated[str, Field(pattern=SIC)]] = Field(min_length=1, max_length=10)
+    location: str | None = Field(default=None, max_length=80)
+    incorporated_from: date | None = None
+    incorporated_to: date | None = None
+    size: int = Field(default=25, ge=1, le=100)
+
+
+class RegistryUnavailable(AppError):
+    status_code = 503
+    code = "registry_unavailable"
+
+
+def get_companies_house(settings: AppSettings) -> CompaniesHouse:
+    return Registries.from_settings(settings).companies_house
+
+
+def enqueue_find_websites(job_id: uuid.UUID) -> None:
+    from app.workers.celery_app import celery_app
+
+    celery_app.send_task("vros.discovery.find_websites", args=[str(job_id)])
+
+
+def get_website_finder_enqueuer() -> Callable[[uuid.UUID], None]:
+    return enqueue_find_websites
+
+
+@registry_router.post("", status_code=status.HTTP_201_CREATED)
+async def registry_search(
+    body: RegistrySearchBody,
+    user: Researcher,
+    db: DbSession,
+    settings: AppSettings,
+    companies_house: Annotated[CompaniesHouse, Depends(get_companies_house)],
+    enqueue: Annotated[Callable[[uuid.UUID], None], Depends(get_website_finder_enqueuer)],
+) -> JobDetail:
+    """Active companies from Companies House by industry (SIC), location and age. A worker then
+    looks for each company's website and keeps only sites that show the same number."""
+    if not companies_house.configured:
+        raise RegistryUnavailable(
+            "Companies House is not set up: add VROS_COMPANIES_HOUSE_API_KEY on the server."
+        )
+    fetcher = build_fetcher(settings)
+    try:
+        companies = await companies_house.advanced_search(
+            fetcher,
+            sic_codes=body.sic_codes,
+            location=body.location,
+            incorporated_from=body.incorporated_from,
+            incorporated_to=body.incorporated_to,
+            size=body.size,
+        )
+    except ProviderUnavailable as exc:
+        raise RegistryUnavailable(exc.message) from exc
+    except ProviderError as exc:
+        raise SearchFailed(exc.message) from exc
+    finally:
+        await fetcher.aclose()
+    label = "SIC " + ", ".join(body.sic_codes) + (f" in {body.location}" if body.location else "")
+    job = await service.create_registry_search(db, user=user, label=label, companies=companies)
+    await db.commit()
+    try:
+        enqueue(job.id)
+    except Exception as exc:
+        raise QueueUnavailable("The job queue is unavailable. Try again in a moment.") from exc
     return await _detail(db, job, None)

@@ -6,6 +6,7 @@ import json
 import threading
 import uuid
 from collections.abc import Iterator
+from datetime import UTC, datetime, timedelta
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
@@ -53,6 +54,32 @@ OFFICERS = {
         {"name": "SHAH, Priya", "officer_role": "director", "appointed_on": "2018-06-01"},
     ]
 }
+RECENT = (datetime.now(UTC) - timedelta(days=40)).date().isoformat()
+FILINGS = {
+    "items": [
+        {
+            "category": "accounts",
+            "date": "2026-02-01",
+            "description": "accounts-with-accounts-type-small",
+            "description_values": {"made_up_date": "2025-06-30"},
+        },
+        {
+            "category": "officers",
+            "date": RECENT,
+            "description": "appointment-of-director-with-name-date",
+            "description_values": {"officer_name": "Priya Shah"},
+        },
+    ]
+}
+OWNERS = {
+    "items": [
+        {
+            "kind": "individual-person-with-significant-control",
+            "name_elements": {"forename": "Kemi", "surname": "Bello"},
+            "natures_of_control": ["ownership-of-shares-75-to-100-percent"],
+        }
+    ]
+}
 seen_auth: list[str] = []
 
 
@@ -71,6 +98,10 @@ def port() -> Iterator[int]:
                     body = json.dumps(COMPANY)
                 elif self.path.startswith("/company/06812345/officers"):
                     body = json.dumps(OFFICERS)
+                elif self.path.startswith("/company/06812345/filing-history"):
+                    body = json.dumps(FILINGS)
+                elif self.path == "/company/06812345/persons-with-significant-control":
+                    body = json.dumps(OWNERS)
             elif host == "wd.test":
                 ctype, body = "application/sparql-results+json", '{"results": {"bindings": []}}'
             if body is None:
@@ -142,12 +173,21 @@ def test_registry_facts_become_contacts_and_identifiers(
     assert enrich["detail"]["companies_house"] == "06812345 (active)"
     assert enrich["detail"]["wikidata"] == "no item for this website"
     assert enrich["detail"]["officers"] == 2 and enrich["detail"]["errors"] == []
+    assert enrich["detail"]["filing_events"] == 1 and enrich["detail"]["owners"] == 1
     assert seen_auth and all(a.startswith("Basic ") for a in seen_auth)
 
     registry = client.get(f"/research-runs/{run_id}/intelligence").json()["areas"]["registry"]
-    assert {o["key"] for o in registry} == {"registry.companies_house", "registry.officer"}
+    assert {o["key"] for o in registry} == {
+        "registry.companies_house",
+        "registry.officer",
+        "registry.accounts",
+        "registry.owner",
+    }
     assert all(o["evidence"]["evidence_type"] == "company_registry" for o in registry)
-    overview = client.get(f"/research-runs/{run_id}/brief").json()["sections"]["company_overview"]
+    sections = client.get(f"/research-runs/{run_id}/brief").json()["sections"]
+    why_now = [c["text"] for c in sections["why_now"]["claims"]]
+    assert f"Companies House, {RECENT}: Director appointed: Priya Shah." in why_now
+    overview = sections["company_overview"]
     assert any(
         "Registered with Companies House as HARBOUR IMMIGRATION LTD (06812345)" in c["text"]
         for c in overview["claims"]
@@ -156,8 +196,11 @@ def test_registry_facts_become_contacts_and_identifiers(
     approval = client.send("POST", f"/prospects/{run_id}/approve", json={}).json()
     account = client.get(f"/accounts/{approval['account_id']}").json()
     contacts = {c["name"]: c for c in account["contacts"]}
-    # Amelia is on the site and in the register: one contact. Priya is only registered.
-    assert set(contacts) == {"Amelia Hart", "Daniel Okafor", "Priya Shah"}
+    # Amelia is on the site and in the register: one contact. Priya is only registered;
+    # Kemi owns the company (person with significant control).
+    assert set(contacts) == {"Amelia Hart", "Daniel Okafor", "Priya Shah", "Kemi Bello"}
+    assert contacts["Kemi Bello"]["title"] == "Owner (significant control)"
+    assert account["company_size_band"] == "small"
     assert contacts["Priya Shah"]["source"] == "companies_house"
     assert contacts["Priya Shah"]["title"] == "Director"
     assert contacts["Priya Shah"]["decision_maker_role"] == "decision_maker"

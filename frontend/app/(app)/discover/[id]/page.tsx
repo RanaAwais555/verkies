@@ -20,6 +20,8 @@ const STATUS_TONE: Record<ImportRow["status"], "green" | "amber" | "red" | "purp
   already_researched: "neutral",
   suppressed: "red",
   queued: "blue",
+  finding_website: "blue",
+  no_website: "neutral",
 };
 
 function Mapping({ job, onChecked }: { job: ImportDetail; onChecked: (job: ImportDetail) => void }) {
@@ -64,7 +66,10 @@ function Mapping({ job, onChecked }: { job: ImportDetail; onChecked: (job: Impor
 export default function ImportPage() {
   const { id } = useParams<{ id: string }>();
   const { data: job, error, mutate } = useApi<ImportDetail>(`/discovery/imports/${id}`, {
-    refreshInterval: (latest) => (latest?.rows.some((r) => r.run_status && ["queued", "running", "retrying"].includes(r.run_status)) ? 5000 : 0),
+    refreshInterval: (latest) =>
+      latest?.status === "running" ? 3000
+      : latest?.rows.some((r) => r.run_status && ["queued", "running", "retrying"].includes(r.run_status)) ? 5000
+      : 0,
   });
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [busy, setBusy] = useState(false);
@@ -105,13 +110,23 @@ export default function ImportPage() {
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center gap-3">
-        <h1 className="text-xl font-semibold">{job.kind === "search" ? `Search: ${job.name}` : job.name}</h1>
+        <h1 className="text-xl font-semibold">
+          {job.kind === "search" ? `Search: ${job.name}` : job.kind === "registry" ? `Companies House: ${job.name}` : job.name}
+        </h1>
         <span className="text-sm text-muted">{job.row_count} {job.kind === "search" ? "company websites found" : "rows"}</span>
       </div>
-      {job.kind !== "search" && (
+      {job.status === "running" && (
+        <Card>
+          <p className="text-sm" role="status" data-testid="finding-websites">
+            Finding websites: {job.rows.filter((r) => r.status === "finding_website").length} of {job.row_count} left. A site
+            counts only if it shows the company&apos;s registered number. This page updates by itself.
+          </p>
+        </Card>
+      )}
+      {job.kind === "csv_import" && (
         <Mapping job={job} onChecked={(checked) => { setSelected(new Set()); mutate(checked, { revalidate: false }); }} />
       )}
-      {job.status === "checked" && (
+      {job.status !== "uploaded" && (
         <Card
           title="Rows"
           actions={
@@ -149,7 +164,11 @@ export default function ImportPage() {
                       )}
                     </td>
                     <td className="py-1.5 pr-3 tabular-nums text-muted">{r.row_number}</td>
-                    <td className="py-1.5 pr-3">{r.name ?? "—"}{r.industry && <span className="text-xs text-muted"> · {r.industry}</span>}</td>
+                    <td className="py-1.5 pr-3">
+                      {r.name ?? "—"}
+                      {r.industry && <span className="text-xs text-muted"> · {r.industry}</span>}
+                      {r.raw.number && <span className="block text-xs text-muted">No. {r.raw.number}{r.raw.locality ? ` · ${r.raw.locality}` : ""}</span>}
+                    </td>
                     <td className="py-1.5 pr-3">{r.normalised_domain ?? r.website_url ?? "—"}</td>
                     <td className="py-1.5 pr-3">
                       <Badge tone={STATUS_TONE[r.status]}>{label(r.status)}</Badge>

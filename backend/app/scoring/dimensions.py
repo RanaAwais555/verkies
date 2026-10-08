@@ -107,7 +107,7 @@ def data_confidence(facts: Facts) -> Dimension:
     return Dimension(_clamp(score), ids, note)
 
 
-SIGNAL_KEYS = ("signal.job_posting", "signal.news")
+SIGNAL_KEYS = ("signal.job_posting", "signal.news", "signal.filing")
 SIGNAL_LABELS = {
     "developer_hiring": "hiring developers",
     "cto_hiring": "hiring a technology leader",
@@ -119,6 +119,8 @@ SIGNAL_LABELS = {
     "expansion": "expanding",
     "new_service": "a new service",
     "hiring": "hiring",
+    "rebrand": "a change of company name",
+    "financing": "new secured lending",
 }
 
 
@@ -251,6 +253,17 @@ def service_fit(
     ), None
 
 
+# Companies House accounts type -> (points, reason). The filing thresholds are legal size
+# limits, so this is evidence of size rather than a guess.
+SIZE_POINTS = {
+    "micro": (-10.0, "files micro-entity accounts"),
+    "small": (0.0, "files small-company accounts"),
+    "medium": (10.0, "files medium-company accounts"),
+    "full": (10.0, "files full accounts"),
+    "group": (15.0, "files group accounts"),
+}
+
+
 def commercial_potential(facts: Facts, industry_tier: str | None) -> Dimension:
     base = {"S": 70, "A": 60, "B": 40}.get(industry_tier or "")
     extras: list[tuple[str, float, str]] = [
@@ -262,6 +275,10 @@ def commercial_potential(facts: Facts, industry_tier: str | None) -> Dimension:
         ("conversion.trust_signals", 5, "regulated or accredited"),
     ]
     found = [(k, pts, why) for k, pts, why in extras if facts.present(k)]
+    accounts = facts.value("registry.accounts") or {}
+    size_points = SIZE_POINTS.get(str(accounts.get("size_band")))
+    if size_points is not None:
+        found.append(("registry.accounts", size_points[0], size_points[1]))
     people = len(facts.all("company.person"))
     if base is None and not found:
         return Dimension(None, note="Industry Unknown and no budget indicators")

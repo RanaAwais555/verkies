@@ -209,11 +209,13 @@ class AuditSource(StrEnum):
 class DiscoveryKind(StrEnum):
     CSV_IMPORT = "csv_import"
     SEARCH = "search"  # web search through the configured SearchProvider (slice 2.4)
+    REGISTRY = "registry"  # Companies House advanced search (slice 2.5)
 
 
 class DiscoveryStatus(StrEnum):
     UPLOADED = "uploaded"  # rows stored, columns not mapped yet
     CHECKED = "checked"  # mapped, validated and checked for duplicates
+    RUNNING = "running"  # a worker is still finding websites (registry discovery)
 
 
 class CandidateStatus(StrEnum):
@@ -228,3 +230,5 @@ class CandidateStatus(StrEnum):
     ALREADY_RESEARCHED = "already_researched"  # a run for the domain exists
     SUPPRESSED = "suppressed"
     QUEUED = "queued"  # research started from this row
+    FINDING_WEBSITE = "finding_website"  # registry company; website search in progress
+    NO_WEBSITE = "no_website"  # registry company; no site showing its number was found

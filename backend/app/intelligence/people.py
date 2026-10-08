@@ -15,8 +15,9 @@ def same_person(a: str, b: str) -> bool:
 
 
 def named_people(facts: Facts) -> list[Fact]:
-    """Site people first, then registered officers not already named on the site. Officers
-    are given the shape of site people: {"name", "title", "source"}."""
+    """Site people first, then registered officers, then people with significant control,
+    each only if not already named. All take the shape of site people:
+    {"name", "title", "source"}."""
     site = facts.all("company.person")
     people = list(site)
     for officer in facts.all("registry.officer"):
@@ -31,6 +32,20 @@ def named_people(facts: Facts) -> list[Fact]:
                 officer.evidence_id,
                 officer.source_url,
                 officer.excerpt,
+            )
+        )
+    for owner in facts.all("registry.owner"):
+        name = str(owner.value.get("name", ""))
+        if not name or any(same_person(name, str(p.value.get("name", ""))) for p in people):
+            continue
+        people.append(
+            Fact(
+                owner.key,
+                {"name": name, "title": "Owner (significant control)", "source": "companies_house"},
+                owner.confidence,
+                owner.evidence_id,
+                owner.source_url,
+                owner.excerpt,
             )
         )
     return people

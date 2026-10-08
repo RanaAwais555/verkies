@@ -74,3 +74,35 @@ async def _fail(run_id: uuid.UUID, message: str) -> None:
         await fail_run(run_id, async_sessionmaker(engine, expire_on_commit=False), message)
     finally:
         await engine.dispose()
+
+
+async def find_websites_job(job_id: uuid.UUID) -> None:
+    from app.discovery.websites import find_websites
+    from app.providers.search import build_search_provider
+    from app.research.source import CachedPageSource
+
+    settings = get_settings()
+    engine = create_async_engine(settings.database_url, poolclass=NullPool)
+    fetcher = build_fetcher(settings)
+    sessionmaker = async_sessionmaker(engine, expire_on_commit=False)
+    try:
+        await find_websites(
+            job_id,
+            sessionmaker,
+            build_search_provider(settings),
+            CachedPageSource(
+                sessionmaker=sessionmaker,
+                storage=LocalStorage(settings.storage_dir),
+                fetcher=fetcher,
+                renderer=None,
+                cache_days=settings.crawl_cache_days,
+            ),
+        )
+    finally:
+        await fetcher.aclose()
+        await engine.dispose()
+
+
+@celery_app.task(name="vros.discovery.find_websites", soft_time_limit=1800, time_limit=1900)
+def discovery_find_websites(job_id: str) -> None:
+    asyncio.run(find_websites_job(uuid.UUID(job_id)))

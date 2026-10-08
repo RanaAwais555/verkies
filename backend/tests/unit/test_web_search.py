@@ -101,3 +101,16 @@ async def test_searxng_errors_are_reported_not_hidden() -> None:
         await broken.search("x")
     with pytest.raises(ProviderUnavailable, match="not set up"):
         await NullSearchProvider().search("x")
+
+
+def test_candidate_websites_keep_ports_but_never_credentials() -> None:
+    (row,) = candidates([_r("https://user:secret@acme.test:8443/about", "Acme")])
+    assert row["website"] == "https://acme.test:8443/"
+
+
+def test_register_names_become_search_names() -> None:
+    from app.discovery.websites import search_name
+
+    assert search_name("BRIGHT LEGAL LTD") == "Bright Legal"
+    assert search_name("QUIET FIRM LIMITED") == "Quiet Firm"
+    assert search_name("Acme Holdings PLC") == "Acme Holdings"

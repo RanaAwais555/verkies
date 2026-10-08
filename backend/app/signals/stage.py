@@ -82,7 +82,7 @@ def news_observation(item: feeds.FeedItem, kind: str, feed_url: str) -> Observat
     )
 
 
-async def _robots(source: PageSource, url: str) -> RobotsPolicy:
+async def robots_for(source: PageSource, url: str) -> RobotsPolicy:
     parts = urlsplit(url)
     try:
         fetched = await source.fetch(
@@ -123,7 +123,7 @@ async def collect(
     cutoff = today - timedelta(days=NEWS_WINDOW_DAYS)
     for fact in facts.all("company.feed"):
         url = str(fact.value.get("url"))
-        robots = await _robots(source, url)
+        robots = await robots_for(source, url)
         if not robots.allows(url):
             errors.append(f"feed {url}: disallowed by robots.txt")
             continue

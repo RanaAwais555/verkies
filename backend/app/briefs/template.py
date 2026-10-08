@@ -177,6 +177,19 @@ def build(inputs: BriefInputs) -> Draft:
                 confidence=registered.confidence,
             )
         )
+    accounts = facts.first("registry.accounts")
+    if accounts and accounts.value.get("made_up_to"):
+        kind = str(accounts.value["type"]).replace("-", " ")
+        overview.append(
+            DraftClaim(
+                ClaimClass.FACT,
+                f"Latest accounts filed: {kind}, made up to {accounts.value['made_up_to']}.",
+                [accounts.evidence_id],
+                subject="company.size",
+                ref="overview.accounts",
+                confidence=accounts.confidence,
+            )
+        )
     sections["company_overview"] = Section(
         overview, unknown=None if overview else "Company details Unknown."
     )
@@ -419,6 +432,19 @@ def _signal_claims(facts: Facts) -> list[DraftClaim]:
                 ids,
                 subject="why_now.job_postings",
                 ref=f"why_now.jobs.{n}",
+            )
+        )
+    filings = sorted(
+        facts.all("signal.filing"), key=lambda f: str(f.value.get("published")), reverse=True
+    )
+    for n, fact in enumerate(filings[:2]):
+        claims.append(
+            DraftClaim(
+                ClaimClass.FACT,
+                f"Companies House, {fact.value['published']}: {fact.value['title']}.",
+                [fact.evidence_id],
+                subject=f"why_now.{fact.value.get('signal')}",
+                ref=f"why_now.filing.{n}",
             )
         )
     news = sorted(

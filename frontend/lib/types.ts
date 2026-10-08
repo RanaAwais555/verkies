@@ -265,6 +265,7 @@ export type Account360 = AccountSummary & {
   website_url: string | null;
   description: string | null;
   hq_city: string | null;
+  company_size_band: string | null;
   source: string | null;
   linkedin_company_url: string | null;
   domains: string[];
@@ -386,7 +387,9 @@ export type ImportRow = {
     | "possible_duplicate"
     | "already_researched"
     | "suppressed"
-    | "queued";
+    | "queued"
+    | "finding_website"
+    | "no_website";
   status_detail: string | null;
   matched_account_id: string | null;
   research_run_id: string | null;
@@ -398,7 +401,7 @@ export type ImportJob = {
   id: string;
   name: string;
   kind: string;
-  status: "uploaded" | "checked";
+  status: "uploaded" | "checked" | "running";
   columns: string[];
   mapping: Record<string, string>;
   row_count: number;
