@@ -124,7 +124,7 @@ def test_signals_from_the_linked_board_and_feed_drive_intent_timing_and_why_now(
     detail = client.get(f"/research-runs/{run['id']}").json()
     assert detail["status"] == "completed", detail
     stages = {s["stage"]: s for s in detail["stages"]}
-    assert list(stages)[:4] == ["validate", "crawl", "extract", "signals"]
+    assert list(stages)[:5] == ["validate", "crawl", "extract", "signals", "enrich"]
     report = stages["signals"]["detail"]
     assert report["job_boards"] == ["greenhouse"] and report["job_postings"] == 1
     assert report["news"] == 1 and report["errors"] == []  # the 500-day-old item is ignored

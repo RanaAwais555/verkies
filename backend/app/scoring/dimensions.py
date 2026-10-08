@@ -8,6 +8,7 @@ from dataclasses import dataclass, field
 from datetime import UTC, date, datetime
 
 from app.intelligence.facts import Facts
+from app.intelligence.people import named_people
 from app.opportunities.detectors import Candidate
 from app.signals.classify import MEDIUM, STRENGTH, STRONG, VERY_STRONG
 
@@ -49,7 +50,7 @@ def evidence_strength(facts: Facts) -> Dimension:
 
 
 def buyer_confidence(facts: Facts) -> Dimension:
-    people = [f for f in facts.all("company.person")]
+    people = named_people(facts)
     deciders = [f for f in people if DECISION_ROLE.search(str(f.value.get("title", "")))]
     contact_keys = [
         k for k in ("conversion.email_addresses", "conversion.phone_numbers") if facts.present(k)
@@ -62,7 +63,7 @@ def buyer_confidence(facts: Facts) -> Dimension:
     elif people:
         score, note = 50, f"Named people, none with a decision-making title ({len(people)})"
     else:
-        score, note = 15, "No named people found on the site"
+        score, note = 15, "No named people found on the site or in the register"
     if contact_keys:
         score += 10
         note += "; published contact route"

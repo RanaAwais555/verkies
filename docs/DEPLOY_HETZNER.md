@@ -64,7 +64,9 @@ VROS_SECRET_KEY=<output of: openssl rand -hex 32>
 VROS_DB_PASSWORD=<output of: openssl rand -hex 24>
 ```
 
-Keep a copy of these two secrets in your password manager. `chmod 600 .env` so only you can read it.
+Optional but recommended: a free **Companies House API key** gives UK registry facts and directors. Register at https://developer.company-information.service.gov.uk, create an application, add a REST API key, and set `VROS_COMPANIES_HOUSE_API_KEY=<key>`. Without it, research works and Settings → System shows Companies House as "Needs setup".
+
+Keep a copy of these secrets in your password manager. `chmod 600 .env` so only you can read it.
 
 The repository is private, so `git clone` needs access. Either use a GitHub fine-grained token with read access to this repo (`git clone https://<token>@github.com/RanaAwais555/verkies.git`, then `git remote set-url origin https://github.com/RanaAwais555/verkies.git` so the token is not stored), or add a read-only **deploy key** (Repo → Settings → Deploy keys) and clone over SSH.
 

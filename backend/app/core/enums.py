@@ -23,6 +23,7 @@ class ResearchStageName(StrEnum):
     CRAWL = "crawl"
     EXTRACT = "extract"
     SIGNALS = "signals"
+    ENRICH = "enrich"
     DETECT = "detect"
     QUALIFY = "qualify"
     SCORE = "score"
@@ -39,6 +40,7 @@ class ObservationArea(StrEnum):
     COMPANY = "company"
     HIRING = "hiring"
     SIGNALS = "signals"  # dated buying signals: job postings, announcements (slice 2.2)
+    REGISTRY = "registry"  # official company registries: Companies House, Wikidata (slice 2.3)
 
 
 class PageKind(StrEnum):

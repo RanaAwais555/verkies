@@ -84,6 +84,11 @@ class Settings(BaseSettings):
     render_enabled: bool = True
     chromium_executable: str | None = None
 
+    # Company registries (slice 2.3). Companies House needs a free API key from
+    # developer.company-information.service.gov.uk; without one that lookup is skipped.
+    companies_house_api_key: SecretStr | None = None
+    wikidata_enabled: bool = True
+
     # Optional local AI for brief wording (AI_SPEC.md). "none" = template mode only.
     ai_provider: Literal["none", "ollama"] = "none"
     ollama_url: str = "http://ollama:11434"

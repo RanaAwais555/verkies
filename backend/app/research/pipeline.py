@@ -24,6 +24,7 @@ from app.providers.fetch.netguard import resolve_target
 from app.providers.fetch.render import PlaywrightRenderer
 from app.providers.fetch.safe_http import SafeHttpFetcher
 from app.providers.storage import Storage
+from app.registry.stage import Registries, enrich_stage
 from app.research.crawler import CrawlCancelled, Crawler, CrawlLimits, PageOutcome
 from app.research.models import ResearchPage, ResearchRun, ResearchStage
 from app.research.source import CachedPageSource
@@ -38,6 +39,7 @@ PIPELINE_STAGES: tuple[ResearchStageName, ...] = (
     ResearchStageName.CRAWL,
     ResearchStageName.EXTRACT,
     ResearchStageName.SIGNALS,
+    ResearchStageName.ENRICH,
     ResearchStageName.DETECT,
     ResearchStageName.QUALIFY,
     ResearchStageName.SCORE,
@@ -58,6 +60,8 @@ class PipelineDeps:
     force_refresh: bool = False
     ai: AIProvider = field(default_factory=NullAIProvider)
     job_boards: JobBoards = field(default_factory=JobBoards.default)
+    # None: built from settings (Companies House key, Wikidata switch).
+    registries: Registries | None = None
 
 
 class StageFailed(Exception):
@@ -83,6 +87,9 @@ async def run_research(run_id: uuid.UUID, deps: PipelineDeps) -> None:
         await _raise_if_cancelled(run_id, deps)
         current = ResearchStageName.SIGNALS
         await _stage(run_id, current, deps, lambda: _signals(run_id, deps))
+        await _raise_if_cancelled(run_id, deps)
+        current = ResearchStageName.ENRICH
+        await _stage(run_id, current, deps, lambda: _enrich(run_id, deps))
         for current, work in (
             (ResearchStageName.DETECT, scoring_stages.detect_stage),
             (ResearchStageName.QUALIFY, scoring_stages.qualify_stage),
@@ -318,6 +325,11 @@ def _source(deps: PipelineDeps) -> CachedPageSource:
 
 async def _signals(run_id: uuid.UUID, deps: PipelineDeps) -> dict[str, Any]:
     return await signals_stage(run_id, deps.sessionmaker, _source(deps), deps.job_boards)
+
+
+async def _enrich(run_id: uuid.UUID, deps: PipelineDeps) -> dict[str, Any]:
+    registries = deps.registries or Registries.from_settings(deps.settings)
+    return await enrich_stage(run_id, deps.sessionmaker, deps.fetcher, registries)
 
 
 async def _extract(run_id: uuid.UUID, deps: PipelineDeps) -> dict[str, Any]:

@@ -21,6 +21,7 @@ from app.health.router import router as health_router
 from app.prospects.router import router as prospects_router
 from app.research.router import router as research_router
 from app.scoring.config_router import router as config_router
+from app.system.router import router as system_router
 
 API_PREFIX = "/api/v1"
 REQUEST_ID_HEADER = "X-Request-ID"
@@ -84,6 +85,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         crm_router,
         catalogue_router,
         discovery_router,
+        system_router,
     ):
         app.include_router(router, prefix=API_PREFIX)
     return app

@@ -20,6 +20,7 @@ from app.providers.fetch.render import PlaywrightRenderer
 from app.providers.fetch.safe_http import SafeHttpFetcher
 from app.providers.fetch.types import FetchBudget
 from app.providers.storage import LocalStorage
+from app.registry.stage import Registries
 from app.research.pipeline import PipelineDeps, run_research
 from app.research.router import get_enqueuer
 from app.signals.jobs import JobBoards
@@ -115,6 +116,7 @@ def run_pipeline(
     render: bool = True,
     hosts: tuple[str, ...] = ("acme.test",),
     job_boards: JobBoards | None = None,
+    registries: Registries | None = None,
 ) -> None:
     async def go() -> None:
         engine = create_async_engine(settings.database_url, poolclass=NullPool)
@@ -139,6 +141,8 @@ def run_pipeline(
                     renderer=renderer,
                     storage=LocalStorage(settings.storage_dir),
                     job_boards=job_boards or JobBoards.default(),
+                    # No network in tests: registries only when a test supplies fakes.
+                    registries=registries or Registries.disabled(),
                 ),
             )
         finally:
@@ -171,6 +175,7 @@ def test_research_run_crawls_and_reports_progress(
         "crawl",
         "extract",
         "signals",
+        "enrich",
         "detect",
         "qualify",
         "score",
@@ -417,7 +422,7 @@ def test_assessment_ties_opportunities_scores_and_config_together(
 
     detail = research_api.get(f"/research-runs/{run['id']}").json()
     assert detail["status"] == "completed", detail
-    assert [s["status"] for s in detail["stages"]] == ["completed"] * 9
+    assert [s["status"] for s in detail["stages"]] == ["completed"] * 10
 
     a = research_api.get(f"/research-runs/{run['id']}/assessment").json()
     assert a["opportunities"], a

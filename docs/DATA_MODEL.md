@@ -38,7 +38,7 @@ Relational PostgreSQL 16 with pgvector and pg_trgm. Account-centric (§6). This 
 Cached scores are denormalised copies of the latest `score_snapshots`; the snapshot is the source of truth.
 
 **account_domains**: `account_id`, `domain` (unique, normalised), `is_primary`. Supports duplicate detection (§16).
-**account_identifiers**: `account_id`, `scheme` (companies_house, sec_cik, wikidata, …), `value`; unique `(scheme, value)`.
+**account_identifiers**: `account_id`, `scheme` (companies_house, sec_cik, wikidata, …), `value`; unique `(scheme, value)`. Written on approval from registry facts (slice 2.3); duplicate detection treats a shared identifier as the same legal entity.
 
 Indexes: trigram on `accounts.name`, `account_domains.domain`; btree on `account_type`, `owner_id`, `priority_score desc`.
 

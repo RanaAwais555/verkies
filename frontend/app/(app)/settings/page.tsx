@@ -338,6 +338,26 @@ function ConfigEditor({ kind, admin }: { kind: "icp" | "scoring"; admin: boolean
   );
 }
 
+function Providers() {
+  const { data, error } = useApi<{ name: string; status: "ok" | "degraded" | "off"; detail: string }[]>("/system/providers");
+  if (error) return <ErrorNote error={error} />;
+  if (!data) return <Loading />;
+  const tone = { ok: "green", degraded: "amber", off: "neutral" } as const;
+  return (
+    <Card title="Data sources">
+      <ul className="space-y-2 text-sm" data-testid="providers">
+        {data.map((p) => (
+          <li key={p.name} className="flex flex-wrap items-center gap-2">
+            <Badge tone={tone[p.status]}>{p.status === "ok" ? "On" : p.status === "off" ? "Off" : "Needs setup"}</Badge>
+            <span className="font-medium">{p.name}</span>
+            <span className="text-muted">{p.detail}</span>
+          </li>
+        ))}
+      </ul>
+    </Card>
+  );
+}
+
 function SystemStatus() {
   const { data, error } = useApi<{ status: string; checks: Record<string, { status: string; error: string | null }> }>("/health/ready", { shouldRetryOnError: false });
   if (error && !data) return <ErrorNote error={error} />;
@@ -382,7 +402,12 @@ export default function SettingsPage() {
           <ConfigEditor kind="scoring" admin={configAdmin} />
         </div>
       )}
-      {tab === "system" && <SystemStatus />}
+      {tab === "system" && (
+        <div className="space-y-4">
+          <SystemStatus />
+          <Providers />
+        </div>
+      )}
     </div>
   );
 }

@@ -52,10 +52,10 @@ Order of use: official API or structured feed first, crawling second.
 | Wappalyzer community rules | local matcher | 1 | No API; rules vendored with licence note | n/a |
 | `ssl`, `dnspython` (MX, SPF, DMARC) | `DnsChecker` | 1 | | 1 day |
 | CSV import | `SearchProvider` | 2 | | n/a |
-| Companies House API + bulk data | `CompanyDataProvider` | 2 | 600 req / 5 min; streaming API for watched companies | 30 days |
+| Companies House API | `CompaniesHouse` (`app/registry/`) | 2 ✅ | Free key (`VROS_COMPANIES_HOUSE_API_KEY`), Basic auth, 600 req / 5 min. Lookup by registered number only (from the site or Wikidata); 2 requests per run. Bulk data and streaming arrive with monitoring (Phase 6) | 30 days |
 | SEC EDGAR (Form D) | `CompanyDataProvider` | 2 | Descriptive User-Agent required | 30 days |
-| Wikidata SPARQL | `CompanyDataProvider` | 2 | | 30 days |
-| Greenhouse, Lever, Ashby, Workable public job APIs | `SignalProvider` | 2 | Keyless JSON | 1 day |
+| Wikidata SPARQL | `Wikidata` (`app/registry/`) | 2 ✅ | Keyless; matched by official website (P856), used only when exactly one item claims the domain; `VROS_WIKIDATA_ENABLED` | 30 days |
+| Greenhouse, Lever, Ashby, Workable public job APIs | `JobBoards` (`app/signals/`) | 2 ✅ | Keyless JSON; only the board the company's site links to | 1 day |
 | Google News RSS, company blog/press RSS | `SignalProvider` | 2 | | 1 day |
 | SearXNG (self-hosted) | `SearchProvider` | 2 | Low request rate | 1 day |
 | Common Crawl index | `SearchProvider` | 2 (batch) | | n/a |
@@ -91,7 +91,7 @@ Settings: `VROS_CRAWL_MAX_PAGES`, `VROS_CRAWL_MAX_BYTES_PER_RESPONSE`, `VROS_CRA
 
 ## 5. Provider health
 
-`GET /api/v1/system/providers` reports each provider as `ok`, `degraded` or `unavailable` with the reason. The UI shows degraded modes (for example "AI unavailable: briefs use template mode").
+`GET /api/v1/system/providers` reports each provider as `ok`, `degraded` or `off` with the reason (from configuration; it makes no outside calls). Settings → System shows it. The UI shows degraded modes (for example "AI unavailable: briefs use template mode").
 
 ## 6. Swapping a provider
 

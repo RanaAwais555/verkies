@@ -148,7 +148,7 @@ export type Duplicate = {
   account_id: string;
   name: string;
   primary_domain: string | null;
-  match: "domain" | "name" | "flagged";
+  match: string; // domain, name, flagged or identifier:<scheme>
   similarity?: number | null;
 };
 

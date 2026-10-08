@@ -122,6 +122,26 @@ Rules:
 - **News:** comes from the company's own feed, fetched under its robots.txt. An item is kept only if its headline clearly names a signal type and it is dated within the last 365 days. At most 10.
 - **Failures:** a board or feed that fails is listed in the stage's `errors` and never fails the run.
 
+## Registry (slice 2.3, the `enrich` stage)
+
+Found on the site by the company extractor: `company.registration_number` is `{number, jurisdiction}`. It is the registered number UK companies must print on their site (e.g. "Company number 06812345", "Registered in England and Wales No. SC123456"), normalised to the Companies House form.
+
+| Key | Value | Evidence |
+| --- | --- | --- |
+| `registry.companies_house` | `{number, name, status, active, incorporated, type, sic_codes, locality, postal_code}` | `company_registry`, citing the public Companies House page; confidence 0.95 |
+| `registry.officer` | `{name, role, appointed, number}`: current directors and LLP members only | the company's officers page; confidence 0.95 |
+| `registry.wikidata` | `{qid, label, inception, employees, country, industries}` | the Wikidata item; confidence 0.8 |
+
+When each source is used:
+- **Companies House:** looked up only by the registered number, never by a name search. The record is kept only if its name shares a distinctive word with the site's name or domain.
+- **Wikidata:** used only when exactly one item gives this domain as its official website.
+
+Where the facts go:
+- **Contacts:** officers join site people. The same person, matched by first and last name, counts once. Officers count as named decision makers.
+- **ICP:** an inactive status triggers the `closed` rule.
+- **The brief:** the company overview cites the registration.
+- **Approval:** stores `account_identifiers` (companies_house, wikidata). A later run with the same identifier joins that account even under another domain.
+
 ## Site status and industry
 
 | Key | Value | Notes |

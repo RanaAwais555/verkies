@@ -24,6 +24,7 @@ const backendEnv = {
   VROS_CRAWL_ALLOWED_PORTS: `${SITE_PORT},80,443`,
   VROS_CRAWL_MIN_INTERVAL_SECONDS: "0",
   VROS_RENDER_ENABLED: "false",
+  VROS_WIKIDATA_ENABLED: "false", // no outside network in tests
   VROS_ADMIN_PASSWORD: ADMIN.password,
 };
 

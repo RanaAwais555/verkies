@@ -78,3 +78,15 @@ def test_admin_completes_a_reference_profile(api: ApiClient, engine: Engine) -> 
     entry = api.get("/audit", params={"object_id": project["id"]}).json()["items"][0]
     assert entry["action"] == "reference_project.updated"
     assert entry["new_value"]["profile_complete"] is True
+
+
+def test_provider_status_shows_degraded_modes_without_leaking_keys(
+    api: ApiClient, engine: Engine
+) -> None:
+    make_user(engine, "v@verkies.test", ["viewer"])
+    assert api.get("/system/providers").status_code == 401
+    api.login("v@verkies.test")
+    found = {p["name"]: p for p in api.get("/system/providers").json()}
+    assert found["Companies House"]["status"] == "degraded"
+    assert "VROS_COMPANIES_HOUSE_API_KEY" in found["Companies House"]["detail"]
+    assert found["AI writing"]["status"] == "off"

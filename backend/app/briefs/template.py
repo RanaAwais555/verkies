@@ -12,6 +12,7 @@ from app.briefs.grounding import Evidence
 from app.catalogue.matching import Match
 from app.core.enums import ClaimClass, ServiceSlot
 from app.intelligence.facts import Fact, Facts
+from app.intelligence.people import named_people
 from app.opportunities.detectors import Candidate
 from app.scoring.dimensions import DECISION_ROLE
 from app.scoring.engine import Assessment
@@ -90,7 +91,7 @@ def company_name(facts: Facts) -> str | None:
 
 
 def decision_maker(facts: Facts):  # type: ignore[no-untyped-def]
-    people = facts.all("company.person")
+    people = named_people(facts)
     deciders = [p for p in people if DECISION_ROLE.search(str(p.value.get("title", "")))]
     found = deciders or people
     return found[0] if found else None
@@ -159,6 +160,21 @@ def build(inputs: BriefInputs) -> Draft:
                 [address.evidence_id],
                 subject="company.location",
                 ref="overview.2",
+            )
+        )
+    registered = facts.first("registry.companies_house")
+    if registered:
+        v = registered.value
+        since = f", incorporated {v['incorporated']}" if v.get("incorporated") else ""
+        overview.append(
+            DraftClaim(
+                ClaimClass.FACT,
+                f"Registered with Companies House as {v['name']} ({v['number']}), "
+                f"status {v['status']}{since}.",
+                [registered.evidence_id],
+                subject="company.registry",
+                ref="overview.registry",
+                confidence=registered.confidence,
             )
         )
     sections["company_overview"] = Section(
@@ -282,7 +298,10 @@ def build(inputs: BriefInputs) -> Draft:
             )
         )
     sections["best_buyer"] = Section(
-        buyer_claims, unknown=None if buyer_claims else "No named decision maker found on the site."
+        buyer_claims,
+        unknown=None
+        if buyer_claims
+        else "No named decision maker found on the site or in the register.",
     )
 
     sections["similar_project"] = (

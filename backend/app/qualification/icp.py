@@ -299,6 +299,14 @@ def _negative_hits(
             facts.evidence("company.closed_notice"),
             f"Closure notice: {', '.join(facts.value('company.closed_notice'))}",
         )
+    registered = facts.value("registry.companies_house")
+    if registered and registered.get("active") is False:
+        add(
+            "closed",
+            RejectionReason.INACTIVE_COMPANY,
+            facts.evidence("registry.companies_house"),
+            f"Companies House status: {registered.get('status')}",
+        )
     personal = facts.value("company.personal_site_signals") or []
     if personal:
         freelance = any(any(w in p for w in FREELANCE_WORDS) for p in personal)

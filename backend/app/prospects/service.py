@@ -16,7 +16,7 @@ from sqlalchemy import func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.accounts import access
-from app.accounts.models import Account, AccountDomain, Contact, Suppression
+from app.accounts.models import Account, AccountDomain, AccountIdentifier, Contact, Suppression
 from app.audit import service as audit
 from app.auth.models import User
 from app.briefs.models import LeadBrief
@@ -40,6 +40,7 @@ from app.crm import timeline
 from app.crm.models import Lead, Opportunity, Task
 from app.evidence.models import Claim, Evidence, Observation
 from app.intelligence.facts import Facts
+from app.intelligence.people import named_people, same_person
 from app.opportunities.models import OpportunityCandidate, OpportunityCategory
 from app.qualification.models import QualificationResult
 from app.research.models import ResearchRun
@@ -182,11 +183,29 @@ async def queue(db: AsyncSession) -> list[QueueItem]:
 
 
 async def duplicate_candidates(
-    db: AsyncSession, run: ResearchRun, company: str | None
+    db: AsyncSession,
+    run: ResearchRun,
+    company: str | None,
+    identifiers: list[tuple[str, str]] | None = None,
 ) -> list[dict[str, Any]]:
-    """Live accounts that may be this company: same domain (exact), similar name (trigram),
-    or flagged when the run started. Never merged silently; the reviewer decides."""
+    """Live accounts that may be this company: same domain (exact), same registry identifier
+    (e.g. Companies House number), similar name (trigram), or flagged when the run started.
+    Never merged silently; the reviewer decides."""
     found: dict[uuid.UUID, dict[str, Any]] = {}
+    for scheme, value in identifiers or []:
+        same_entity = (
+            await db.execute(
+                select(Account)
+                .join(AccountIdentifier, AccountIdentifier.account_id == Account.id)
+                .where(
+                    AccountIdentifier.scheme == scheme,
+                    AccountIdentifier.value == value,
+                    Account.deleted_at.is_(None),
+                )
+            )
+        ).scalars()
+        for account in same_entity:
+            found.setdefault(account.id, {"account": account, "match": f"identifier:{scheme}"})
     exact = (
         await db.execute(
             select(Account)
@@ -337,6 +356,7 @@ async def approve(
     facts = await scoring.load_facts(db, run)
     company = brief.sections.get("summary", {}).get("company")
     account, created = await _resolve_account(db, run, data, company, facts, owner, snapshot, user)
+    await _record_identifiers(db, account, facts)
     now = _now()
 
     # Attach the research to the account. The append-only triggers allow exactly this:
@@ -445,10 +465,16 @@ async def _resolve_account(
     snapshot: ScoreSnapshot,
     user: User,
 ) -> tuple[Account, bool]:
-    found = await duplicate_candidates(db, run, company)
+    found = await duplicate_candidates(db, run, company, registry_identifiers(facts))
     same_domain = [f["account"] for f in found if f["match"] == "domain"]
+    same_entity = [f["account"] for f in found if str(f["match"]).startswith("identifier:")]
     account: Account | None = None
-    if same_domain:
+    if not same_domain and same_entity and not data.account_id:
+        # The same registered company under another website (a rebrand or second domain):
+        # it is the same legal entity, so the research joins that account with this domain.
+        account = same_entity[0]
+        db.add(AccountDomain(account_id=account.id, domain=run.normalised_domain))
+    elif same_domain:
         # The domain already belongs to an account: the research can only attach to it.
         account = same_domain[0]
         if data.account_id and data.account_id != account.id:
@@ -487,6 +513,9 @@ async def _resolve_account(
     industry = _first_value(facts, "company.industry")
     country = str(address.get("addressCountry", "")).upper() if isinstance(address, dict) else ""
     city = address.get("addressLocality") if isinstance(address, dict) else None
+    registered = _first_value(facts, "registry.companies_house")
+    if not city and isinstance(registered, dict):
+        city = registered.get("locality")
     description = _first_value(facts, "company.description")
     account = Account(
         name=(company or run.normalised_domain)[:300],
@@ -508,6 +537,31 @@ async def _resolve_account(
     await db.flush()
     db.add(AccountDomain(account_id=account.id, domain=run.normalised_domain, is_primary=True))
     return account, True
+
+
+def registry_identifiers(facts: Facts) -> list[tuple[str, str]]:
+    """(scheme, value) pairs from registry facts, for duplicate detection and the account."""
+    out: list[tuple[str, str]] = []
+    registered = facts.value("registry.companies_house")
+    if registered and registered.get("number"):
+        out.append(("companies_house", str(registered["number"])))
+    wiki = facts.value("registry.wikidata")
+    if wiki and wiki.get("qid"):
+        out.append(("wikidata", str(wiki["qid"])))
+    return out
+
+
+async def _record_identifiers(db: AsyncSession, account: Account, facts: Facts) -> None:
+    for scheme, value in registry_identifiers(facts):
+        owner = (
+            await db.execute(
+                select(AccountIdentifier.account_id).where(
+                    AccountIdentifier.scheme == scheme, AccountIdentifier.value == value
+                )
+            )
+        ).scalar_one_or_none()
+        if owner is None:
+            db.add(AccountIdentifier(account_id=account.id, scheme=scheme, value=value))
 
 
 def _first_value(facts: Facts, key: str) -> Any:
@@ -567,10 +621,10 @@ async def _opportunity(
 async def _contacts(
     db: AsyncSession, account: Account, facts: Facts, run: ResearchRun
 ) -> list[Contact]:
-    """People named on the company's own pages. No email or phone is invented: those stay
-    empty unless the page published them next to the person."""
-    existing = {
-        name.casefold()
+    """People named on the company's own pages and current registered officers. No email or
+    phone is invented: those stay empty unless the page published them next to the person."""
+    existing = [
+        name
         for name in (
             await db.execute(
                 select(Contact.name).where(
@@ -578,7 +632,7 @@ async def _contacts(
                 )
             )
         ).scalars()
-    }
+    ]
     collected = {
         str(e.id): e.collected_at
         for e in (
@@ -586,17 +640,18 @@ async def _contacts(
         ).scalars()
     }
     added: list[Contact] = []
-    for fact in sorted(facts.all("company.person"), key=lambda f: -f.confidence):
+    for fact in sorted(named_people(facts), key=lambda f: -f.confidence):
         name = str(fact.value.get("name", "")).strip()
-        if not name or name.casefold() in existing:
+        if not name or any(same_person(name, known) for known in existing):
             continue
-        existing.add(name.casefold())
+        existing.append(name)
         title = fact.value.get("title")
+        registry = fact.value.get("source") == "companies_house"
         contact = Contact(
             account_id=account.id,
             name=name[:200],
             title=str(title)[:200] if title else None,
-            source="company_website",
+            source="companies_house" if registry else "company_website",
             source_url=fact.source_url,
             collected_at=collected.get(fact.evidence_id, _now()),
             confidence=Decimal(str(round(fact.confidence, 2))),
