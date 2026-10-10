@@ -13,11 +13,13 @@ import {
   inputClass,
   label,
   Loading,
+  PageHeader,
   SourceLink,
+  Success,
   Tabs,
 } from "@/components/ui";
 import { api } from "@/lib/client";
-import { can, useApi, useSession } from "@/lib/hooks";
+import { can, useApi, useSession, useTab } from "@/lib/hooks";
 import type { ConfigVersion, Invite, ReferenceProject, Role, Service, User } from "@/lib/types";
 
 function useAction() {
@@ -76,7 +78,7 @@ function Profile({ user }: { user: User }) {
           <Field label="New password" hint="At least 12 characters. Other sessions are signed out."><input name="new_password" type="password" required minLength={12} autoComplete="new-password" className={inputClass} /></Field>
           <Field label="Confirm new password"><input name="confirm" type="password" required autoComplete="new-password" className={inputClass} /></Field>
           <ErrorNote error={error} />
-          {saved && <p className="text-sm text-green-700">Password changed.</p>}
+          {saved && <Success>Password changed.</Success>}
           <Button type="submit" busy={busy}>Change password</Button>
         </form>
       </Card>
@@ -379,7 +381,7 @@ function SystemStatus() {
 
 export default function SettingsPage() {
   const { data: session } = useSession();
-  const [tab, setTab] = useState("profile");
+  const [tab, setTab] = useTab("profile");
   if (!session) return <Loading />;
   const configAdmin = can(session, "config.manage");
   const tabs = [
@@ -390,8 +392,8 @@ export default function SettingsPage() {
     { key: "system", label: "System" },
   ];
   return (
-    <div className="space-y-4">
-      <h1 className="text-xl font-semibold">Settings</h1>
+    <div className="space-y-5">
+      <PageHeader title="Settings" description="Your profile, the team, what Verkies sells, and how prospects are qualified and scored." />
       <Tabs tabs={tabs} active={tab} onChange={setTab} />
       {tab === "profile" && <Profile user={session.user} />}
       {tab === "team" && <Team me={session.user} />}

@@ -14,14 +14,18 @@ export function NewResearchForm() {
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    const url = String(new FormData(event.currentTarget).get("url") ?? "").trim();
+    const form = event.currentTarget;
+    const url = String(new FormData(form).get("url") ?? "").trim();
     setBusy(true);
     setError(null);
     try {
       const run = await api<Run>("/research-runs", { method: "POST", body: { url } });
+      // The app keeps this page alive in the background: leave it ready for the next company.
+      form.reset();
       router.push(`/research/${run.id}`);
     } catch (err) {
       setError(err);
+    } finally {
       setBusy(false);
     }
   }

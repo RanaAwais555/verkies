@@ -1,34 +1,66 @@
 @import "tailwindcss";
 
+/* Design tokens. Neutral slate greys, one indigo accent, white cards on a soft page. */
 :root {
+  --page: #f6f7f9;
   --background: #ffffff;
-  --foreground: #171717;
-  --muted: #6b7280;
-  --border: #e5e7eb;
-  --surface: #f5f5f5;
+  --foreground: #0f172a;
+  --muted: #64748b;
+  --border: #e2e8f0;
+  --surface: #f1f5f9;
+  --accent: #4f46e5;
+  --accent-hover: #4338ca;
+  --accent-soft: #eef2ff;
+  --accent-foreground: #ffffff;
+  --sidebar: #0f172a;
+  --sidebar-foreground: #cbd5e1;
+  --sidebar-active: #1e293b;
 }
 
 @theme inline {
+  --color-page: var(--page);
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --color-muted: var(--muted);
   --color-border: var(--border);
   --color-surface: var(--surface);
-  --font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --color-accent: var(--accent);
+  --color-accent-hover: var(--accent-hover);
+  --color-accent-soft: var(--accent-soft);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-active: var(--sidebar-active);
+  --font-sans: "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI Variable Text", "Segoe UI", Roboto, sans-serif;
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-    --muted: #9ca3af;
-    --border: #262626;
-    --surface: #171717;
+    --page: #0b0e14;
+    --background: #121620;
+    --foreground: #e5e7eb;
+    --muted: #94a3b8;
+    --border: #232a36;
+    --surface: #1a202b;
+    --accent: #818cf8;
+    --accent-hover: #a5b4fc;
+    --accent-soft: #1e1b4b;
+    --accent-foreground: #0b0e14;
+    --sidebar: #090c11;
+    --sidebar-foreground: #94a3b8;
+    --sidebar-active: #161b24;
   }
 }
 
 body {
-  background: var(--background);
+  background: var(--page);
   color: var(--foreground);
   font-family: var(--font-sans);
+  font-feature-settings: "cv11", "ss01";
+}
+
+/* Keyboard focus is always visible; mouse clicks do not leave rings behind. */
+:where(a, button, input, select, textarea, [tabindex]):focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
 }

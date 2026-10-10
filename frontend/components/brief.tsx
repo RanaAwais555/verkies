@@ -22,7 +22,7 @@ const CLASS_TONE = { fact: "green", inference: "blue", recommendation: "purple" 
 
 export function EvidenceList({ evidence }: { evidence: Evidence[] }) {
   return (
-    <ul className="mt-1 space-y-1 border-l-2 border-border pl-3">
+    <ul className="mt-2 space-y-2 border-l-2 border-accent/30 pl-3">
       {evidence.map((e) => (
         <li key={e.id} className="text-xs">
           <q className="text-foreground">{e.excerpt}</q>
@@ -39,13 +39,13 @@ export function EvidenceList({ evidence }: { evidence: Evidence[] }) {
 function ClaimView({ claim }: { claim: BriefClaim }) {
   const [open, setOpen] = useState(false);
   return (
-    <li className="space-y-1" data-testid="claim" data-class={claim.claim_class}>
+    <li className="space-y-1.5" data-testid="claim" data-class={claim.claim_class}>
       <div className="flex items-start gap-2">
         <Badge tone={CLASS_TONE[claim.claim_class]}>{label(claim.claim_class)}</Badge>
         <span className="text-sm">{claim.text}</span>
       </div>
       {claim.evidence.length > 0 && (
-        <button className="ml-1 text-xs text-muted underline underline-offset-2" onClick={() => setOpen(!open)} aria-expanded={open}>
+        <button className="text-xs font-medium text-accent hover:text-accent-hover" onClick={() => setOpen(!open)} aria-expanded={open}>
           {open ? "Hide" : "Show"} evidence ({claim.evidence.length})
         </button>
       )}
@@ -61,7 +61,7 @@ export function BriefView({ brief }: { brief: Brief }) {
     <div className="space-y-4" data-testid="brief">
       <Card>
         <div className="flex flex-wrap items-center gap-3">
-          <h2 className="text-lg font-semibold">{s.company ?? s.domain}</h2>
+          <h2 className="text-lg font-semibold tracking-tight">{s.company ?? s.domain}</h2>
           <BandBadge band={s.priority_band} />
           <span className="text-sm">Priority <Score value={s.priority_score} className="font-semibold" /></span>
           {s.qualifies ? <Badge tone="green">Qualifies</Badge> : <Badge>Does not qualify</Badge>}
@@ -80,7 +80,7 @@ export function BriefView({ brief }: { brief: Brief }) {
         return (
           <Card key={key} title={title} actions={section.source === "ai" ? <Badge tone="blue">AI</Badge> : undefined}>
             {section.claims.length > 0 ? (
-              <ul className="space-y-2">{section.claims.map((c) => <ClaimView key={c.claim_id} claim={c} />)}</ul>
+              <ul className="space-y-3">{section.claims.map((c) => <ClaimView key={c.claim_id} claim={c} />)}</ul>
             ) : (
               <p className="text-sm text-muted" data-testid="unknown">{section.unknown ?? "Unknown"}</p>
             )}

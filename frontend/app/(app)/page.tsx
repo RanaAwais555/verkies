@@ -4,7 +4,7 @@ import Link from "next/link";
 
 import { NewResearchForm } from "@/components/research-form";
 import { TaskRow } from "@/components/tasks";
-import { Badge, BandBadge, Card, Empty, ErrorNote, Loading, Score, TextLink } from "@/components/ui";
+import { Badge, BandBadge, Card, Empty, ErrorNote, isOverdue, Loading, PageHeader, Score, Stat, TextLink } from "@/components/ui";
 import { can, useApi, useSession } from "@/lib/hooks";
 import type { Opportunity, QueueItem, Task } from "@/lib/types";
 import { REJECTION_REASONS } from "@/lib/types";
@@ -15,10 +15,10 @@ function ReviewQueue() {
   if (!data) return <Loading />;
   if (data.length === 0) return <Empty>Nothing to review. Research a company to fill the queue.</Empty>;
   return (
-    <ul className="divide-y divide-border" data-testid="review-queue">
+    <ul className="-mx-5 -my-5 divide-y divide-border" data-testid="review-queue">
       {data.map((item) => (
-        <li key={item.run_id} className="py-2">
-          <Link href={`/research/${item.run_id}`} className="flex flex-wrap items-center gap-2 hover:underline">
+        <li key={item.run_id} className="px-5 py-3 transition-colors hover:bg-surface/50">
+          <Link href={`/research/${item.run_id}`} className="flex flex-wrap items-center gap-2">
             <span className="font-medium">{item.company ?? item.domain}</span>
             <span className="text-xs text-muted">{item.domain}</span>
             <span className="ml-auto flex items-center gap-2 text-sm">
@@ -31,10 +31,10 @@ function ReviewQueue() {
               )}
               {item.possible_duplicates.length > 0 && <Badge tone="purple">Possible duplicate</Badge>}
               <BandBadge band={item.priority_band} />
-              <Score value={item.priority_score} />
+              <Score value={item.priority_score} className="w-8 text-right font-semibold" />
             </span>
           </Link>
-          {item.next_action && <p className="mt-0.5 text-xs text-muted">Next: {item.next_action}</p>}
+          {item.next_action && <p className="mt-1 text-xs text-muted">Next: {item.next_action}</p>}
         </li>
       ))}
     </ul>
@@ -47,7 +47,7 @@ function MyTasks() {
   if (!data) return <Loading />;
   if (data.length === 0) return <Empty>No open tasks.</Empty>;
   return (
-    <div role="list" className="divide-y divide-border" data-testid="my-tasks">
+    <div role="list" className="-my-2 divide-y divide-border" data-testid="my-tasks">
       {data.map((t) => <TaskRow key={t.id} task={t} showAccount onChange={() => mutate()} />)}
     </div>
   );
@@ -61,13 +61,36 @@ function Attention() {
   return (
     <ul className="divide-y divide-border" data-testid="attention">
       {data.map((o) => (
-        <li key={o.id} className="py-2 text-sm">
+        <li key={o.id} className="py-2.5 text-sm first:pt-0 last:pb-0">
           <TextLink href={`/accounts/${o.account_id}`}>{o.account_name ?? "Account"}</TextLink>
           <span className="text-muted"> · {o.name}</span>
-          <p className="text-xs text-red-600">{o.requires_attention.join("; ")}</p>
+          <p className="mt-0.5 text-xs text-red-600 dark:text-red-400">{o.requires_attention.join("; ")}</p>
         </li>
       ))}
     </ul>
+  );
+}
+
+/** Headline counts, from the same requests the cards below make (fetched once, shared). */
+function Stats({ reviewer, member }: { reviewer: boolean; member: boolean }) {
+  const { data: queue } = useApi<QueueItem[]>(reviewer ? "/prospects" : null, { refreshInterval: 15000 });
+  const { data: tasks } = useApi<Task[]>(member ? "/tasks?mine=true&status=open" : null);
+  const { data: attention } = useApi<Opportunity[]>(member ? "/opportunities/requires-attention" : null);
+  const overdue = tasks?.filter((t) => isOverdue(t.due_at)).length ?? 0;
+  const count = (list: unknown[] | undefined) => (list ? list.length : "…");
+  return (
+    <div className="grid gap-4 sm:grid-cols-3">
+      {reviewer && <Stat label="Awaiting review" value={count(queue)} hint="Researched prospects to approve or reject" tone="accent" />}
+      {member && <Stat label="My open tasks" value={count(tasks)} hint={overdue ? `${overdue} overdue` : "None overdue"} tone={overdue ? "red" : "neutral"} />}
+      {member && (
+        <Stat
+          label="Without a next action"
+          value={count(attention)}
+          hint="Opportunities with no owned, dated task"
+          tone={attention?.length ? "amber" : "neutral"}
+        />
+      )}
+    </div>
   );
 }
 
@@ -75,11 +98,13 @@ export default function HomePage() {
   const { data: session } = useSession();
   const reviewer = can(session, "prospects.review");
   const member = can(session, "accounts.read", "accounts.read_own");
+  const firstName = session?.user.name.split(" ")[0];
   return (
     <div className="space-y-6">
-      <h1 className="text-xl font-semibold">Home</h1>
+      <PageHeader title="Home" description={firstName ? `Welcome back, ${firstName}. Here is what needs you today.` : undefined} />
+      <Stats reviewer={reviewer} member={member} />
       {can(session, "research.run") && (
-        <Card title="Research a company">
+        <Card title="Research a company" description="Paste a website. VROS reads the public site and registries, then writes an evidenced brief.">
           <NewResearchForm />
         </Card>
       )}

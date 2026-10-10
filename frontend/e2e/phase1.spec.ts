@@ -108,13 +108,18 @@ test("research a company, review the evidence and approve it into the CRM", asyn
   await page.getByRole("tab", { name: "Audit" }).click();
   await expect(page.getByTestId("audit")).toContainText("prospect.approved");
 
-  // The new task is on Home; completing it leaves the opportunity needing a next action.
-  await page.goto("/");
+  // Back returns to the decided run, which shows the outcome instead of the decision buttons.
+  await page.getByRole("button", { name: "Back", exact: true }).click();
+  await expect(page.getByTestId("approved")).toBeVisible();
+  await expect(page.getByRole("group", { name: "Decision" })).toHaveCount(0);
+  await page.getByRole("link", { name: "Back to the review queue" }).click();
+
+  // The new task is on Home; completing it leaves the opportunity needing a next action,
+  // which shows at once, without reloading the page.
   await expect(page.getByTestId("my-tasks").getByTestId("task")).toHaveCount(1);
   await expect(page.getByTestId("review-queue")).toHaveCount(0); // queue is empty now
   await page.getByRole("button", { name: "Mark done" }).click();
   await expect(page.getByText("No open tasks.")).toBeVisible();
-  await page.reload();
   await expect(page.getByTestId("attention")).toContainText("next action is closed");
 
   // Setting a new, owned and dated next action clears it again.
@@ -144,8 +149,9 @@ test("reject a competitor: off the queue, still searchable", async ({ page }) =>
   await page.getByLabel("Note (optional)").fill("Agency, not a buyer");
   await page.getByRole("button", { name: "Reject", exact: true }).last().click();
   await expect(page.getByTestId("rejected")).toBeVisible();
+  await expect(page.getByRole("group", { name: "Decision" })).toHaveCount(0);
 
-  await page.goto("/");
+  await page.getByRole("link", { name: "Back to the review queue" }).click();
   await expect(page.getByText("Nothing to review.")).toBeVisible();
   await page.goto("/research");
   await page.getByLabel("Review status").selectOption("rejected");
