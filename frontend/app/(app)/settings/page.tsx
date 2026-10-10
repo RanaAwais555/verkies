@@ -131,51 +131,7 @@ function Team({ me }: { me: User }) {
   if (usersError) return <ErrorNote error={usersError} />;
   return (
     <div className="flex flex-wrap items-start gap-5">
-      <div className="flex min-w-0 flex-[2_1_520px] flex-col gap-5">
-        <Panel title={users ? `Members (${users.length})` : "Members"} primary>
-          {!users ? (
-            <Skeleton rows={4} />
-          ) : (
-            <ul className="divide-y divide-grid">
-              {users.map((u) => (
-                <li key={u.id} className={cx("space-y-2 py-3 first:pt-0 last:pb-0", !u.is_active && "opacity-60")}>
-                  <div className="flex flex-wrap items-center gap-2.5">
-                    <span aria-hidden className="grid h-8 w-8 place-items-center rounded-full bg-accent-soft text-[11px] font-semibold text-accent-text">
-                      {initials(u.name)}
-                    </span>
-                    <div className="min-w-0 flex-1">
-                      <p className="flex flex-wrap items-center gap-2 font-medium text-fg">
-                        {u.name}
-                        {u.id === me.id && <Badge>You</Badge>}
-                        {!u.is_active && <Badge tone="red">Deactivated</Badge>}
-                      </p>
-                      <p className="text-xs text-fg-3">
-                        {u.email} · last sign-in {u.last_login_at ? relativeDate(u.last_login_at) : "never"}
-                      </p>
-                    </div>
-                    {u.id !== me.id && (
-                      <Button variant={u.is_active ? "ghost" : "secondary"} onClick={() => update(u, { is_active: !u.is_active })}>
-                        {u.is_active ? "Deactivate" : "Reactivate"}
-                      </Button>
-                    )}
-                  </div>
-                  <div className="ml-[42px] flex flex-wrap gap-x-4 gap-y-1.5">
-                    {roles?.map((r) => (
-                      <Checkbox
-                        key={r.key}
-                        label={r.name}
-                        className="text-xs"
-                        checked={u.roles.includes(r.key)}
-                        onChange={(e) => update(u, { roles: e.target.checked ? [...u.roles, r.key] : u.roles.filter((k) => k !== r.key) })}
-                      />
-                    ))}
-                  </div>
-                </li>
-              ))}
-            </ul>
-          )}
-        </Panel>
-      </div>
+      {/* The invite form comes first: it is what an admin comes here to do. */}
       <div className="flex min-w-0 flex-[1_1_320px] flex-col gap-5">
         <Panel title="Invite a team member" description="Sign-up is by invitation only.">
           <form onSubmit={invite} className="space-y-3">
@@ -220,6 +176,51 @@ function Team({ me }: { me: User }) {
                   >
                     Revoke
                   </Button>
+                </li>
+              ))}
+            </ul>
+          )}
+        </Panel>
+      </div>
+      <div className="flex min-w-0 flex-[2_1_520px] flex-col gap-5">
+        <Panel title={users ? `Members (${users.length})` : "Members"} primary>
+          {!users ? (
+            <Skeleton rows={4} />
+          ) : (
+            <ul className="divide-y divide-grid">
+              {users.map((u) => (
+                <li key={u.id} className={cx("space-y-2 py-3 first:pt-0 last:pb-0", !u.is_active && "opacity-60")}>
+                  <div className="flex flex-wrap items-center gap-2.5">
+                    <span aria-hidden className="grid h-8 w-8 place-items-center rounded-full bg-accent-soft text-[11px] font-semibold text-accent-text">
+                      {initials(u.name)}
+                    </span>
+                    <div className="min-w-0 flex-1">
+                      <p className="flex flex-wrap items-center gap-2 font-medium text-fg">
+                        {u.name}
+                        {u.id === me.id && <Badge>You</Badge>}
+                        {!u.is_active && <Badge tone="red">Deactivated</Badge>}
+                      </p>
+                      <p className="text-xs text-fg-3">
+                        {u.email} · last sign-in {u.last_login_at ? relativeDate(u.last_login_at) : "never"}
+                      </p>
+                    </div>
+                    {u.id !== me.id && (
+                      <Button variant={u.is_active ? "ghost" : "secondary"} onClick={() => update(u, { is_active: !u.is_active })}>
+                        {u.is_active ? "Deactivate" : "Reactivate"}
+                      </Button>
+                    )}
+                  </div>
+                  <div className="ml-[42px] flex flex-wrap gap-x-4 gap-y-1.5">
+                    {roles?.map((r) => (
+                      <Checkbox
+                        key={r.key}
+                        label={r.name}
+                        className="text-xs"
+                        checked={u.roles.includes(r.key)}
+                        onChange={(e) => update(u, { roles: e.target.checked ? [...u.roles, r.key] : u.roles.filter((k) => k !== r.key) })}
+                      />
+                    ))}
+                  </div>
                 </li>
               ))}
             </ul>
