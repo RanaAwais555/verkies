@@ -12,6 +12,8 @@
     "build:e2e": "VROS_API_INTERNAL_URL=http://127.0.0.1:8100 next build"
   },
   "dependencies": {
+    "framer-motion": "14.1.0",
+    "lucide-react": "0.544.0",
     "next": "16.4.0",
     "react": "19.3.0",
     "react-dom": "19.3.0",

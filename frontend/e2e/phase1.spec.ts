@@ -54,7 +54,7 @@ test("an admin invites a teammate who joins with their own password", async ({ p
   await sam.getByLabel("Confirm password").fill("sam correct horse battery");
   await sam.getByRole("button", { name: "Create account" }).click();
   await expect(sam.getByTestId("signed-in-as")).toHaveText("Sam Seller");
-  await expect(sam.getByRole("heading", { name: "Home" })).toBeVisible();
+  await expect(sam.getByRole("heading", { name: "Command Center" })).toBeVisible();
   await sam.context().close();
 });
 

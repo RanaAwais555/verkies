@@ -22,12 +22,15 @@ export type Stage = {
   detail: Record<string, unknown>;
 };
 
+export type RunStatus = "queued" | "running" | "completed" | "failed" | "cancelled" | "retrying";
+export type ReviewStatus = "pending" | "approved" | "rejected";
+
 export type Run = {
   id: string;
   input_url: string;
   normalised_domain: string;
-  status: "queued" | "running" | "completed" | "failed" | "cancelled" | "retrying";
-  review_status: "pending" | "approved" | "rejected";
+  status: RunStatus;
+  review_status: ReviewStatus;
   requested_by_id: string;
   created_at: string;
   started_at: string | null;
@@ -115,9 +118,11 @@ export type Assessment = {
   } | null;
 };
 
+export type ClaimClass = "fact" | "inference" | "recommendation";
+
 export type BriefClaim = {
   claim_id: string;
-  claim_class: "fact" | "inference" | "recommendation";
+  claim_class: ClaimClass;
   text: string;
   evidence: Evidence[];
 };
@@ -351,6 +356,10 @@ export type ConfigVersion = {
   config: Record<string, unknown>;
 };
 
+export type ProviderStatus = { name: string; status: "ok" | "degraded" | "off"; detail: string };
+
+export type Readiness = { status: string; checks: Record<string, { status: string; error: string | null }> };
+
 export const REJECTION_REASONS: Record<string, string> = {
   no_commercial_opportunity: "No commercial opportunity",
   wrong_icp: "Wrong ICP",
@@ -368,6 +377,19 @@ export const REJECTION_REASONS: Record<string, string> = {
   suppressed_account: "Suppressed account",
 };
 
+export type ImportRowStatus =
+  | "pending"
+  | "new"
+  | "invalid"
+  | "duplicate_in_file"
+  | "existing_account"
+  | "possible_duplicate"
+  | "already_researched"
+  | "suppressed"
+  | "queued"
+  | "finding_website"
+  | "no_website";
+
 export type ImportRow = {
   id: string;
   row_number: number;
@@ -378,18 +400,7 @@ export type ImportRow = {
   country: string | null;
   industry: string | null;
   notes: string | null;
-  status:
-    | "pending"
-    | "new"
-    | "invalid"
-    | "duplicate_in_file"
-    | "existing_account"
-    | "possible_duplicate"
-    | "already_researched"
-    | "suppressed"
-    | "queued"
-    | "finding_website"
-    | "no_website";
+  status: ImportRowStatus;
   status_detail: string | null;
   matched_account_id: string | null;
   research_run_id: string | null;
@@ -411,3 +422,5 @@ export type ImportJob = {
 };
 
 export type ImportDetail = ImportJob & { fields: string[]; rows: ImportRow[] };
+
+export type BulkResearchResult = { started: string[]; skipped: Record<string, string>; queue_failures: number };

@@ -1,27 +1,36 @@
 "use client";
 
+import { AlertTriangle, ArrowRight, Inbox, ListChecks } from "lucide-react";
 import Link from "next/link";
 
-import { NewResearchForm } from "@/components/research-form";
-import { TaskRow } from "@/components/tasks";
-import { Badge, BandBadge, Card, Empty, ErrorNote, isOverdue, Loading, PageHeader, Score, Stat, TextLink } from "@/components/ui";
+import { TaskRow } from "@/components/crm/tasks";
+import { ResearchForm } from "@/components/research/research-form";
+import { Badge, BandBadge, Empty, ErrorNote, LinkButton, MetricStrip, PageHeader, Panel, ScoreChip, Skeleton, TextLink, type Metric } from "@/components/ui";
+import { isOverdue } from "@/lib/format";
 import { can, useApi, useSession } from "@/lib/hooks";
 import type { Opportunity, QueueItem, Task } from "@/lib/types";
 import { REJECTION_REASONS } from "@/lib/types";
 
+const QUEUE = "/prospects";
+const MY_TASKS = "/tasks?mine=true&status=open";
+const ATTENTION = "/opportunities/requires-attention";
+
 function ReviewQueue() {
-  const { data, error } = useApi<QueueItem[]>("/prospects", { refreshInterval: 15000 });
+  const { data, error } = useApi<QueueItem[]>(QUEUE, { refreshInterval: 15000 });
   if (error) return <ErrorNote error={error} />;
-  if (!data) return <Loading />;
-  if (data.length === 0) return <Empty>Nothing to review. Research a company to fill the queue.</Empty>;
+  if (!data) return <Skeleton rows={4} />;
+  if (data.length === 0) return <Empty icon={<Inbox className="h-4 w-4" />}>Nothing to review. Research a company to fill the queue.</Empty>;
   return (
-    <ul className="-mx-5 -my-5 divide-y divide-border" data-testid="review-queue">
+    <ul className="-mx-4 -my-4 divide-y divide-grid" data-testid="review-queue">
       {data.map((item) => (
-        <li key={item.run_id} className="px-5 py-3 transition-colors hover:bg-surface/50">
-          <Link href={`/research/${item.run_id}`} className="flex flex-wrap items-center gap-2">
-            <span className="font-medium">{item.company ?? item.domain}</span>
-            <span className="text-xs text-muted">{item.domain}</span>
-            <span className="ml-auto flex items-center gap-2 text-sm">
+        <li key={item.run_id}>
+          <Link href={`/research/${item.run_id}`} className="group flex flex-wrap items-center gap-x-3 gap-y-1.5 px-4 py-3 transition-colors hover:bg-surface-2">
+            <ScoreChip value={item.priority_score} />
+            <span className="min-w-0">
+              <span className="block font-medium text-fg group-hover:text-accent-text">{item.company ?? item.domain}</span>
+              <span className="block text-xs text-fg-3">{item.domain}</span>
+            </span>
+            <span className="ml-auto flex flex-wrap items-center gap-1.5">
               {item.hard_reject ? (
                 <Badge tone="red">Suggest reject: {REJECTION_REASONS[item.recommended_rejection ?? ""] ?? "see brief"}</Badge>
               ) : item.qualifies ? (
@@ -31,10 +40,9 @@ function ReviewQueue() {
               )}
               {item.possible_duplicates.length > 0 && <Badge tone="purple">Possible duplicate</Badge>}
               <BandBadge band={item.priority_band} />
-              <Score value={item.priority_score} className="w-8 text-right font-semibold" />
             </span>
+            {item.next_action && <span className="basis-full pl-[46px] text-xs text-fg-2">Next: {item.next_action}</span>}
           </Link>
-          {item.next_action && <p className="mt-1 text-xs text-muted">Next: {item.next_action}</p>}
         </li>
       ))}
     </ul>
@@ -42,89 +50,104 @@ function ReviewQueue() {
 }
 
 function MyTasks() {
-  const { data, error, mutate } = useApi<Task[]>("/tasks?mine=true&status=open");
+  const { data, error, mutate } = useApi<Task[]>(MY_TASKS);
   if (error) return <ErrorNote error={error} />;
-  if (!data) return <Loading />;
-  if (data.length === 0) return <Empty>No open tasks.</Empty>;
+  if (!data) return <Skeleton rows={3} />;
+  if (data.length === 0) return <Empty icon={<ListChecks className="h-4 w-4" />}>No open tasks.</Empty>;
   return (
-    <div role="list" className="-my-2 divide-y divide-border" data-testid="my-tasks">
-      {data.map((t) => <TaskRow key={t.id} task={t} showAccount onChange={() => mutate()} />)}
+    <div role="list" className="divide-y divide-grid" data-testid="my-tasks">
+      {data.map((t) => (
+        <TaskRow key={t.id} task={t} showAccount onChange={() => mutate()} />
+      ))}
     </div>
   );
 }
 
 function Attention() {
-  const { data, error } = useApi<Opportunity[]>("/opportunities/requires-attention");
+  const { data, error } = useApi<Opportunity[]>(ATTENTION);
   if (error) return <ErrorNote error={error} />;
-  if (!data) return <Loading />;
+  if (!data) return <Skeleton rows={3} />;
   if (data.length === 0) return <Empty>Every opportunity has an owned, dated next action.</Empty>;
   return (
-    <ul className="divide-y divide-border" data-testid="attention">
+    <ul className="divide-y divide-grid" data-testid="attention">
       {data.map((o) => (
-        <li key={o.id} className="py-2.5 text-sm first:pt-0 last:pb-0">
-          <TextLink href={`/accounts/${o.account_id}`}>{o.account_name ?? "Account"}</TextLink>
-          <span className="text-muted"> · {o.name}</span>
-          <p className="mt-0.5 text-xs text-red-600 dark:text-red-400">{o.requires_attention.join("; ")}</p>
+        <li key={o.id} className="flex gap-3 py-3 text-[13px] first:pt-0 last:pb-0">
+          <AlertTriangle aria-hidden className="mt-0.5 h-4 w-4 shrink-0 text-bad" />
+          <div className="min-w-0">
+            <TextLink href={`/accounts/${o.account_id}`}>{o.account_name ?? "Account"}</TextLink>
+            <span className="text-fg-3"> · {o.name}</span>
+            <p className="mt-0.5 text-xs text-bad">{o.requires_attention.join("; ")}</p>
+          </div>
         </li>
       ))}
     </ul>
   );
 }
 
-/** Headline counts, from the same requests the cards below make (fetched once, shared). */
-function Stats({ reviewer, member }: { reviewer: boolean; member: boolean }) {
-  const { data: queue } = useApi<QueueItem[]>(reviewer ? "/prospects" : null, { refreshInterval: 15000 });
-  const { data: tasks } = useApi<Task[]>(member ? "/tasks?mine=true&status=open" : null);
-  const { data: attention } = useApi<Opportunity[]>(member ? "/opportunities/requires-attention" : null);
+/** Headline counts from the same requests the panels below make, so they are fetched once. */
+function Numbers({ reviewer, member }: { reviewer: boolean; member: boolean }) {
+  const { data: queue } = useApi<QueueItem[]>(reviewer ? QUEUE : null, { refreshInterval: 15000 });
+  const { data: tasks } = useApi<Task[]>(member ? MY_TASKS : null);
+  const { data: attention } = useApi<Opportunity[]>(member ? ATTENTION : null);
   const overdue = tasks?.filter((t) => isOverdue(t.due_at)).length ?? 0;
   const count = (list: unknown[] | undefined) => (list ? list.length : "…");
-  return (
-    <div className="grid gap-4 sm:grid-cols-3">
-      {reviewer && <Stat label="Awaiting review" value={count(queue)} hint="Researched prospects to approve or reject" tone="accent" />}
-      {member && <Stat label="My open tasks" value={count(tasks)} hint={overdue ? `${overdue} overdue` : "None overdue"} tone={overdue ? "red" : "neutral"} />}
-      {member && (
-        <Stat
-          label="Without a next action"
-          value={count(attention)}
-          hint="Opportunities with no owned, dated task"
-          tone={attention?.length ? "amber" : "neutral"}
-        />
-      )}
-    </div>
-  );
+  const metrics: Metric[] = [];
+  if (reviewer) metrics.push({ label: "Awaiting review", value: count(queue), hint: "Researched prospects to approve or reject", tone: "accent" });
+  if (member) {
+    metrics.push({ label: "My open tasks", value: count(tasks), hint: overdue ? `${overdue} overdue` : "None overdue", tone: overdue ? "red" : "neutral" });
+    metrics.push({ label: "Without a next action", value: count(attention), hint: "Opportunities with no owned, dated task", tone: attention?.length ? "amber" : "neutral" });
+  }
+  return metrics.length ? <MetricStrip metrics={metrics} /> : null;
 }
 
-export default function HomePage() {
+export default function CommandCenterPage() {
   const { data: session } = useSession();
   const reviewer = can(session, "prospects.review");
   const member = can(session, "accounts.read", "accounts.read_own");
   const firstName = session?.user.name.split(" ")[0];
+  const today = new Date().toLocaleDateString(undefined, { weekday: "long", day: "numeric", month: "long" });
+
   return (
     <div className="space-y-6">
-      <PageHeader title="Home" description={firstName ? `Welcome back, ${firstName}. Here is what needs you today.` : undefined} />
-      <Stats reviewer={reviewer} member={member} />
+      <PageHeader
+        eyebrow={today}
+        title="Command Center"
+        description={firstName ? `Good to see you, ${firstName}. Here is what needs you today.` : undefined}
+      />
+
+      <Numbers reviewer={reviewer} member={member} />
+
       {can(session, "research.run") && (
-        <Card title="Research a company" description="Paste a website. VROS reads the public site and registries, then writes an evidenced brief.">
-          <NewResearchForm />
-        </Card>
+        <Panel title="Research a company" description="Paste a website. VROS reads the public site and registries, then writes an evidenced brief.">
+          <ResearchForm />
+        </Panel>
       )}
-      <div className="grid gap-6 lg:grid-cols-2">
-        {reviewer && (
-          <Card title="Review queue" className="lg:col-span-2">
-            <ReviewQueue />
-          </Card>
-        )}
-        {member && (
-          <Card title="My open tasks">
+
+      {reviewer && (
+        <Panel
+          primary
+          title="Review queue"
+          description="Highest priority first. Open one to read the brief and decide."
+          actions={
+            <LinkButton href="/research" variant="ghost" icon={<ArrowRight className="h-4 w-4" />}>
+              All research
+            </LinkButton>
+          }
+        >
+          <ReviewQueue />
+        </Panel>
+      )}
+
+      {member && (
+        <div className="grid gap-6 lg:grid-cols-2">
+          <Panel title="My open tasks" collapsible>
             <MyTasks />
-          </Card>
-        )}
-        {member && (
-          <Card title="Opportunities requiring attention">
+          </Panel>
+          <Panel title="Opportunities requiring attention" collapsible>
             <Attention />
-          </Card>
-        )}
-      </div>
+          </Panel>
+        </div>
+      )}
     </div>
   );
 }
