@@ -198,7 +198,7 @@ export default function ImportPage() {
                   </td>
                   <td>
                     {r.research_run_id ? (
-                      <span className="flex flex-wrap items-center gap-1">
+                      <span className="flex items-center gap-1 whitespace-nowrap">
                         {r.run_status && <StatusBadge status={r.run_status} />}
                         {r.run_review_status && <StatusBadge status={r.run_review_status} />}
                         <TextLink href={`/research/${r.research_run_id}`}>Open</TextLink>

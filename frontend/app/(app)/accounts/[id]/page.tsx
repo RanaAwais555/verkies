@@ -318,14 +318,14 @@ export default function AccountPage() {
           </>
         }
         description={
-          <span className="flex flex-wrap items-center gap-x-3 gap-y-1">
+          <span className="flex flex-wrap items-center gap-x-4 gap-y-1">
             <span className="inline-flex items-center gap-1.5">
               <Globe aria-hidden className="h-3.5 w-3.5 text-fg-3" />
               {account.primary_domain ?? "No website"}
             </span>
-            {account.industry && <span>· {account.industry}</span>}
-            <span>· owner {account.owner?.name ?? "unassigned"}</span>
-            <span>· next activity {account.next_activity_at ? formatDate(account.next_activity_at) : "none set"}</span>
+            {account.industry && <span>{account.industry}</span>}
+            <span>Owner: {account.owner?.name ?? "unassigned"}</span>
+            <span>Next activity: {account.next_activity_at ? formatDate(account.next_activity_at) : "none set"}</span>
           </span>
         }
       />

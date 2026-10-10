@@ -2,7 +2,7 @@ export { Badge, BandBadge, ClaimTag, StatusBadge, type Tone } from "@/components
 export { Button, IconButton, LinkButton, Spinner, type ButtonVariant } from "@/components/ui/button";
 export { cx } from "@/components/ui/cx";
 export { Empty, ErrorNote, Loading, Note, Skeleton, Success } from "@/components/ui/feedback";
-export { Checkbox, Field, inputClass } from "@/components/ui/form";
+export { Checkbox, controlClass, Field, inputClass } from "@/components/ui/form";
 export { SourceLink, TextLink } from "@/components/ui/links";
 export { MetricStrip, type Metric } from "@/components/ui/metric";
 export { PageHeader } from "@/components/ui/page-header";

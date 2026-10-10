@@ -165,6 +165,13 @@
   h3 {
     text-wrap: balance;
   }
+  p {
+    text-wrap: pretty;
+  }
+  /* A finer line than Lucide ships with, closer to the type weight it sits next to. */
+  .lucide {
+    stroke-width: 1.75;
+  }
   input[type="checkbox"],
   input[type="radio"] {
     accent-color: var(--accent);

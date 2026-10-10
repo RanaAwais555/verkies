@@ -1,7 +1,8 @@
 "use client";
 
-import { AlertTriangle, ArrowRight, Inbox, ListChecks } from "lucide-react";
+import { AlertTriangle, ArrowRight, ChevronDown, Inbox, ListChecks } from "lucide-react";
 import Link from "next/link";
+import { useState } from "react";
 
 import { TaskRow } from "@/components/crm/tasks";
 import { ResearchForm } from "@/components/research/research-form";
@@ -15,22 +16,69 @@ const QUEUE = "/prospects";
 const MY_TASKS = "/tasks?mine=true&status=open";
 const ATTENTION = "/opportunities/requires-attention";
 
+const FIRST = 8;
+
+// Priority bands are ordered, so they share one hue stepped from strong to faint (dataviz: sequential).
+const BANDS: { key: string; label: string; mix: number }[] = [
+  { key: "hot", label: "Hot", mix: 100 },
+  { key: "high", label: "High", mix: 78 },
+  { key: "qualified", label: "Qualified", mix: 56 },
+  { key: "monitor", label: "Monitor", mix: 36 },
+  { key: "reject", label: "Reject", mix: 18 },
+];
+const bandFill = (mix: number) => `color-mix(in srgb, var(--accent) ${mix}%, var(--sunken))`;
+
+/** How the queue splits across priority bands: one bar, a legend with counts, no colour-only meaning. */
+function BandSplit({ items }: { items: QueueItem[] }) {
+  const counts = BANDS.map((b) => ({ ...b, n: items.filter((i) => i.priority_band === b.key).length }));
+  const unknown = items.length - counts.reduce((sum, b) => sum + b.n, 0);
+  const shown = counts.filter((b) => b.n > 0);
+  return (
+    <figure className="mb-4 space-y-2.5" aria-label="Review queue by priority band">
+      <div className="flex h-2.5 gap-[2px] overflow-hidden rounded-full bg-track">
+        {shown.map((b) => (
+          <span key={b.key} title={`${b.label}: ${b.n}`} className="h-full first:rounded-l-full last:rounded-r-full" style={{ width: `${(b.n / items.length) * 100}%`, background: bandFill(b.mix) }} />
+        ))}
+      </div>
+      <figcaption className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-fg-3">
+        {shown.map((b) => (
+          <span key={b.key} className="inline-flex items-center gap-1.5">
+            <span aria-hidden className="h-2 w-2 rounded-[3px]" style={{ background: bandFill(b.mix) }} />
+            {b.label} <span className="tabular font-medium text-fg">{b.n}</span>
+          </span>
+        ))}
+        {unknown > 0 && (
+          <span>
+            Unscored <span className="tabular font-medium text-fg">{unknown}</span>
+          </span>
+        )}
+      </figcaption>
+    </figure>
+  );
+}
+
 function ReviewQueue() {
   const { data, error } = useApi<QueueItem[]>(QUEUE, { refreshInterval: 15000 });
+  const [all, setAll] = useState(false);
   if (error) return <ErrorNote error={error} />;
   if (!data) return <Skeleton rows={4} />;
   if (data.length === 0) return <Empty icon={<Inbox className="h-4 w-4" />}>Nothing to review. Research a company to fill the queue.</Empty>;
+  const visible = all ? data : data.slice(0, FIRST);
   return (
-    <ul className="-mx-4 -my-4 divide-y divide-grid" data-testid="review-queue">
-      {data.map((item) => (
+    <>
+    <BandSplit items={data} />
+    <ul className="-mx-4 divide-y divide-grid border-t border-grid" data-testid="review-queue">
+      {visible.map((item) => (
         <li key={item.run_id}>
-          <Link href={`/research/${item.run_id}`} className="group flex flex-wrap items-center gap-x-3 gap-y-1.5 px-4 py-3 transition-colors hover:bg-surface-2">
+          <Link href={`/research/${item.run_id}`} className="group grid grid-cols-[auto_minmax(0,1fr)] items-center gap-x-3 gap-y-1.5 px-4 py-3 transition-colors hover:bg-surface-2 sm:grid-cols-[auto_minmax(0,1fr)_auto]">
             <ScoreChip value={item.priority_score} />
             <span className="min-w-0">
-              <span className="block font-medium text-fg group-hover:text-accent-text">{item.company ?? item.domain}</span>
+              <span className="block truncate font-medium text-fg group-hover:text-accent-text" title={item.company ?? item.domain}>
+                {item.company ?? item.domain}
+              </span>
               <span className="block text-xs text-fg-3">{item.domain}</span>
             </span>
-            <span className="ml-auto flex flex-wrap items-center gap-1.5">
+            <span className="col-start-2 flex flex-wrap items-center gap-1.5 sm:col-start-3 sm:justify-end">
               {item.hard_reject ? (
                 <Badge tone="red">Suggest reject: {REJECTION_REASONS[item.recommended_rejection ?? ""] ?? "see brief"}</Badge>
               ) : item.qualifies ? (
@@ -41,11 +89,23 @@ function ReviewQueue() {
               {item.possible_duplicates.length > 0 && <Badge tone="purple">Possible duplicate</Badge>}
               <BandBadge band={item.priority_band} />
             </span>
-            {item.next_action && <span className="basis-full pl-[46px] text-xs text-fg-2">Next: {item.next_action}</span>}
+            {item.next_action && <span className="col-start-2 truncate text-xs text-fg-2 sm:col-end-4">Next: {item.next_action}</span>}
           </Link>
         </li>
       ))}
     </ul>
+    {data.length > FIRST && (
+      <button
+        type="button"
+        onClick={() => setAll(!all)}
+        aria-expanded={all}
+        className="-mx-4 -mb-4 flex w-[calc(100%+2rem)] items-center justify-center gap-1.5 border-t border-grid py-2.5 text-[13px] text-fg-2 transition-colors hover:bg-surface-2 hover:text-fg"
+      >
+        {all ? "Show the top " + FIRST : `Show all ${data.length}`}
+        <ChevronDown aria-hidden className={`h-4 w-4 transition-transform duration-200 ease-spring ${all ? "rotate-180" : ""}`} />
+      </button>
+    )}
+    </>
   );
 }
 
@@ -117,37 +177,39 @@ export default function CommandCenterPage() {
 
       <Numbers reviewer={reviewer} member={member} />
 
-      {can(session, "research.run") && (
-        <Panel title="Research a company" description="Paste a website. VROS reads the public site and registries, then writes an evidenced brief.">
-          <ResearchForm />
-        </Panel>
-      )}
-
-      {reviewer && (
-        <Panel
-          primary
-          title="Review queue"
-          description="Highest priority first. Open one to read the brief and decide."
-          actions={
-            <LinkButton href="/research" variant="ghost" icon={<ArrowRight className="h-4 w-4" />}>
-              All research
-            </LinkButton>
-          }
-        >
-          <ReviewQueue />
-        </Panel>
-      )}
-
-      {member && (
-        <div className="grid gap-6 lg:grid-cols-2">
-          <Panel title="My open tasks" collapsible>
-            <MyTasks />
-          </Panel>
-          <Panel title="Opportunities requiring attention" collapsible>
-            <Attention />
-          </Panel>
+      <div className="grid items-start gap-5 xl:grid-cols-[minmax(0,1.7fr)_minmax(320px,1fr)]">
+        <div className="flex min-w-0 flex-col gap-5">
+          {can(session, "research.run") && (
+            <Panel title="Research a company" description="Paste a website. VROS reads the public site and registries, then writes an evidenced brief.">
+              <ResearchForm />
+            </Panel>
+          )}
+          {reviewer && (
+            <Panel
+              primary
+              title="Review queue"
+              description="Highest priority first. Open one to read the brief and decide."
+              actions={
+                <LinkButton href="/research" variant="ghost" icon={<ArrowRight className="h-4 w-4" />}>
+                  All research
+                </LinkButton>
+              }
+            >
+              <ReviewQueue />
+            </Panel>
+          )}
         </div>
-      )}
+        {member && (
+          <aside className="flex min-w-0 flex-col gap-5 xl:sticky xl:top-20" aria-label="Your work">
+            <Panel title="My open tasks" collapsible>
+              <MyTasks />
+            </Panel>
+            <Panel title="Opportunities requiring attention" collapsible>
+              <Attention />
+            </Panel>
+          </aside>
+        )}
+      </div>
     </div>
   );
 }

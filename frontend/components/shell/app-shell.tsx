@@ -139,7 +139,8 @@ function TopBar({ onMenu, onPalette }: { onMenu: () => void; onPalette: () => vo
         className="flex h-9 min-w-0 max-w-md flex-1 items-center gap-2.5 rounded-[10px] border border-border bg-surface-2 px-3 text-left text-[13px] text-fg-3 transition-colors hover:border-border-strong"
       >
         <Search className="h-4 w-4 shrink-0" />
-        <span className="truncate">Jump to a screen or find an account…</span>
+        <span className="truncate sm:hidden">Search</span>
+        <span className="hidden truncate sm:inline">Jump to a screen or find an account…</span>
         <kbd className="ml-auto hidden rounded border border-border-strong border-b-2 bg-surface px-1.5 font-mono text-[10.5px] text-fg-2 sm:inline">Ctrl K</kbd>
       </button>
       <span className="flex-1" />
@@ -188,6 +189,12 @@ export function AppShell({ children }: { children: ReactNode }) {
 
   return (
     <div className="flex min-h-full">
+      <a
+        href="#main"
+        className="sr-only z-50 rounded-lg bg-accent px-3 py-2 text-[13px] font-medium text-accent-fg focus:not-sr-only focus:fixed focus:left-3 focus:top-3"
+      >
+        Skip to content
+      </a>
       <aside className="sticky top-0 hidden h-screen shrink-0 border-r border-border bg-sidebar/80 md:block">
         <Sidebar session={session} collapsed={collapsed} onToggle={() => setCollapsed(!collapsed)} />
       </aside>
@@ -208,7 +215,7 @@ export function AppShell({ children }: { children: ReactNode }) {
 
       <div className="flex min-w-0 flex-1 flex-col">
         <TopBar onMenu={() => setMobileOpen(true)} onPalette={() => setPalette(true)} />
-        <main className="mx-auto w-full max-w-[1400px] flex-1 px-4 py-6 md:px-7 md:py-7">
+        <main id="main" tabIndex={-1} className="mx-auto w-full max-w-[1400px] flex-1 px-4 py-6 outline-none md:px-7 md:py-7">
           <PageEnter key={pathname}>{children}</PageEnter>
         </main>
       </div>

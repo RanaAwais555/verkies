@@ -3,7 +3,7 @@
 import { useState } from "react";
 
 import { EditTask, isOpen, TaskRow } from "@/components/crm/tasks";
-import { Empty, ErrorNote, inputClass, PageHeader, Panel, Skeleton } from "@/components/ui";
+import { Empty, ErrorNote, controlClass, PageHeader, Panel, Skeleton } from "@/components/ui";
 import { withQuery } from "@/lib/client";
 import { isOverdue } from "@/lib/format";
 import { useApi } from "@/lib/hooks";
@@ -24,11 +24,11 @@ export default function TasksPage() {
         title={data ? `${data.length} ${data.length === 1 ? "task" : "tasks"}${overdue ? ` · ${overdue} overdue` : ""}` : "Loading"}
         actions={
           <div className="flex flex-wrap gap-2">
-            <select value={whose} onChange={(e) => setWhose(e.target.value)} aria-label="Whose tasks" className={`${inputClass} w-36`}>
+            <select value={whose} onChange={(e) => setWhose(e.target.value)} aria-label="Whose tasks" className={`${controlClass} w-36`}>
               <option value="mine">Mine</option>
               <option value="all">Everyone&apos;s</option>
             </select>
-            <select value={status} onChange={(e) => setStatus(e.target.value)} aria-label="Task status" className={`${inputClass} w-36`}>
+            <select value={status} onChange={(e) => setStatus(e.target.value)} aria-label="Task status" className={`${controlClass} w-36`}>
               <option value="open">Open</option>
               <option value="in_progress">In progress</option>
               <option value="done">Done</option>

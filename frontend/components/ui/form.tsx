@@ -2,11 +2,15 @@ import type { ComponentProps, ReactNode } from "react";
 
 import { cx } from "@/components/ui/cx";
 
-export const inputClass =
-  "w-full rounded-[9px] border border-border-strong bg-surface-2 px-3 py-2 text-[13.5px] text-fg outline-none " +
+/** A form control without a width, for filters and inline controls that set their own. */
+export const controlClass =
+  "rounded-[9px] border border-border-strong bg-surface-2 px-3 py-2 text-[13.5px] text-fg outline-none " +
   "placeholder:text-fg-3 transition-[border-color,box-shadow,background-color] duration-200 ease-spring " +
   "focus:border-transparent focus:bg-surface focus:shadow-[0_0_0_1px_var(--accent),0_0_0_4px_color-mix(in_srgb,var(--accent)_18%,transparent)] " +
   "disabled:cursor-not-allowed disabled:opacity-60";
+
+/** A full-width form control, for fields in a form. */
+export const inputClass = `w-full ${controlClass}`;
 
 /** A labelled control. The label wraps the control, so clicking it focuses the input. */
 export function Field({ label: text, hint, children, className }: { label: string; hint?: ReactNode; children: ReactNode; className?: string }) {
