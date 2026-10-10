@@ -1,6 +1,7 @@
 "use client";
 
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { useState } from "react";
 import useSWR, { type SWRConfiguration } from "swr";
 
 import { api, ApiError, loginPath } from "@/lib/client";
@@ -15,7 +16,7 @@ async function fetcher<T>(path: string): Promise<T> {
   }
 }
 
-/** GET an API path (or nothing when `path` is null) with caching and revalidation. */
+/** GET an API path (or nothing, when `path` is null) with caching and revalidation. */
 export function useApi<T>(path: string | null, config?: SWRConfiguration<T, ApiError>) {
   return useSWR<T, ApiError>(path, fetcher, config);
 }
@@ -24,13 +25,14 @@ export function useSession() {
   return useApi<Session>("/auth/me", { revalidateOnFocus: false });
 }
 
+/** True when the session holds any of the permissions. The API enforces them; this only hides UI. */
 export function can(session: Session | undefined, ...permissions: string[]): boolean {
   return !!session && permissions.some((p) => session.user.permissions.includes(p));
 }
 
 /**
- * The open tab, kept in the address (`?tab=`) rather than in component state: a link opens a
- * page on its first tab, while Back and a shared link return to the tab that was open.
+ * The open tab, kept in the address (`?tab=`) rather than in component state: a link opens a page
+ * on its first tab, while Back and a shared link return to the tab that was open.
  */
 export function useTab(first: string): [string, (key: string) => void] {
   const params = useSearchParams();
@@ -45,4 +47,23 @@ export function useTab(first: string): [string, (key: string) => void] {
     router.replace(query ? `${pathname}?${query}` : pathname, { scroll: false });
   }
   return [tab, setTab];
+}
+
+/** Run an async action with busy and error state, for forms and buttons. */
+export function useAction() {
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<unknown>(null);
+  async function run<T>(fn: () => Promise<T>): Promise<T | undefined> {
+    setBusy(true);
+    setError(null);
+    try {
+      return await fn();
+    } catch (err) {
+      setError(err);
+      return undefined;
+    } finally {
+      setBusy(false);
+    }
+  }
+  return { busy, error, setError, run };
 }
