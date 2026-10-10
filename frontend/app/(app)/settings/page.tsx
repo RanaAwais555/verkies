@@ -3,7 +3,7 @@
 import { Check, Copy, KeyRound, Link2, Pencil, UserPlus, X } from "lucide-react";
 import { useState, type FormEvent } from "react";
 
-import { Badge, Button, Checkbox, Empty, ErrorNote, Field, inputClass, PageHeader, Panel, Skeleton, SourceLink, Success, Tabs } from "@/components/ui";
+import { Badge, Button, Checkbox, Empty, ErrorNote, Field, inputClass, PageHeader, Panel, ProfileCard, Skeleton, SourceLink, Success, Tabs } from "@/components/ui";
 import { cx } from "@/components/ui/cx";
 import { api } from "@/lib/client";
 import { formatDate, initials, label, relativeDate } from "@/lib/format";
@@ -34,31 +34,20 @@ function Profile({ user }: { user: User }) {
   }
 
   return (
-    <div className="grid items-start gap-5 lg:grid-cols-2">
-      <Panel title="You">
-        <div className="mb-4 flex items-center gap-3">
-          <span aria-hidden className="grid h-11 w-11 place-items-center rounded-full bg-accent-soft text-sm font-semibold text-accent-text">
-            {initials(user.name)}
-          </span>
-          <div className="min-w-0">
-            <p className="font-medium text-fg">{user.name}</p>
-            <p className="truncate text-[13px] text-fg-3">{user.email}</p>
-          </div>
-        </div>
-        <dl className="grid grid-cols-[6.5rem_minmax(0,1fr)] gap-y-2.5 text-[13px]">
-          <dt className="text-fg-3">Roles</dt>
-          <dd className="flex flex-wrap gap-1">
-            {user.roles.map((r) => (
-              <Badge key={r} tone="accent">
-                {label(r)}
-              </Badge>
-            ))}
-          </dd>
-          <dt className="text-fg-3">Last sign-in</dt>
-          <dd className="text-fg">{formatDate(user.last_login_at, true)}</dd>
-        </dl>
-      </Panel>
-      <Panel title="Change password">
+    <div className="space-y-4">
+      <ProfileCard
+        round
+        tile={<span aria-hidden>{initials(user.name)}</span>}
+        title={user.name}
+        badges={user.roles.map((r) => (
+          <Badge key={r} tone="accent">
+            {label(r)}
+          </Badge>
+        ))}
+        tagline={user.email}
+        meta={<span>Last sign-in {formatDate(user.last_login_at, true)}</span>}
+      />
+      <Panel title="Change password" className="max-w-2xl">
         <form onSubmit={change} className="space-y-3">
           <Field label="Current password">
             <input name="current_password" type="password" required autoComplete="current-password" className={inputClass} />

@@ -1,6 +1,6 @@
 "use client";
 
-import { AlertTriangle, ArrowRight, Globe, Plus, UserRound } from "lucide-react";
+import { AlertTriangle, ArrowRight, Globe, ListChecks, Plus, UserRound } from "lucide-react";
 import { useParams } from "next/navigation";
 import { useState } from "react";
 
@@ -13,11 +13,12 @@ import {
   Empty,
   ErrorNote,
   LinkButton,
-  PageHeader,
+  ProfileCard,
   Panel,
   ScoreBar,
   ScoreChip,
   Skeleton,
+  ShowAll,
   SourceLink,
   StatusBadge,
   Tabs,
@@ -49,12 +50,18 @@ function Facts({ account }: { account: Account360 }) {
   );
 }
 
-function Overview({ account, refresh }: { account: Account360; refresh: () => void }) {
+function Overview({ account, refresh, showActivity }: { account: Account360; refresh: () => void; showActivity: () => void }) {
   const [settingFor, setSettingFor] = useState<string | null>(null);
   return (
-    <div className="flex flex-wrap items-start gap-5">
-      <div className="flex min-w-0 flex-[2_1_480px] flex-col gap-5">
-        <Panel title="Opportunities" primary>
+    <div className="grid items-start gap-4 lg:grid-cols-[minmax(0,1fr)_340px]">
+      <div className="flex min-w-0 flex-col gap-4">
+        <Panel title="About">
+          <p className="max-w-[75ch] text-[14px] leading-relaxed text-fg-2">
+            {account.description ?? "No description found on the company's own pages."}
+          </p>
+        </Panel>
+
+        <Panel title="Opportunities" description="What VROS found the company needs, and the Verkies service that answers it.">
           {account.opportunities.length === 0 ? (
             <Empty>No opportunity detected.</Empty>
           ) : (
@@ -98,7 +105,7 @@ function Overview({ account, refresh }: { account: Account360; refresh: () => vo
           )}
         </Panel>
 
-        <Panel title="Contacts" collapsible>
+        <Panel title="People" description="Named on the company's own pages. Nobody is contacted without a lawful basis.">
           {account.contacts.length === 0 ? (
             <Empty icon={<UserRound className="h-4 w-4" />}>No people named on the company&apos;s pages.</Empty>
           ) : (
@@ -127,21 +134,15 @@ function Overview({ account, refresh }: { account: Account360; refresh: () => vo
             </ul>
           )}
         </Panel>
+
+        <Panel title="Recent activity" footer={<ShowAll onClick={showActivity}>Show all activity</ShowAll>}>
+          <Timeline accountId={account.id} limit={4} testId="timeline-preview" />
+        </Panel>
       </div>
 
-      <aside className="flex min-w-0 flex-[1_1_300px] flex-col gap-5 lg:sticky lg:top-20 lg:max-w-[400px]" aria-label="Account context">
-        <Panel title="Company">
-          <Facts account={account} />
-          {account.description && <p className="mt-3 text-[13px] leading-relaxed text-fg-2">{account.description}</p>}
-          {account.latest_brief_run_id && (
-            <LinkButton href={`/research/${account.latest_brief_run_id}`} variant="ghost" icon={<ArrowRight className="h-4 w-4" />} className="mt-3 -ml-3">
-              Read the lead brief and evidence
-            </LinkButton>
-          )}
-        </Panel>
+      <aside className="flex min-w-0 flex-col gap-4 lg:sticky lg:top-20" aria-label="Account context">
         <Panel
           title="Scores"
-          collapsible
           actions={
             <span className="flex items-center gap-2">
               <ScoreChip value={account.priority_score} />
@@ -154,6 +155,12 @@ function Overview({ account, refresh }: { account: Account360; refresh: () => vo
               <ScoreBar key={k} name={k} value={v} />
             ))}
           </div>
+        </Panel>
+        <Panel
+          title="Company details"
+          footer={account.latest_brief_run_id ? <ShowAll href={`/research/${account.latest_brief_run_id}`}>Read the lead brief and evidence</ShowAll> : undefined}
+        >
+          <Facts account={account} />
         </Panel>
       </aside>
     </div>
@@ -299,38 +306,44 @@ export default function AccountPage() {
     ...(can(session, "audit.read") ? [{ key: "audit", label: "Audit" }] : []),
   ];
 
+  const location = [account.hq_city, account.hq_country].filter(Boolean).join(", ");
   return (
-    <div className="space-y-5">
-      <PageHeader
-        eyebrow="Account"
-        title={
-          <span className="flex items-center gap-3">
-            <span aria-hidden className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-accent-soft text-sm font-semibold text-accent-text">
-              {initials(account.name)}
-            </span>
-            {account.name}
-          </span>
-        }
+    <div className="space-y-4">
+      <ProfileCard
+        tile={<span aria-hidden>{initials(account.name)}</span>}
+        title={account.name}
         badges={
           <>
             <Badge tone="purple">{label(account.account_type)}</Badge>
             <BandBadge band={account.priority_band} />
           </>
         }
-        description={
-          <span className="flex flex-wrap items-center gap-x-4 gap-y-1">
+        tagline={[account.industry, location].filter(Boolean).join(" · ") || "Industry and location unknown"}
+        meta={
+          <>
             <span className="inline-flex items-center gap-1.5">
-              <Globe aria-hidden className="h-3.5 w-3.5 text-fg-3" />
+              <Globe aria-hidden className="h-3.5 w-3.5" />
               {account.primary_domain ?? "No website"}
             </span>
-            {account.industry && <span>{account.industry}</span>}
             <span>Owner: {account.owner?.name ?? "unassigned"}</span>
             <span>Next activity: {account.next_activity_at ? formatDate(account.next_activity_at) : "none set"}</span>
-          </span>
+          </>
         }
+        actions={
+          <>
+            {account.latest_brief_run_id && (
+              <LinkButton href={`/research/${account.latest_brief_run_id}`} variant="primary" icon={<ArrowRight className="h-4 w-4" />}>
+                Lead brief
+              </LinkButton>
+            )}
+            <Button onClick={() => setTab("tasks")} icon={<ListChecks className="h-4 w-4" />}>
+              Tasks
+            </Button>
+          </>
+        }
+        tabs={<Tabs label="Account sections" tabs={tabs} active={tab} onChange={setTab} />}
       />
-      <Tabs label="Account sections" tabs={tabs} active={tab} onChange={setTab} />
-      {tab === "overview" && <Overview account={account} refresh={() => mutate()} />}
+      {tab === "overview" && <Overview account={account} refresh={() => mutate()} showActivity={() => setTab("timeline")} />}
       {tab === "leads" && <Leads account={account} />}
       {tab === "tasks" && <Tasks account={account} refresh={() => mutate()} />}
       {tab === "timeline" && (

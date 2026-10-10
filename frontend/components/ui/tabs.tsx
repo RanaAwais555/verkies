@@ -7,14 +7,26 @@ import { cx } from "@/components/ui/cx";
 
 export type TabDef = { key: string; label: ReactNode };
 
-export function Tabs({ tabs, active, onChange, label = "Sections" }: { tabs: TabDef[]; active: string; onChange: (key: string) => void; label?: string }) {
+export function Tabs({
+  tabs,
+  active,
+  onChange,
+  label = "Sections",
+  className,
+}: {
+  tabs: TabDef[];
+  active: string;
+  onChange: (key: string) => void;
+  label?: string;
+  className?: string;
+}) {
   // One indicator per tab row slides between tabs; the id keeps rows on the same page independent.
   const group = useId();
   const still = useReducedMotion();
   return (
     // The rule under the row is an inset shadow rather than a border the tabs overlap by a pixel;
     // that overlap made the row scroll vertically and showed a stray scrollbar on Windows.
-    <div role="tablist" aria-label={label} className="flex gap-1 overflow-x-auto overflow-y-hidden shadow-[inset_0_-1px_0_var(--border)]">
+    <div role="tablist" aria-label={label} className={cx("flex gap-1 overflow-x-auto overflow-y-hidden shadow-[inset_0_-1px_0_var(--border)]", className)}>
       {tabs.map((t) => {
         const on = active === t.key;
         return (

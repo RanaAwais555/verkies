@@ -6,7 +6,8 @@ export { Checkbox, controlClass, Field, inputClass } from "@/components/ui/form"
 export { SourceLink, TextLink } from "@/components/ui/links";
 export { MetricStrip, type Metric } from "@/components/ui/metric";
 export { PageHeader } from "@/components/ui/page-header";
-export { Panel, Section } from "@/components/ui/panel";
+export { Panel, Section, ShowAll } from "@/components/ui/panel";
+export { ProfileCard } from "@/components/ui/profile-card";
 export { Score, ScoreBar, ScoreChip } from "@/components/ui/score";
 export { Table } from "@/components/ui/table";
 export { Tabs, type TabDef } from "@/components/ui/tabs";
