@@ -424,3 +424,20 @@ export type ImportJob = {
 export type ImportDetail = ImportJob & { fields: string[]; rows: ImportRow[] };
 
 export type BulkResearchResult = { started: string[]; skipped: Record<string, string>; queue_failures: number };
+
+// Slice 2.6: ranked leads with reasons, plain-English search, duplicates and merge.
+export type RankReason = { kind: "score" | "gate" | "unknown" | "signal" | "opportunity"; text: string; source_url: string | null };
+
+export type RankedLead = { rank: number; account: AccountSummary; reasons: RankReason[]; scored_at: string | null };
+
+export type Understood = { phrase: string; meaning: string };
+
+export type LeadSearch = {
+  query: string;
+  interpretation: { understood: Understood[]; unsupported: Understood[]; top_leads: boolean; limit: number };
+  results: RankedLead[];
+};
+
+export type DuplicatePair = { account_a: AccountSummary; account_b: AccountSummary; reasons: string[]; similarity: number | null };
+
+export type MergeResult = { account_id: string; retired_id: string; moved: Record<string, number>; filled: string[] };
