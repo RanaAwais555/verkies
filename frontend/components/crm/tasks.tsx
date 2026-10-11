@@ -68,12 +68,15 @@ export function TaskRow({ task, showAccount, onChange }: { task: Task; showAccou
 export function NewTaskForm({
   accountId,
   opportunityId,
+  dealId,
   submitLabel = "Add task",
   onCreated,
   onCancel,
 }: {
   accountId: string;
   opportunityId?: string;
+  /** The task becomes the deal's next task (and its opportunity's next action). */
+  dealId?: string;
   submitLabel?: string;
   onCreated: () => void;
   onCancel?: () => void;
@@ -92,6 +95,7 @@ export function NewTaskForm({
         body: {
           account_id: accountId,
           opportunity_id: opportunityId ?? null,
+          deal_id: dealId ?? null,
           title: String(data.get("title") ?? "").trim(),
           owner_id: data.get("owner") || null,
           due_at: endOfWorkingDay(String(data.get("due") ?? "")),

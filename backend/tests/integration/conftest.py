@@ -33,6 +33,8 @@ SEED_TABLES = {
     "services",
     "reference_projects",
     "reference_project_services",
+    "pipelines",
+    "pipeline_stages",
 }
 
 

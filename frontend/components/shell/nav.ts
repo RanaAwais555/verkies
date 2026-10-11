@@ -1,4 +1,4 @@
-import { Building2, Compass, GitMerge, LayoutDashboard, Settings, Sparkles, SquareCheckBig, Target, type LucideIcon } from "lucide-react";
+import { Building2, Columns3, Compass, GitMerge, LayoutDashboard, Settings, Sparkles, SquareCheckBig, Target, type LucideIcon } from "lucide-react";
 
 import { can } from "@/lib/hooks";
 import type { Session } from "@/lib/types";
@@ -20,6 +20,7 @@ export const NAV: NavGroup[] = [
       { href: "/research", label: "Lead Intelligence", icon: Sparkles },
       { href: "/leads", label: "Top Leads", icon: Target, needs: ACCOUNTS },
       { href: "/accounts", label: "Accounts", icon: Building2, needs: ACCOUNTS },
+      { href: "/pipeline", label: "Pipeline", icon: Columns3, needs: ACCOUNTS },
     ],
   },
   {

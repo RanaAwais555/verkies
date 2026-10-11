@@ -45,6 +45,14 @@ Flow (§20): URL → crawl → extract → opportunities → ICP and negative IC
 
 Bulk discovery, external company registries, job-board and news signals, monitoring, deals and pipelines, email and LinkedIn outreach, projects and client health, expansion, referrals, learning. UI shows nothing for these in Phase 1 rather than disabled fake screens.
 
+### Phase 3, slice 3.1: pipelines and deals (§12, §13)
+
+- Pipelines and their stages are config (`pipelines`, `pipeline_stages`), seeded with the three §12 defaults. Each stage has an order, a default probability and an outcome: open, won, lost, nurture or inactive. Partnership stages carry no probability: a partnership has no revenue to weight, so it is left out of the weighted forecast rather than counted as zero.
+- A deal belongs to an account and usually to the opportunity it was opened from. Its value, currency and expected close date are entered by a person; VROS never estimates a deal value. A deal without a value shows **Unknown** and is counted separately in the forecast.
+- Moving a deal records the change (stage history, timeline, audit). Losing one requires a §13 lost reason. Winning one closes it. It does not yet convert the account to a client; that is Phase 4's client conversion.
+- An open deal without an open next task, an owner or an expected close date is flagged on its card, in the spirit of §12's next-action engine.
+- The forecast shows total pipeline, weighted pipeline, expected value by close month, and won and lost value, each from the deals themselves.
+
 ## 4. Acceptance: Definition of Done (§20) mapped to tests
 
 | Requirement | Verified by |

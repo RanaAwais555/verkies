@@ -232,3 +232,39 @@ class CandidateStatus(StrEnum):
     QUEUED = "queued"  # research started from this row
     FINDING_WEBSITE = "finding_website"  # registry company; website search in progress
     NO_WEBSITE = "no_website"  # registry company; no site showing its number was found
+
+
+class PipelineKind(StrEnum):
+    """The three default pipelines of master context §12."""
+
+    NEW_BUSINESS = "new_business"
+    EXPANSION = "expansion"
+    PARTNERSHIP = "partnership"
+
+
+class StageOutcome(StrEnum):
+    """What reaching a pipeline stage means for the deal in it."""
+
+    OPEN = "open"
+    WON = "won"
+    LOST = "lost"
+    NURTURE = "nurture"  # parked: not lost, not being worked
+    INACTIVE = "inactive"  # a partnership that went quiet
+
+
+class LostReason(StrEnum):
+    """Master context §13, lost-deal reasons."""
+
+    PRICE = "price"
+    NO_BUDGET = "no_budget"
+    TIMING = "timing"
+    COMPETITOR = "competitor"
+    INTERNAL_DEVELOPMENT = "internal_development"
+    FREELANCER = "freelancer"
+    ANOTHER_AGENCY = "another_agency"
+    CANCELLED = "cancelled"
+    NO_DECISION = "no_decision"
+    LOST_CONTACT = "lost_contact"
+    REQUIREMENTS_CHANGED = "requirements_changed"
+    POOR_FIT = "poor_fit"
+    OTHER = "other"

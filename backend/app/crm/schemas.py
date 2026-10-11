@@ -19,6 +19,7 @@ class TaskOut(BaseModel):
     account_name: str | None = None
     lead_id: uuid.UUID | None
     opportunity_id: uuid.UUID | None
+    deal_id: uuid.UUID | None = None
     title: str
     description: str | None
     owner_id: uuid.UUID | None
@@ -39,6 +40,7 @@ class TaskOut(BaseModel):
             account_name=account_name,
             lead_id=t.lead_id,
             opportunity_id=t.opportunity_id,
+            deal_id=t.deal_id,
             title=t.title,
             description=t.description,
             owner_id=t.owner_id,
@@ -111,6 +113,7 @@ class CreateTask(BaseModel):
     owner_id: uuid.UUID | None = None
     due_at: datetime | None = None
     opportunity_id: uuid.UUID | None = None
+    deal_id: uuid.UUID | None = None
     description: str | None = Field(default=None, max_length=4000)
 
 
