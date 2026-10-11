@@ -1,6 +1,6 @@
 "use client";
 
-import { Building2, CheckSquare, ClipboardCheck, Clock, FileSearch, ShieldAlert, Target, UserRound, type LucideIcon } from "lucide-react";
+import { Building2, CheckSquare, ClipboardCheck, Clock, Columns3, FileSearch, ShieldAlert, Target, UserRound, type LucideIcon } from "lucide-react";
 
 import { Empty, ErrorNote, Skeleton } from "@/components/ui";
 import { cx } from "@/components/ui/cx";
@@ -10,6 +10,7 @@ import type { TimelineEvent } from "@/lib/types";
 
 // The event type's first word picks an icon and a tint, so the eye can scan the rail by kind.
 const KINDS: { match: string; icon: LucideIcon; tint: string }[] = [
+  { match: "deal", icon: Columns3, tint: "var(--accent)" },
   { match: "account", icon: Building2, tint: "var(--accent)" },
   { match: "lead", icon: Target, tint: "var(--violet)" },
   { match: "contact", icon: UserRound, tint: "var(--info)" },

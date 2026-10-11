@@ -45,7 +45,7 @@ export default function AccountsPage() {
       />
       <Panel
         primary
-        title={data ? `${data.length} ${data.length === 1 ? "account" : "accounts"}` : "Loading"}
+        title={data ? `${data.length} ${data.length === 1 ? "company" : "companies"}` : "Loading"}
         actions={
           <div className="flex flex-wrap gap-2">
             <span className="relative">

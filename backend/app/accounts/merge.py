@@ -1,7 +1,7 @@
 """Duplicate review and account merge (§16, slice 2.6).
 
 Duplicates are only ever suggested; a person merges them. A merge moves the mutable records
-(domains, identifiers, contacts, leads, opportunities, tasks, activities, research, briefs,
+(domains, identifiers, contacts, leads, opportunities, deals, tasks, activities, research, briefs,
 discovery matches) to the account being kept, fills the kept account's empty fields from the other
 one, and retires the other account: it is soft-deleted and points at the survivor. Append-only
 history (evidence, claims, observations, score snapshots, timeline) cannot move, so it stays on
@@ -32,6 +32,7 @@ from app.core.enums import AuditSource
 from app.core.errors import AppError, Conflict, NotFound
 from app.crm import timeline
 from app.crm.models import Activity, Lead, Opportunity, Task
+from app.deals.models import Deal
 from app.discovery.models import DiscoveredCompany
 from app.research.models import ResearchRun
 
@@ -60,6 +61,7 @@ MOVABLE: tuple[tuple[Any, Any], ...] = (
     (Opportunity, Opportunity.account_id),
     (Task, Task.account_id),
     (Activity, Activity.account_id),
+    (Deal, Deal.account_id),
     (ResearchRun, ResearchRun.account_id),
     (LeadBrief, LeadBrief.account_id),
     (DiscoveredCompany, DiscoveredCompany.matched_account_id),

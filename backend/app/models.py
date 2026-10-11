@@ -14,6 +14,7 @@ from app.briefs.models import LeadBrief
 from app.catalogue.models import ReferenceProject, Service, ServiceMatch
 from app.core.models import Base
 from app.crm.models import Activity, Lead, Opportunity, Task, TimelineEvent
+from app.deals.models import Deal, DealStageChange, Pipeline, PipelineStage
 from app.discovery.models import DiscoveredCompany, DiscoveryJob
 from app.evidence.models import Claim, Evidence, Observation
 from app.opportunities.models import OpportunityCandidate, OpportunityCategory
@@ -32,6 +33,8 @@ __all__ = [
     "Base",
     "Claim",
     "Contact",
+    "Deal",
+    "DealStageChange",
     "DiscoveredCompany",
     "DiscoveryJob",
     "Evidence",
@@ -44,6 +47,8 @@ __all__ = [
     "OpportunityCandidate",
     "OpportunityCategory",
     "Permission",
+    "Pipeline",
+    "PipelineStage",
     "QualificationResult",
     "RawResponse",
     "ReferenceProject",

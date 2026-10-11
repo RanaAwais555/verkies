@@ -135,12 +135,24 @@ Duplicate review and merge (slice 2.6, migration `0013`):
 
 Lead search (slice 2.6, `backend/app/leads`): `GET /leads/search?q=` reads a plain-English request with deterministic rules (`interpret.py`, no AI) into filters over accounts: industry, city, country, opportunity categories (any of), dated buying signals (each one required, within a window), priority band, account type and owner. Words that match no rule become a visible "name, industry or description mentions" filter; requests that cannot be answered yet (similarity to a client) are reported as unsupported, never guessed. `GET /leads/top` is the same ranking restricted to open, scored prospects outside the Reject band and the suppression list. Results are ordered by the stored priority score (then timing, data confidence, least recently touched), and each one is explained from its latest score snapshot's breakdown, dated signals with their source, and open opportunities.
 
+## 4a. Pipelines and deals (slice 3.1, migration `0014`)
+
+**pipelines**: `key` (unique), `name`, `kind` (new_business, expansion, partnership), `position`, `is_active`. Seeded with the three §12 defaults.
+
+**pipeline_stages**: `pipeline_id`, `key` (unique per pipeline), `name`, `position`, `probability` (0-100, NULL for partnership stages: nothing to weight), `outcome` (open, won, lost, nurture, inactive). Editable by `config.manage` (`PATCH /pipeline-stages/{id}`, audited).
+
+**deals**: `account_id`, `opportunity_id` (at most one live deal per opportunity), `pipeline_id`, `stage_id`, `name`, `value` (entered by a person; NULL is Unknown, never estimated), `currency`, `probability` (overrides the stage default when set), `expected_close`, `owner_id`, `outcome` (copied from the stage on every move), `stage_entered_at` (days in stage), `closed_at` (won, lost or inactive), `lost_reason` (required when lost; the §13 list), `lost_note`, soft delete.
+
+**deal_stage_changes**: `deal_id`, `from_stage_id`, `to_stage_id`, `changed_by_id`, `changed_at`: every stage a deal passed through, for the conversion funnel (slice 3.3).
+
+`tasks.deal_id` links a task to a deal; a deal's task is also its opportunity's next action. A move also sets the opportunity's `stage` to the stage key, writes the timeline and the audit log, and an account merge carries its deals with it. The forecast (`GET /deals/forecast`) groups by currency and counts deals without a value, without a probability or without a close date instead of treating them as zero.
+
 ## 5. Tables added in later phases (names reserved)
 
 | Phase | Tables |
 | --- | --- |
 | 2 | `discovery_jobs` and `discovered_companies` exist since slice 2.1. Buying signals (slice 2.2) are observations in the `signals` area with dated evidence (migration `0009`), so they share evidence, attempts and append-only history with all other findings; no separate signal tables were needed |
-| 3 | `pipelines`, `pipeline_stages`, `deals`, `communications`, `meetings`, `proposals`, `documents`, `mailboxes`, `templates`, `sequences`, `sequence_steps`, `enrollments`, `messages`, `linkedin_imports` |
+| 3 | `pipelines`, `pipeline_stages`, `deals` and `deal_stage_changes` exist since slice 3.1; `communications`, `meetings`, `proposals`, `documents`, `mailboxes`, `templates`, `sequences`, `sequence_steps`, `enrollments`, `messages`, `linkedin_imports` |
 | 4 | `projects`, `milestones`, `project_risks`, `client_health_snapshots`, `expansion_opportunities`, `referrals` |
 | 5 | `feedback`, `deal_outcomes`, `learned_weights` |
 | 6 | `monitors`, `monitor_snapshots`, `monitor_events` |

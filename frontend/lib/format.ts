@@ -51,3 +51,13 @@ export function endOfWorkingDay(date: string): string | null {
 export function percent(fraction: number): string {
   return `${Math.round(fraction * 100)}%`;
 }
+
+/** An amount in its currency, without pence. A missing value is Unknown, never £0. */
+export function money(value: number | null | undefined, currency = "GBP", unknown = "Value unknown"): string {
+  if (value === null || value === undefined) return unknown;
+  try {
+    return new Intl.NumberFormat("en-GB", { style: "currency", currency, maximumFractionDigits: 0 }).format(value);
+  } catch {
+    return `${currency} ${Math.round(value).toLocaleString("en-GB")}`;
+  }
+}

@@ -28,6 +28,16 @@ Phases follow §20. Phase 1 must work reliably end to end before any later phase
 | 2.5 Companies House depth and registry discovery ✅ | Filing history (size from the accounts type; dated director appointments, name changes, share allotments, charges as signals), people with significant control, insolvency/dormant review flags; discovery by SIC code, location and age with websites accepted only when they show the same company number | Parser tests, the depth flowing into scores, people, ICP and the brief; discovery end to end against a fake register and local sites |
 | 2.6 Search, top leads and duplicates ✅ | Plain-English search turned into filters over what VROS knows, "find my next 20 leads" ranking, duplicate review and account merge | Each lead's rank explained; merges audited |
 
+## Phase 3: Full CRM and outreach
+
+| Slice | Delivers | Exit criteria |
+| --- | --- | --- |
+| 3.1 Pipelines and deals ✅ | The three default pipelines of §12 (New Business, Existing Client Expansion, Partnership) with ordered stages and default probabilities in config tables; deals opened from an opportunity; a kanban board with the §12 card (company, opportunity, value, owner, priority, next task, last activity, days in stage, probability); stage moves recorded in history, the timeline and the audit log, with a §13 reason required to lose a deal; a forecast (total, weighted, by expected-close month, won, lost) where an unknown value is counted as unknown, never as zero | Integration tests for creating, moving, winning and losing deals, access rules and the forecast arithmetic; browser test of the board |
+| 3.2 Activities and contacts | Log calls, meetings, notes and manual messages against an account, contact, opportunity or deal; edit and add contacts; relationship tracking (first and latest interaction, count, response status); the follow-up engine's flags (overdue follow-up, stale opportunity, no next action, inactive deal) | Activities on the timeline; flags computed from data, tested at their boundaries |
+| 3.3 Reporting | Sales, lead-intelligence and management dashboards from real data; the conversion funnel; saved views | Every figure traceable to its query; empty states, not invented numbers |
+| 3.4 Communication | Mailbox connection behind a provider interface (IMAP/SMTP first), SPF/DKIM/DMARC checks, emails linked to account, contact, opportunity and deal | Provider tests with fakes; nothing sent without explicit configuration |
+| 3.5 Outreach | Templates, sequences with per-step human approval, enrollments, the LinkedIn assisted queue, suppression and compliance controls | Nothing sent automatically; suppression always honoured |
+
 ## Later phases
 
 | Phase | Theme | Headline deliverables |

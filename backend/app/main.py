@@ -17,6 +17,7 @@ from app.config import Settings, get_settings
 from app.core.errors import install_error_handlers
 from app.core.logging import configure_logging, request_id_var
 from app.crm.router import router as crm_router
+from app.deals.router import router as deals_router
 from app.discovery.router import registry_router, search_router
 from app.discovery.router import router as discovery_router
 from app.health.router import router as health_router
@@ -88,6 +89,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         accounts_router,
         leads_router,
         crm_router,
+        deals_router,
         catalogue_router,
         discovery_router,
         search_router,

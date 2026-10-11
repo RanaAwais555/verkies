@@ -441,3 +441,62 @@ export type LeadSearch = {
 export type DuplicatePair = { account_a: AccountSummary; account_b: AccountSummary; reasons: string[]; similarity: number | null };
 
 export type MergeResult = { account_id: string; retired_id: string; moved: Record<string, number>; filled: string[] };
+
+// Slice 3.1: pipelines, deals and the forecast. A null value or probability is Unknown, never 0.
+export type StageOutcome = "open" | "won" | "lost" | "nurture" | "inactive";
+
+export type PipelineStage = { id: string; key: string; name: string; position: number; probability: number | null; outcome: StageOutcome };
+
+export type Pipeline = { id: string; key: string; name: string; kind: string; stages: PipelineStage[] };
+
+export type Pipelines = { pipelines: Pipeline[]; lost_reasons: { key: string; label: string }[] };
+
+export type Deal = {
+  id: string;
+  name: string;
+  account_id: string;
+  account_name: string;
+  account_domain: string | null;
+  priority_band: string | null;
+  opportunity_id: string | null;
+  opportunity_name: string | null;
+  pipeline_id: string;
+  pipeline_key: string;
+  stage_id: string;
+  stage_key: string;
+  stage_name: string;
+  outcome: StageOutcome;
+  value: number | null;
+  currency: string;
+  probability: number | null;
+  probability_is_stage_default: boolean;
+  weighted_value: number | null;
+  expected_close: string | null;
+  owner: { id: string; name: string | null } | null;
+  next_task: { id: string; title: string; due_at: string | null; owner_name: string | null } | null;
+  last_activity_at: string | null;
+  stage_entered_at: string;
+  days_in_stage: number;
+  closed_at: string | null;
+  lost_reason: string | null;
+  lost_note: string | null;
+  requires_attention: string[];
+  created_at: string;
+};
+
+export type Forecast = {
+  currency: string;
+  open_count: number;
+  open_value: number;
+  unknown_value_count: number;
+  weighted_value: number;
+  unweighted_count: number;
+  no_close_date_count: number;
+  won_count: number;
+  won_value: number;
+  won_unknown_value_count: number;
+  lost_count: number;
+  lost_value: number;
+  lost_unknown_value_count: number;
+  months: { month: string; count: number; value: number; weighted: number }[];
+};

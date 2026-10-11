@@ -20,6 +20,7 @@ from app.core.enums import AuditSource, TaskStatus
 from app.core.errors import Conflict, NotFound, ValidationFailed
 from app.crm import timeline
 from app.crm.models import Opportunity, Task
+from app.deals.models import Deal
 from app.opportunities.models import OpportunityCategory
 
 OPEN = (TaskStatus.OPEN, TaskStatus.IN_PROGRESS)
@@ -135,9 +136,11 @@ async def create_task(
     due_at: datetime | None,
     opportunity_id: uuid.UUID | None,
     description: str | None,
+    deal_id: uuid.UUID | None = None,
 ) -> Task:
     """A new task on an account. With an opportunity, it becomes that opportunity's next
-    action, which clears "requires attention" once it has an owner and a due date."""
+    action, which clears "requires attention" once it has an owner and a due date. With a deal,
+    it is the deal's next task, and also its opportunity's next action."""
     account = await db.get(Account, account_id)
     if (
         account is None
@@ -148,6 +151,11 @@ async def create_task(
     owner = await db.get(User, owner_id) if owner_id is not None else None
     if owner_id is not None and (owner is None or not owner.is_active):
         raise ValidationFailed("The owner must be an active team member.", code="invalid_owner")
+    if deal_id is not None:
+        deal = await db.get(Deal, deal_id)
+        if deal is None or deal.deleted_at is not None or deal.account_id != account.id:
+            raise ValidationFailed("That deal is not on this account.")
+        opportunity_id = opportunity_id or deal.opportunity_id
     opportunity = None
     if opportunity_id is not None:
         opportunity = await db.get(Opportunity, opportunity_id)
@@ -156,6 +164,7 @@ async def create_task(
     task = Task(
         account_id=account.id,
         opportunity_id=opportunity_id,
+        deal_id=deal_id,
         lead_id=opportunity.lead_id if opportunity else None,
         title=title.strip()[:200],
         description=description,
@@ -190,6 +199,7 @@ async def create_task(
             "owner_id": str(owner_id) if owner_id else None,
             "due_at": due_at.isoformat() if due_at else None,
             "opportunity_id": str(opportunity_id) if opportunity_id else None,
+            "deal_id": str(deal_id) if deal_id else None,
         },
     )
     return task

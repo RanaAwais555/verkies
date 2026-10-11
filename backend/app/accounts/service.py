@@ -16,6 +16,7 @@ from app.core.errors import NotFound
 from app.core.search import contains_pattern
 from app.crm.models import Lead, Opportunity, Task, TimelineEvent
 from app.crm.service import attention_reasons, opportunity_labels
+from app.deals.models import Deal
 from app.research.models import ResearchRun
 
 
@@ -162,7 +163,7 @@ async def timeline_of(db: AsyncSession, account_id: uuid.UUID, limit: int) -> li
 async def audit_of(db: AsyncSession, account: Account, limit: int) -> list[AuditLog]:
     """Audit entries for the account and everything hanging off it."""
     related: list[uuid.UUID] = await merge.family_ids(db, account.id)
-    for model in (Lead, Opportunity, Task, Contact, ResearchRun):
+    for model in (Lead, Opportunity, Deal, Task, Contact, ResearchRun):
         related += list(
             (await db.execute(select(model.id).where(model.account_id == account.id))).scalars()
         )

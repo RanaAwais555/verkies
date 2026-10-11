@@ -6,6 +6,7 @@ import { useEffect, useState } from "react";
 
 import { EditTask, isOpen, NewTaskForm, TaskRow } from "@/components/crm/tasks";
 import { Timeline } from "@/components/crm/timeline";
+import { AccountDeals, OpenDealButton } from "@/components/deals/account-deals";
 import {
   Badge,
   BandBadge,
@@ -27,7 +28,7 @@ import {
 import { ApiError } from "@/lib/client";
 import { formatDate, initials, label, percent } from "@/lib/format";
 import { can, useApi, useSession, useTab } from "@/lib/hooks";
-import type { Account360, AuditEntry } from "@/lib/types";
+import type { Account360, AuditEntry, Deal } from "@/lib/types";
 
 function Facts({ account }: { account: Account360 }) {
   const rows: [string, React.ReactNode][] = [
@@ -53,6 +54,8 @@ function Facts({ account }: { account: Account360 }) {
 
 function Overview({ account, refresh, showActivity }: { account: Account360; refresh: () => void; showActivity: () => void }) {
   const [settingFor, setSettingFor] = useState<string | null>(null);
+  const deals = useApi<Deal[]>(`/deals?account_id=${account.id}&status=all`);
+  const dealFor = (opportunityId: string) => deals.data?.find((d) => d.opportunity_id === opportunityId);
   return (
     <div className="grid items-start gap-4 lg:grid-cols-[minmax(0,1fr)_340px]">
       <div className="flex min-w-0 flex-col gap-4">
@@ -74,6 +77,18 @@ function Overview({ account, refresh, showActivity }: { account: Account360; ref
                     {o.service_name && <Badge tone="blue">{o.service_name}</Badge>}
                     <Badge>{label(o.stage)}</Badge>
                     {o.requires_attention.length > 0 && <Badge tone="red">Requires attention</Badge>}
+                    {deals.data &&
+                      (dealFor(o.id) ? (
+                        <Badge tone="accent">Deal: {dealFor(o.id)!.stage_name}</Badge>
+                      ) : (
+                        <OpenDealButton
+                          opportunityId={o.id}
+                          onOpened={() => {
+                            deals.mutate();
+                            refresh();
+                          }}
+                        />
+                      ))}
                   </div>
                   <p className="text-[13px] leading-relaxed text-fg-2">{o.problem}</p>
                   {o.requires_attention.length > 0 && (
@@ -135,6 +150,8 @@ function Overview({ account, refresh, showActivity }: { account: Account360; ref
             </ul>
           )}
         </Panel>
+
+        {deals.data && <AccountDeals deals={deals.data} />}
 
         <Panel title="Recent activity" footer={<ShowAll onClick={showActivity}>Show all activity</ShowAll>}>
           <Timeline accountId={account.id} limit={4} testId="timeline-preview" />

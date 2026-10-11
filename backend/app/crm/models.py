@@ -1,6 +1,7 @@
 """CRM core for Phase 1: leads, opportunities, tasks, activities and the account timeline.
 
-Deals, projects and campaigns arrive in later phases; their foreign keys are added with them.
+Projects and campaigns arrive in later phases; their foreign keys are added with them. Tasks gain
+a deal (slice 3.1).
 """
 
 import uuid
@@ -107,6 +108,7 @@ class Task(IdMixin, TimestampMixin, SoftDeleteMixin, Base):
     contact_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("contacts.id"))
     lead_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("leads.id"))
     opportunity_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("opportunities.id"))
+    deal_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("deals.id"), index=True)
     title: Mapped[str] = mapped_column(String(200))
     description: Mapped[str | None] = mapped_column(Text)
     owner_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("users.id"))
