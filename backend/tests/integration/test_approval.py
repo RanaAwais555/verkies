@@ -173,7 +173,9 @@ def test_approval_creates_the_crm_records_in_one_go(
     assert task["id"] == approval["task_id"] and task["status"] == "open"
     assert task["owner_id"] == str(manager_id) and task["title"] == item["next_action"]
     due = datetime.fromisoformat(task["due_at"])
-    assert timedelta(days=2) <= due - datetime.now(UTC) <= timedelta(days=4, minutes=1)
+    # "Two working days" keeps the clock time, so from a Sunday it is exactly two days, measured
+    # a moment after approval: allow that moment.
+    assert timedelta(days=2, minutes=-1) <= due - datetime.now(UTC) <= timedelta(days=4, minutes=1)
     assert due.weekday() < 5
     assert account["next_activity_at"] == task["due_at"] and account["open_tasks"] == 1
 
