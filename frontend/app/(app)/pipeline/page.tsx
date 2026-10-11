@@ -1,12 +1,14 @@
 "use client";
 
 import { Columns3 } from "lucide-react";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useState, type DragEvent } from "react";
 
 import { DealCard, DRAG_TYPE } from "@/components/deals/deal-card";
 import { DealPanel, LostForm } from "@/components/deals/deal-panel";
 import { ForecastChart, ForecastStrip } from "@/components/deals/forecast";
-import { controlClass, Empty, ErrorNote, PageHeader, Panel, Skeleton, Tabs } from "@/components/ui";
+import { Badge, controlClass, Empty, ErrorNote, PageHeader, Panel, Skeleton, Tabs } from "@/components/ui";
+import { SaveViewButton } from "@/components/views/save-view";
 import { cx } from "@/components/ui/cx";
 import { api, withQuery } from "@/lib/client";
 import { money } from "@/lib/format";
@@ -95,7 +97,30 @@ function Column({
   );
 }
 
-function Board({ pipeline, owner, lostReasons }: { pipeline: Pipeline; owner: string; lostReasons: { key: string; label: string }[] }) {
+/** Board filters kept in the address: a minimum value and "closing this month". The forecast above ignores them. */
+type CardFilter = { minValue: number | null; closingThisMonth: boolean };
+
+function matches(deal: Deal, { minValue, closingThisMonth }: CardFilter): boolean {
+  if (minValue !== null && (deal.value === null || deal.value < minValue)) return false;
+  if (closingThisMonth) {
+    const now = new Date();
+    const month = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+    if (!deal.expected_close?.startsWith(month)) return false;
+  }
+  return true;
+}
+
+function Board({
+  pipeline,
+  owner,
+  filter,
+  lostReasons,
+}: {
+  pipeline: Pipeline;
+  owner: string;
+  filter: CardFilter;
+  lostReasons: { key: string; label: string }[];
+}) {
   const deals = useApi<Deal[]>(withQuery("/deals", { pipeline_id: pipeline.id, owner, status: "all" }));
   const forecast = useApi<Forecast[]>(withQuery("/deals/forecast", { pipeline_id: pipeline.id }));
   const [selected, setSelected] = useState<string | null>(null);
@@ -117,6 +142,8 @@ function Board({ pipeline, owner, lostReasons }: { pipeline: Pipeline; owner: st
   }
 
   const current = deals.data?.find((d) => d.id === selected) ?? null;
+  const shown = deals.data?.filter((d) => matches(d, filter)) ?? [];
+  const filtered = filter.minValue !== null || filter.closingThisMonth;
   return (
     <div className="space-y-4">
       {forecast.data?.map((f) => (
@@ -144,7 +171,12 @@ function Board({ pipeline, owner, lostReasons }: { pipeline: Pipeline; owner: st
           </Empty>
         </Panel>
       )}
-      {deals.data && deals.data.length > 0 && (
+      {deals.data && deals.data.length > 0 && filtered && shown.length === 0 && (
+        <Panel>
+          <Empty icon={<Columns3 className="h-4 w-4" />}>No deal in {pipeline.name} matches these filters.</Empty>
+        </Panel>
+      )}
+      {deals.data && shown.length > 0 && (
         <div className={cx("grid grid-cols-[minmax(0,1fr)] items-start gap-4", current && "xl:grid-cols-[minmax(0,1fr)_360px]")}>
           {/* min-w-0: the board scrolls inside its own box instead of widening the page. */}
           <div className="-mx-1 min-w-0 overflow-x-auto px-1 pb-2" data-testid="board">
@@ -154,7 +186,7 @@ function Board({ pipeline, owner, lostReasons }: { pipeline: Pipeline; owner: st
                   key={stage.id}
                   stage={stage}
                   stages={pipeline.stages}
-                  deals={deals.data!.filter((d) => d.stage_id === stage.id)}
+                  deals={shown.filter((d) => d.stage_id === stage.id)}
                   selected={selected}
                   onSelect={setSelected}
                   onMove={move}
@@ -176,7 +208,23 @@ function Board({ pipeline, owner, lostReasons }: { pipeline: Pipeline; owner: st
 export default function PipelinePage() {
   const { data, error } = useApi<Pipelines>("/pipelines");
   const [tab, setTab] = useTab("new_business");
-  const [owner, setOwner] = useState("");
+  const params = useSearchParams();
+  const pathname = usePathname();
+  const router = useRouter();
+  const owner = ["me", "unassigned"].includes(params.get("owner") ?? "") ? params.get("owner")! : "";
+  const minValue = Number(params.get("min_value")) > 0 ? Number(params.get("min_value")) : null;
+  const closingThisMonth = params.get("closing") === "this_month";
+
+  // Filters live in the address, so a saved view such as "High Value Pipeline" can open them.
+  function set(changes: Record<string, string | null>) {
+    const next = new URLSearchParams(params);
+    for (const [key, value] of Object.entries(changes)) {
+      if (value === null) next.delete(key);
+      else next.set(key, value);
+    }
+    const query = next.toString();
+    router.replace(query ? `${pathname}?${query}` : pathname, { scroll: false });
+  }
   const pipeline = data?.pipelines.find((p) => p.key === tab) ?? data?.pipelines[0];
 
   return (
@@ -186,11 +234,14 @@ export default function PipelinePage() {
         title="Pipeline"
         description="Every deal by stage. Drag a card, or use its Move menu. A deal's value stays Unknown until someone enters it."
         actions={
-          <select value={owner} onChange={(e) => setOwner(e.target.value)} aria-label="Deal owner" className={`${controlClass} w-40`}>
-            <option value="">Everyone&apos;s deals</option>
-            <option value="me">My deals</option>
-            <option value="unassigned">Unassigned</option>
-          </select>
+          <>
+            <select value={owner} onChange={(e) => set({ owner: e.target.value || null })} aria-label="Deal owner" className={`${controlClass} w-40`}>
+              <option value="">Everyone&apos;s deals</option>
+              <option value="me">My deals</option>
+              <option value="unassigned">Unassigned</option>
+            </select>
+            <SaveViewButton suggestedName="Pipeline" />
+          </>
         }
       />
       {error && <ErrorNote error={error} />}
@@ -198,7 +249,21 @@ export default function PipelinePage() {
       {data && pipeline && (
         <>
           <Tabs label="Pipelines" tabs={data.pipelines.map((p) => ({ key: p.key, label: p.name }))} active={pipeline.key} onChange={setTab} />
-          <Board key={pipeline.id} pipeline={pipeline} owner={owner} lostReasons={data.lost_reasons} />
+          {(minValue !== null || closingThisMonth) && (
+            <div className="flex flex-wrap items-center gap-2 text-[13px]" data-testid="board-filters">
+              <span className="text-fg-3">Showing deals</span>
+              {minValue !== null && <Badge tone="accent">worth {minValue.toLocaleString("en-GB")} or more</Badge>}
+              {closingThisMonth && <Badge tone="accent">expected to close this month</Badge>}
+              <button
+                type="button"
+                onClick={() => set({ min_value: null, closing: null })}
+                className="text-xs font-medium text-accent-text hover:underline"
+              >
+                Clear filters
+              </button>
+            </div>
+          )}
+          <Board key={pipeline.id} pipeline={pipeline} owner={owner} filter={{ minValue, closingThisMonth }} lostReasons={data.lost_reasons} />
         </>
       )}
     </div>

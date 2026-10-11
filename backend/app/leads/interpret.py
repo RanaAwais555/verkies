@@ -77,6 +77,18 @@ CATEGORIES: dict[str, tuple[str, ...]] = {
 }
 
 HIRING = ("developer_hiring", "cto_hiring", "product_hiring", "hiring")
+# Every kind app/signals/classify.py produces (the keys of ranking.SIGNAL_LABELS).
+ALL_SIGNALS = (
+    *HIRING,
+    "funding",
+    "financing",
+    "product_launch",
+    "new_leader",
+    "acquisition",
+    "expansion",
+    "new_service",
+    "rebrand",
+)
 # phrase -> (signal kinds from app/signals/classify.py, what it means)
 SIGNALS: dict[str, tuple[tuple[str, ...], str]] = {
     "hiring developers": (("developer_hiring", "cto_hiring"), "Hiring developers"),
@@ -102,6 +114,9 @@ SIGNALS: dict[str, tuple[tuple[str, ...], str]] = {
     "acquired": (("acquisition",), "Acquisition"),
     "acquisition": (("acquisition",), "Acquisition"),
     "rebrand": (("rebrand",), "Rebrand or name change"),
+    "buying signals": (ALL_SIGNALS, "Any buying signal"),
+    "buying signal": (ALL_SIGNALS, "Any buying signal"),
+    "signals": (ALL_SIGNALS, "Any buying signal"),
 }
 
 TYPES: dict[str, tuple[tuple[str, ...], str]] = {

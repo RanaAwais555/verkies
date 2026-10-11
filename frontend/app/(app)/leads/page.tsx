@@ -6,6 +6,7 @@ import { useState, type FormEvent } from "react";
 
 import { LeadCard } from "@/components/leads/lead-card";
 import { Button, Empty, ErrorNote, inputClass, PageHeader, Panel, Skeleton } from "@/components/ui";
+import { SaveViewButton } from "@/components/views/save-view";
 import { useApi } from "@/lib/hooks";
 import type { LeadSearch, RankedLead } from "@/lib/types";
 
@@ -95,6 +96,7 @@ export default function TopLeadsPage() {
         eyebrow="Revenue"
         title="Top Leads"
         description="The best available prospects, not the newest. Each one says why it ranks where it does, from its scores, signals and opportunities."
+        actions={q ? <SaveViewButton key={q} suggestedName={q.charAt(0).toUpperCase() + q.slice(1)} /> : undefined}
       />
       <Panel title="Ask in plain English" description="Your request becomes filters over what VROS already knows. You see exactly how it was read.">
         <form onSubmit={submit} className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_auto]">

@@ -86,3 +86,27 @@ def test_typographic_apostrophes_and_years_survive() -> None:
     curly = f"o{chr(0x2019)}brien bakery"
     assert interpret(curly, Vocabulary()).filters.topics == ["o'brien", "bakery"]
     assert interpret("founded 2019", Vocabulary()).filters.limit == 20  # a year is not a count
+
+
+def test_the_team_saved_views_are_fully_understood() -> None:
+    """Migration 0016's lead-search views must read as filters, with no word left over."""
+    hot = interpret("my hot leads", VOCAB)
+    assert hot.filters.owner == "me" and hot.filters.bands == ["hot"]
+    assert not hot.filters.topics and not hot.unsupported
+
+    uk_saas = interpret("SaaS prospects in the UK", VOCAB).filters
+    assert uk_saas.country == "GB" and uk_saas.industries == ["saas"]
+    assert uk_saas.account_types == ["prospect", "qualified_prospect"]
+
+    signals = interpret("buying signals in the last 30 days", VOCAB).filters
+    assert signals.signal_window == timedelta(days=30)
+    assert len(signals.signal_groups) == 1 and not signals.topics
+
+    assert interpret("unassigned leads", VOCAB).filters.owner == "unassigned"
+
+
+def test_any_buying_signal_covers_every_kind_the_classifier_produces() -> None:
+    from app.leads.interpret import ALL_SIGNALS
+    from app.leads.ranking import SIGNAL_LABELS
+
+    assert set(ALL_SIGNALS) == set(SIGNAL_LABELS)

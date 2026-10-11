@@ -1,34 +1,74 @@
 "use client";
 
-import { useState } from "react";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { useMemo, useState } from "react";
 
 import { EditTask, isOpen, TaskRow } from "@/components/crm/tasks";
 import { Empty, ErrorNote, controlClass, PageHeader, Panel, Skeleton } from "@/components/ui";
+import { SaveViewButton } from "@/components/views/save-view";
 import { withQuery } from "@/lib/client";
 import { isOverdue } from "@/lib/format";
 import { useApi } from "@/lib/hooks";
 import type { Task } from "@/lib/types";
 
+/** The latest due time a "due" filter allows: the end of today, or now for overdue work. */
+function dueBefore(due: string): string | undefined {
+  if (due === "overdue") return new Date().toISOString();
+  if (due === "today") {
+    const end = new Date();
+    end.setHours(23, 59, 59, 999);
+    return end.toISOString();
+  }
+  return undefined;
+}
+
 export default function TasksPage() {
-  const [whose, setWhose] = useState("mine");
-  const [status, setStatus] = useState("open");
+  // Filters live in the address, so a saved view such as "Follow-ups Today" can open this page.
+  const params = useSearchParams();
+  const pathname = usePathname();
+  const router = useRouter();
+  const whose = params.get("whose") === "all" ? "all" : "mine";
+  const status = params.get("status") ?? "open";
+  const due = ["today", "overdue"].includes(params.get("due") ?? "") ? params.get("due")! : "";
   const [editing, setEditing] = useState<string | null>(null);
-  const { data, error, mutate } = useApi<Task[]>(withQuery("/tasks", { mine: whose === "mine" ? "true" : "false", status, limit: 200 }));
+  // Worked out once per choice of filter, so the request does not change on every render.
+  const before = useMemo(() => dueBefore(due), [due]);
+  const { data, error, mutate } = useApi<Task[]>(
+    withQuery("/tasks", { mine: whose === "mine" ? "true" : "false", status, due_before: before, limit: 200 }),
+  );
   const overdue = data?.filter((t) => isOpen(t) && isOverdue(t.due_at)).length ?? 0;
+
+  function set(key: string, value: string, fallback: string) {
+    const next = new URLSearchParams(params);
+    if (value === fallback) next.delete(key);
+    else next.set(key, value);
+    const query = next.toString();
+    router.replace(query ? `${pathname}?${query}` : pathname, { scroll: false });
+  }
 
   return (
     <div className="space-y-6">
-      <PageHeader eyebrow="Workspace" title="Tasks" description="Every next action across accounts, soonest first. Overdue work is marked in red." />
+      <PageHeader
+        eyebrow="Workspace"
+        title="Tasks"
+        description="Every next action across accounts, soonest first. Overdue work is marked in red."
+        actions={<SaveViewButton suggestedName={due === "today" ? "Due by today" : due === "overdue" ? "Overdue tasks" : "Tasks"} />}
+      />
       <Panel
         primary
         title={data ? `${data.length} ${data.length === 1 ? "task" : "tasks"}${overdue ? ` · ${overdue} overdue` : ""}` : "Loading"}
         actions={
           <div className="flex flex-wrap gap-2">
-            <select value={whose} onChange={(e) => setWhose(e.target.value)} aria-label="Whose tasks" className={`${controlClass} w-36`}>
+            <select value={due} onChange={(e) => set("due", e.target.value, "")} aria-label="Due" className={`${controlClass} w-40`}>
+              <option value="">Any due date</option>
+              <option value="today">Due by end of today</option>
+              <option value="overdue">Overdue</option>
+            </select>
+            <select value={whose} onChange={(e) => set("whose", e.target.value, "mine")} aria-label="Whose tasks" className={`${controlClass} w-36`}>
               <option value="mine">Mine</option>
               <option value="all">Everyone&apos;s</option>
             </select>
-            <select value={status} onChange={(e) => setStatus(e.target.value)} aria-label="Task status" className={`${controlClass} w-36`}>
+            <select value={status} onChange={(e) => set("status", e.target.value, "open")} aria-label="Task status" className={`${controlClass} w-36`}>
               <option value="open">Open</option>
               <option value="in_progress">In progress</option>
               <option value="done">Done</option>
