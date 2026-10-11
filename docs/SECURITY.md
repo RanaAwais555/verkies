@@ -60,7 +60,7 @@ Tests cover each rule: every private, loopback, link-local, CGNAT, multicast, re
 - Rate limiting on API and auth endpoints (Redis).
 - File handling: size and type limits, generated storage keys, no user-controlled paths.
 - Production refuses to start with missing or default secrets (ARCHITECTURE.md §9). TLS everywhere via Caddy with HSTS.
-- Secrets in environment or a secrets manager; `.env` is git-ignored; encrypted-at-rest for stored provider credentials (Phase 3 mailboxes).
+- Secrets in environment or a secrets manager; `.env` is git-ignored; stored mailbox passwords are encrypted at rest (Fernet, with a key derived from `VROS_SECRET_KEY` by HKDF) and never returned by the API; changing the secret key means each person reconnects their mailbox (slice 3.4).
 - Dependency pinning and automated vulnerability checks in CI.
 - Secure headers on API and frontend.
 

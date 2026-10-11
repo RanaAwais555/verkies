@@ -253,6 +253,75 @@ def _clip(text: str, limit: int) -> str:
     return text if len(text) <= limit else text[: limit - 1].rstrip() + "…"
 
 
+async def record_activity(
+    db: AsyncSession,
+    *,
+    actor_id: uuid.UUID | None,
+    account: Account,
+    contact: Contact | None,
+    opportunity: Opportunity | None,
+    deal_id: uuid.UUID | None,
+    kind: ActivityKind,
+    channel: ActivityChannel,
+    direction: ActivityDirection,
+    occurred_at: datetime,
+    summary: str,
+    headline: str,
+    payload: dict[str, Any] | None = None,
+    source: AuditSource = AuditSource.API,
+) -> Activity:
+    """Store an activity whose links the caller has already checked: the activity row, the
+    account's last activity, a timeline event dated when it happened, and the audit entry."""
+    payload = payload or {}
+    activity = Activity(
+        account_id=account.id,
+        contact_id=contact.id if contact else None,
+        lead_id=opportunity.lead_id if opportunity else None,
+        opportunity_id=opportunity.id if opportunity else None,
+        deal_id=deal_id,
+        channel=channel,
+        direction=direction,
+        activity_type=kind.value,
+        occurred_at=occurred_at,
+        actor_id=actor_id,
+        summary=summary,
+        payload=payload,
+    )
+    db.add(activity)
+    await db.flush()
+    if account.last_activity_at is None or occurred_at > account.last_activity_at:
+        account.last_activity_at = occurred_at
+    timeline.add(
+        db,
+        account_id=account.id,
+        event_type=f"activity.{kind.value}",
+        summary=f"{headline}: {_clip(summary, SUMMARY_ON_TIMELINE)}",
+        actor_id=actor_id,
+        ref_table="activities",
+        ref_id=activity.id,
+        occurred_at=occurred_at,
+    )
+    audit.record(
+        db,
+        action="activity.logged",
+        object_table="activities",
+        object_id=activity.id,
+        user_id=actor_id,
+        source=source,
+        new_value={
+            "kind": kind.value,
+            "channel": channel.value,
+            "direction": direction.value,
+            "occurred_at": occurred_at.isoformat(),
+            "contact_id": str(contact.id) if contact else None,
+            "opportunity_id": str(opportunity.id) if opportunity else None,
+            "deal_id": str(deal_id) if deal_id else None,
+            **payload,
+        },
+    )
+    return activity
+
+
 async def log_activity(db: AsyncSession, *, user: User, data: NewActivity) -> Activity:
     """Record an activity, put it on the timeline and, if asked, schedule the follow-up task.
 
@@ -304,52 +373,21 @@ async def log_activity(db: AsyncSession, *, user: User, data: NewActivity) -> Ac
     payload: dict[str, Any] = {}
     if data.call_outcome is not None:
         payload["call_outcome"] = data.call_outcome.value
-    activity = Activity(
-        account_id=account.id,
-        contact_id=contact.id if contact else None,
-        lead_id=opportunity.lead_id if opportunity else None,
-        opportunity_id=opportunity.id if opportunity else None,
+    activity = await record_activity(
+        db,
+        actor_id=user.id,
+        account=account,
+        contact=contact,
+        opportunity=opportunity,
         deal_id=data.deal_id,
+        kind=data.kind,
         channel=channel,
         direction=direction,
-        activity_type=data.kind.value,
         occurred_at=occurred_at,
-        actor_id=user.id,
         summary=summary,
+        headline=_headline(data, channel, contact),
         payload=payload,
-    )
-    db.add(activity)
-    await db.flush()
-    if account.last_activity_at is None or occurred_at > account.last_activity_at:
-        account.last_activity_at = occurred_at
-
-    timeline.add(
-        db,
-        account_id=account.id,
-        event_type=f"activity.{data.kind.value}",
-        summary=f"{_headline(data, channel, contact)}: {_clip(summary, SUMMARY_ON_TIMELINE)}",
-        actor_id=user.id,
-        ref_table="activities",
-        ref_id=activity.id,
-        occurred_at=occurred_at,
-    )
-    audit.record(
-        db,
-        action="activity.logged",
-        object_table="activities",
-        object_id=activity.id,
-        user_id=user.id,
         source=AuditSource.API,
-        new_value={
-            "kind": data.kind.value,
-            "channel": channel.value,
-            "direction": direction.value,
-            "occurred_at": occurred_at.isoformat(),
-            "contact_id": str(contact.id) if contact else None,
-            "opportunity_id": str(opportunity.id) if opportunity else None,
-            "deal_id": str(data.deal_id) if data.deal_id else None,
-            **payload,
-        },
     )
     if data.follow_up is not None:
         await tasks.create_task(

@@ -68,6 +68,17 @@ class Settings(BaseSettings):
     stale_opportunity_days: int = Field(default=14, ge=1, le=365)
     inactive_deal_days: int = Field(default=21, ge=1, le=365)
 
+    # Email (slice 3.4). Nothing is ever sent unless this is true: the explicit configuration the
+    # master context requires. Each mailbox also has its owner's own switch and must pass its DNS
+    # checks, and every email is sent by a person clicking Send.
+    email_sending_enabled: bool = False
+    # Who the emails come from, for the footer every email carries (§12B.7).
+    email_company_name: str = "Verkies"
+    # A postal address, added to emails to US recipients (CAN-SPAM). Sending to a US company is
+    # refused until it is set.
+    email_postal_address: str | None = None
+    email_timeout_seconds: float = Field(default=20.0, gt=0, le=120)
+
     # Crawler (PROVIDER_SPEC.md §4). Identifies itself and how to reach Verkies.
     crawler_contact_url: str = "https://www.verkies.co"
     crawl_max_pages: int = Field(default=15, gt=0, le=100)

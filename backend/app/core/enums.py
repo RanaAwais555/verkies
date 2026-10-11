@@ -293,3 +293,33 @@ class LostReason(StrEnum):
     REQUIREMENTS_CHANGED = "requirements_changed"
     POOR_FIT = "poor_fit"
     OTHER = "other"
+
+
+class MailProvider(StrEnum):
+    """How a mailbox is reached (slice 3.4). Gmail and Microsoft Graph (OAuth) come later."""
+
+    IMAP_SMTP = "imap_smtp"
+
+
+class TransportSecurity(StrEnum):
+    SSL = "ssl"  # implicit TLS, e.g. SMTP port 465
+    STARTTLS = "starttls"  # e.g. SMTP port 587
+
+
+class MailboxStatus(StrEnum):
+    UNVERIFIED = "unverified"
+    CONNECTED = "connected"
+    FAILING = "failing"
+    DISCONNECTED = "disconnected"
+
+
+class MessageDirection(StrEnum):
+    OUTBOUND = "outbound"
+    INBOUND = "inbound"
+
+
+class MessageStatus(StrEnum):
+    SENT = "sent"
+    FAILED = "failed"
+    RECEIVED = "received"
+    BOUNCED = "bounced"
