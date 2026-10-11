@@ -18,7 +18,7 @@ test("open a deal from an opportunity, move it on the board, and lose it with a 
   await expect(page.getByText("Deal: Qualified Opportunity")).toBeVisible();
   await expect(page.getByTestId("account-deals")).toContainText("Value unknown");
 
-  await page.getByRole("link", { name: "Pipeline" }).click();
+  await page.getByRole("link", { name: "Pipeline", exact: true }).click();
   const harbour = page.getByTestId("deal").filter({ hasText: "Harbour Immigration Ltd" });
   await expect(page.getByTestId("stage-qualified_opportunity")).toContainText("Harbour Immigration Ltd");
   await expect(harbour).toContainText("Value unknown");
