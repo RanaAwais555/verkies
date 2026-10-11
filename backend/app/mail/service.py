@@ -645,7 +645,7 @@ async def sync(
             continue
         account, contact, parent = matched
         occurred = min(item.date or now, now)
-        opt_out = is_opt_out(item.text)
+        opt_out = not item.auto_reply and is_opt_out(item.text)
         record = EmailMessage(
             mailbox_id=mailbox.id,
             account_id=account.id,
@@ -662,7 +662,7 @@ async def sync(
             subject=item.subject[:2000],
             body_text=item.text[:20000],
             occurred_at=occurred,
-            classification="opt_out" if opt_out else None,
+            classification="opt_out" if opt_out else "out_of_office" if item.auto_reply else None,
         )
         db.add(record)
         await db.flush()
@@ -678,10 +678,11 @@ async def sync(
             deal_id=parent.deal_id if parent else None,
             kind=ActivityKind.MESSAGE,
             channel=ActivityChannel.EMAIL,
-            direction=ActivityDirection.INBOUND,
+            # An automatic reply is recorded, but it is not the person answering.
+            direction=ActivityDirection.INTERNAL if item.auto_reply else ActivityDirection.INBOUND,
             occurred_at=occurred,
             summary=f"{item.subject}\n\n{item.text}".strip()[:4000] or "(no text)",
-            headline=f"Email from {name}",
+            headline=f"Automatic reply from {name}" if item.auto_reply else f"Email from {name}",
             payload={"email_message_id": str(record.id)},
             source=AuditSource.WORKER,
         )

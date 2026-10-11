@@ -60,6 +60,8 @@ class Inbound:
     is_bounce: bool = False
     bounce_status: str | None = None  # e.g. "5.1.1"; a 5.x.x status is a hard bounce
     bounced_message_id: str | None = None
+    # An automatic reply (out of office, holiday): not the person answering.
+    auto_reply: bool = False
 
 
 @dataclass
@@ -130,6 +132,21 @@ def _bounce(message: Message) -> tuple[str | None, str | None]:
     return status, original
 
 
+_AUTO_SUBJECT = re.compile(
+    r"^(automatic reply|auto(?:matic)?[- ]?reply|out of (?:the )?office|auto:)", re.IGNORECASE
+)
+
+
+def is_auto_reply(message: Message) -> bool:
+    """RFC 3834's Auto-Submitted header, the common vendor headers, or a tell-tale subject."""
+    submitted = str(message.get("Auto-Submitted", "no")).strip().lower()
+    if submitted and submitted != "no":
+        return True
+    if any(message.get(h) for h in ("X-Autoreply", "X-Autorespond", "X-Auto-Response-Suppress")):
+        return True
+    return bool(_AUTO_SUBJECT.match(str(message.get("Subject", "")).strip()))
+
+
 def parse_inbound(uid: int, raw: bytes) -> Inbound:
     message = email.message_from_bytes(raw, policy=default_policy)
     sender = getaddresses([str(message.get("From", ""))])
@@ -156,6 +173,7 @@ def parse_inbound(uid: int, raw: bytes) -> Inbound:
         is_bounce=is_report and status is not None,
         bounce_status=status,
         bounced_message_id=original,
+        auto_reply=not is_report and is_auto_reply(message),
     )
 
 

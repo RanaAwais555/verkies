@@ -14,7 +14,7 @@ from urllib.parse import urlencode
 import pytest
 from alembic.config import Config
 from fastapi.testclient import TestClient
-from sqlalchemy import Engine, create_engine, text
+from sqlalchemy import Connection, Engine, create_engine, text
 
 from alembic import command
 from app.auth.passwords import hash_password
@@ -61,6 +61,18 @@ def _seed_views() -> list[tuple[str, str, dict[str, str]]]:
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
     return list(module.TEAM_VIEWS)
+
+
+def _seed_outreach(conn: Connection) -> None:
+    """The default outreach templates and sequence exactly as migration 0018 seeds them."""
+    import importlib.util
+
+    path = os.path.join(BACKEND_DIR, "alembic", "versions", "0018_outreach.py")
+    spec = importlib.util.spec_from_file_location("seed_0018", path)
+    assert spec and spec.loader
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    module.seed_default_sequence(conn)
 
 
 def alembic_config(url: str) -> Config:
@@ -115,6 +127,8 @@ def clean_db(engine: Engine) -> Iterator[None]:
                 ),
                 {"n": name, "p": path, "q": urlencode(query), "pos": position},
             )
+        # Outreach templates and sequences reference users as well.
+        _seed_outreach(conn)
 
 
 def make_user(

@@ -169,12 +169,22 @@ Reports have no tables: every dashboard figure is a query over the records above
 
 **email_messages**: `mailbox_id`, `account_id`, `contact_id`, `opportunity_id`, `deal_id`, `direction` (outbound, inbound), `status` (sent, failed, received, bounced), `message_id_header` (unique per mailbox), `in_reply_to`, `thread_key` (the first message's Message-ID), addresses, `subject`, `body_text`, `occurred_at`, `sent_by_id`, `activity_id` (the timeline activity), `error`, `classification` (opt_out). Endpoints: `GET/PUT/DELETE /mailbox`, `POST /mailbox/check`, `POST /mailbox/sync`, `GET /email/preflight?contact_id=`, `POST /email/send`, `GET /email/messages`.
 
+## 4e. Outreach (slice 3.5, migration `0018`)
+
+**outreach_templates**: `name`, `channel` (email, linkedin, call), `subject` (email; NULL on a follow-up, which replies in the thread), `body` with `{variables}`, `service_id`, `industry`, `signal` (descriptive), `is_active`, `created_by_id`.
+
+**sequences** (`name`, `description`, `is_active`) and **sequence_steps** (`position`, `channel`, `delay_days` after the previous step, `template_id` or `instructions` for a call).
+
+**enrollments**: `sequence_id`, `contact_id` (at most one active per contact), `account_id`, `owner_id` (the person who works it), `status` (active, completed, stopped), `stop_reason`, `next_position`, `next_due_at`, `approved_by_id`, `approved_at`, `ended_at`. **enrollment_steps** is its history: `position`, `channel`, `outcome` (sent, called, skipped, wrong_person, already_connected), `note`, `email_message_id`, `activity_id`, `done_by_id`, `done_at`.
+
+Migration 0018 seeds the default sequence and its four templates and the `outreach.manage` permission. Endpoints under `/outreach`: `variables`, `templates`, `sequences` (and `/{id}/preview?contact_id=`), `enrollments` (create, list, `/{id}/steps`, `/{id}/stop`) and `queue`. `email_messages.classification` also takes `out_of_office` for automatic replies, which are logged as internal activities.
+
 ## 5. Tables added in later phases (names reserved)
 
 | Phase | Tables |
 | --- | --- |
 | 2 | `discovery_jobs` and `discovered_companies` exist since slice 2.1. Buying signals (slice 2.2) are observations in the `signals` area with dated evidence (migration `0009`), so they share evidence, attempts and append-only history with all other findings; no separate signal tables were needed |
-| 3 | `pipelines`, `pipeline_stages`, `deals` and `deal_stage_changes` exist since slice 3.1; logged meetings, calls and messages are `activities` (slice 3.2), and `meetings` stays reserved for scheduled meetings with calendar sync; `mailboxes` and `email_messages` (the §12B Message object for email) exist since slice 3.4; `proposals`, `documents`, `templates`, `sequences`, `sequence_steps`, `enrollments`, `messages`, `linkedin_imports` |
+| 3 | `pipelines`, `pipeline_stages`, `deals` and `deal_stage_changes` exist since slice 3.1; logged meetings, calls and messages are `activities` (slice 3.2), and `meetings` stays reserved for scheduled meetings with calendar sync; `mailboxes` and `email_messages` (the §12B Message object for email) exist since slice 3.4; `outreach_templates`, `sequences`, `sequence_steps`, `enrollments` and `enrollment_steps` exist since slice 3.5; `proposals`, `documents`, `linkedin_imports` |
 | 4 | `projects`, `milestones`, `project_risks`, `client_health_snapshots`, `expansion_opportunities`, `referrals` |
 | 5 | `feedback`, `deal_outcomes`, `learned_weights` |
 | 6 | `monitors`, `monitor_snapshots`, `monitor_events` |

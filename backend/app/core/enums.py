@@ -323,3 +323,25 @@ class MessageStatus(StrEnum):
     FAILED = "failed"
     RECEIVED = "received"
     BOUNCED = "bounced"
+
+
+class OutreachChannel(StrEnum):
+    """A sequence step's channel (slice 3.5). Every step is done by a person."""
+
+    EMAIL = "email"
+    LINKEDIN = "linkedin"
+    CALL = "call"
+
+
+class EnrollmentStatus(StrEnum):
+    ACTIVE = "active"
+    COMPLETED = "completed"
+    STOPPED = "stopped"
+
+
+class StepOutcome(StrEnum):
+    SENT = "sent"  # an email or a LinkedIn note went out
+    CALLED = "called"
+    SKIPPED = "skipped"
+    WRONG_PERSON = "wrong_person"
+    ALREADY_CONNECTED = "already_connected"

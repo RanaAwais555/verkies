@@ -41,7 +41,7 @@ def test_reference_data_is_seeded(engine: Engine) -> None:
                 "JOIN services s ON s.id = rps.service_id WHERE rp.name = 'Wesbridge Associates'"
             )
         ).scalar_one()
-    assert counts == {"roles": 7, "permissions": 9, "opportunity_categories": 25, "services": 15}
+    assert counts == {"roles": 7, "permissions": 10, "opportunity_categories": 25, "services": 15}
     assert unconfirmed == 0
     assert complete == 0  # unknown fields stay unknown until Verkies fills them in
     assert wesbridge == ["crm_portal", "public_tools", "seo_content", "web_dev"]
