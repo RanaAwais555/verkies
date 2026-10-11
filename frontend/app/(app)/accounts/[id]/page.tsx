@@ -1,11 +1,12 @@
 "use client";
 
-import { AlertTriangle, ArrowRight, Globe, ListChecks, NotebookPen, Pencil, Plus, UserPlus, UserRound } from "lucide-react";
+import { AlertTriangle, ArrowRight, Globe, ListChecks, Mail, NotebookPen, Pencil, Plus, UserPlus, UserRound } from "lucide-react";
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
 import { ActivityList, LogActivityForm, RelationshipLine } from "@/components/crm/activities";
 import { ContactForm } from "@/components/crm/contact-form";
+import { EmailComposer, EmailList } from "@/components/mail/email";
 import { EditTask, isOpen, NewTaskForm, TaskRow } from "@/components/crm/tasks";
 import { Timeline } from "@/components/crm/timeline";
 import { AccountDeals, OpenDealButton } from "@/components/deals/account-deals";
@@ -59,6 +60,7 @@ function Facts({ account }: { account: Account360 }) {
 function People({ account, refresh }: { account: Account360; refresh: () => void }) {
   const [adding, setAdding] = useState(false);
   const [editing, setEditing] = useState<string | null>(null);
+  const [emailing, setEmailing] = useState<string | null>(null);
   return (
     <Panel
       title="People"
@@ -101,30 +103,47 @@ function People({ account, refresh }: { account: Account360; refresh: () => void
                 />
               </li>
             ) : (
-              <li key={c.id} className="flex gap-3 py-3 first:pt-0 last:pb-0" data-testid="contact">
-                <span aria-hidden className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-info-soft text-[11px] font-semibold text-info">
-                  {initials(c.name)}
-                </span>
-                <div className="min-w-0 flex-1 space-y-1">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <span className="font-medium text-fg">{c.name}</span>
-                    {c.title && <span className="text-[13px] text-fg-2">{c.title}</span>}
-                    {c.decision_maker_role ? <Badge tone="accent">{label(c.decision_maker_role)}</Badge> : <Badge tone="amber">Role unconfirmed</Badge>}
-                    <Badge tone={c.verification_status === "verified" ? "green" : "neutral"}>{label(c.verification_status)}</Badge>
+              <li key={c.id} className="py-3 first:pt-0 last:pb-0" data-testid="contact">
+                <div className="flex gap-3">
+                  <span aria-hidden className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-info-soft text-[11px] font-semibold text-info">
+                    {initials(c.name)}
+                  </span>
+                  <div className="min-w-0 flex-1 space-y-1">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="font-medium text-fg">{c.name}</span>
+                      {c.title && <span className="text-[13px] text-fg-2">{c.title}</span>}
+                      {c.decision_maker_role ? <Badge tone="accent">{label(c.decision_maker_role)}</Badge> : <Badge tone="amber">Role unconfirmed</Badge>}
+                      <Badge tone={c.verification_status === "verified" ? "green" : "neutral"}>{label(c.verification_status)}</Badge>
+                    </div>
+                    <div className="flex flex-wrap items-center gap-x-2 text-xs text-fg-3">
+                      <span>{c.email ?? "Email unknown"}</span>
+                      <span>· {c.phone ?? "phone unknown"}</span>
+                      {c.source === "manual" ? <span>· added by the team</span> : <span>· confidence {percent(c.confidence)}</span>}
+                      {c.source_url && <SourceLink url={c.source_url} />}
+                      {c.linkedin_url && <SourceLink url={c.linkedin_url} />}
+                    </div>
+                    {c.relationship && <RelationshipLine relationship={c.relationship} />}
+                    {c.notes && <p className="text-xs leading-relaxed text-fg-2">{c.notes}</p>}
                   </div>
-                  <div className="flex flex-wrap items-center gap-x-2 text-xs text-fg-3">
-                    <span>{c.email ?? "Email unknown"}</span>
-                    <span>· {c.phone ?? "phone unknown"}</span>
-                    {c.source === "manual" ? <span>· added by the team</span> : <span>· confidence {percent(c.confidence)}</span>}
-                    {c.source_url && <SourceLink url={c.source_url} />}
-                    {c.linkedin_url && <SourceLink url={c.linkedin_url} />}
-                  </div>
-                  {c.relationship && <RelationshipLine relationship={c.relationship} />}
-                  {c.notes && <p className="text-xs leading-relaxed text-fg-2">{c.notes}</p>}
+                  <IconButton label={`Email ${c.name}`} onClick={() => setEmailing(emailing === c.id ? null : c.id)}>
+                    <Mail className="h-3.5 w-3.5" />
+                  </IconButton>
+                  <IconButton label={`Edit ${c.name}`} onClick={() => setEditing(c.id)}>
+                    <Pencil className="h-3.5 w-3.5" />
+                  </IconButton>
                 </div>
-                <IconButton label={`Edit ${c.name}`} onClick={() => setEditing(c.id)}>
-                  <Pencil className="h-3.5 w-3.5" />
-                </IconButton>
+                {emailing === c.id && (
+                  <div className="mt-3 sm:ml-11">
+                    <EmailComposer
+                      contact={c}
+                      onCancel={() => setEmailing(null)}
+                      onSent={() => {
+                        setEmailing(null);
+                        refresh();
+                      }}
+                    />
+                  </div>
+                )}
               </li>
             ),
           )}
@@ -397,6 +416,7 @@ export default function AccountPage() {
     { key: "overview", label: "Overview" },
     { key: "leads", label: `Leads (${account.leads.length})` },
     { key: "activities", label: "Activities" },
+    { key: "emails", label: "Emails" },
     { key: "tasks", label: `Tasks (${account.open_tasks} open)` },
     { key: "timeline", label: "Timeline" },
     ...(can(session, "audit.read") ? [{ key: "audit", label: "Audit" }] : []),
@@ -448,6 +468,11 @@ export default function AccountPage() {
       {tab === "overview" && <Overview account={account} refresh={() => mutate()} showActivity={() => setTab("timeline")} />}
       {tab === "leads" && <Leads account={account} />}
       {tab === "activities" && <Activities account={account} />}
+      {tab === "emails" && (
+        <Panel title="Emails" description="Sent from VROS, and replies from this company's people. To write one, use the envelope next to a person on the Overview.">
+          <EmailList query={`account_id=${account.id}`} empty="No email with this company yet." />
+        </Panel>
+      )}
       {tab === "tasks" && <Tasks account={account} refresh={() => mutate()} />}
       {tab === "timeline" && (
         <Panel title="Timeline" description="Newest first. Includes what VROS did on its own, such as research and evidence updates.">

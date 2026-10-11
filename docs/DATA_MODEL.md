@@ -163,12 +163,18 @@ Reports have no tables: every dashboard figure is a query over the records above
 
 **saved_views**: `user_id` (NULL is a team view), `name`, `path` (a VROS page that keeps its filters in the address), `query` (its query string), `position`, `created_by_id`. Only the link is stored, so a view always shows current data through the page's own permissions. `GET/POST /saved-views`, `DELETE /saved-views/{id}`; sharing or removing a team view needs `config.manage` and is audited. Migration 0016 seeds the team's eight starting views.
 
+## 4d. Mailboxes and email (slice 3.4, migration `0017`)
+
+**mailboxes**: one per user (`user_id` unique): `address`, `display_name`, `provider` (imap_smtp), SMTP and IMAP host and port, `smtp_security` (ssl, starttls), `username`, `secret_encrypted` (Fernet, key from `VROS_SECRET_KEY` via HKDF; NULL once disconnected), `status` (unverified, connected, failing, disconnected), `last_error`, `verified_at`, `dkim_selector`, `dns_checks` (mx, spf, dkim, dmarc: status, record, advice), `dns_checked_at`, `sending_enabled`, `daily_cap`, `imap_uidvalidity` and `imap_last_uid` (where reading resumes), `last_synced_at`.
+
+**email_messages**: `mailbox_id`, `account_id`, `contact_id`, `opportunity_id`, `deal_id`, `direction` (outbound, inbound), `status` (sent, failed, received, bounced), `message_id_header` (unique per mailbox), `in_reply_to`, `thread_key` (the first message's Message-ID), addresses, `subject`, `body_text`, `occurred_at`, `sent_by_id`, `activity_id` (the timeline activity), `error`, `classification` (opt_out). Endpoints: `GET/PUT/DELETE /mailbox`, `POST /mailbox/check`, `POST /mailbox/sync`, `GET /email/preflight?contact_id=`, `POST /email/send`, `GET /email/messages`.
+
 ## 5. Tables added in later phases (names reserved)
 
 | Phase | Tables |
 | --- | --- |
 | 2 | `discovery_jobs` and `discovered_companies` exist since slice 2.1. Buying signals (slice 2.2) are observations in the `signals` area with dated evidence (migration `0009`), so they share evidence, attempts and append-only history with all other findings; no separate signal tables were needed |
-| 3 | `pipelines`, `pipeline_stages`, `deals` and `deal_stage_changes` exist since slice 3.1; logged meetings, calls and messages are `activities` (slice 3.2), and `meetings` stays reserved for scheduled meetings with calendar sync; `communications`, `proposals`, `documents`, `mailboxes`, `templates`, `sequences`, `sequence_steps`, `enrollments`, `messages`, `linkedin_imports` |
+| 3 | `pipelines`, `pipeline_stages`, `deals` and `deal_stage_changes` exist since slice 3.1; logged meetings, calls and messages are `activities` (slice 3.2), and `meetings` stays reserved for scheduled meetings with calendar sync; `mailboxes` and `email_messages` (the §12B Message object for email) exist since slice 3.4; `proposals`, `documents`, `templates`, `sequences`, `sequence_steps`, `enrollments`, `messages`, `linkedin_imports` |
 | 4 | `projects`, `milestones`, `project_risks`, `client_health_snapshots`, `expansion_opportunities`, `referrals` |
 | 5 | `feedback`, `deal_outcomes`, `learned_weights` |
 | 6 | `monitors`, `monitor_snapshots`, `monitor_events` |

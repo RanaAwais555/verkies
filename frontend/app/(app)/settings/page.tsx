@@ -4,6 +4,7 @@ import { Check, Copy, KeyRound, Link2, Pencil, UserPlus, X } from "lucide-react"
 import { useState, type FormEvent } from "react";
 
 import { Badge, Button, Checkbox, Empty, ErrorNote, Field, inputClass, PageHeader, Panel, ProfileCard, Skeleton, SourceLink, Success, Tabs } from "@/components/ui";
+import { MailboxSettings } from "@/components/mail/mailbox-settings";
 import { cx } from "@/components/ui/cx";
 import { api } from "@/lib/client";
 import { formatDate, initials, label, relativeDate } from "@/lib/format";
@@ -485,6 +486,7 @@ export default function SettingsPage() {
   const configAdmin = can(session, "config.manage");
   const tabs = [
     { key: "profile", label: "Profile" },
+    ...(can(session, "accounts.read", "accounts.read_own") ? [{ key: "mailbox", label: "Mailbox" }] : []),
     ...(can(session, "users.manage") ? [{ key: "team", label: "Team" }] : []),
     { key: "catalogue", label: "Services and references" },
     ...(can(session, "config.manage", "research.run", "accounts.read", "accounts.read_own") ? [{ key: "config", label: "ICP and scoring" }] : []),
@@ -495,6 +497,7 @@ export default function SettingsPage() {
       <PageHeader eyebrow="Management" title="Settings" description="Your profile, the team, what Verkies sells, and how prospects are qualified and scored." />
       <Tabs label="Settings sections" tabs={tabs} active={tab} onChange={setTab} />
       {tab === "profile" && <Profile user={session.user} />}
+      {tab === "mailbox" && <MailboxSettings />}
       {tab === "team" && <Team me={session.user} />}
       {tab === "catalogue" && <Catalogue admin={configAdmin} />}
       {tab === "config" && (

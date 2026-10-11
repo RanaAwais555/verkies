@@ -611,3 +611,60 @@ export type Dashboard = {
 };
 
 export type SavedView = { id: string; name: string; path: string; query: string; shared: boolean; can_delete: boolean };
+
+// --- email (slice 3.4) ---
+
+export type DnsCheck = { status: "pass" | "fail" | "unknown"; record: string | null; advice: string | null };
+
+export type Mailbox = {
+  address: string;
+  display_name: string;
+  provider: string;
+  smtp_host: string;
+  smtp_port: number;
+  smtp_security: "ssl" | "starttls";
+  imap_host: string;
+  imap_port: number;
+  username: string;
+  has_password: boolean;
+  status: "unverified" | "connected" | "failing" | "disconnected";
+  last_error: string | null;
+  verified_at: string | null;
+  dkim_selector: string | null;
+  dns_checks: Partial<Record<"mx" | "spf" | "dkim" | "dmarc", DnsCheck>>;
+  dns_checked_at: string | null;
+  dns_ok: boolean;
+  sending_enabled: boolean;
+  daily_cap: number;
+  last_synced_at: string | null;
+  sending_allowed_by_admin: boolean;
+};
+
+export type MailboxState = { mailbox: Mailbox | null; sending_allowed_by_admin: boolean };
+
+export type EmailPreflight = {
+  ok: boolean;
+  checks: { key: string; ok: boolean; message: string }[];
+  recipient: string | null;
+  sender: string | null;
+  footer: string;
+};
+
+export type Email = {
+  id: string;
+  account_id: string;
+  contact_id: string | null;
+  contact_name: string | null;
+  opportunity_id: string | null;
+  deal_id: string | null;
+  direction: "outbound" | "inbound";
+  status: "sent" | "failed" | "received" | "bounced";
+  from_address: string;
+  to_address: string;
+  subject: string;
+  body_text: string;
+  occurred_at: string;
+  thread_key: string;
+  classification: string | null;
+  error: string | null;
+};

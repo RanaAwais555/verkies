@@ -17,6 +17,7 @@ from app.crm.models import Activity, Lead, Opportunity, Task, TimelineEvent
 from app.deals.models import Deal, DealStageChange, Pipeline, PipelineStage
 from app.discovery.models import DiscoveredCompany, DiscoveryJob
 from app.evidence.models import Claim, Evidence, Observation
+from app.mail.models import EmailMessage, Mailbox
 from app.opportunities.models import OpportunityCandidate, OpportunityCategory
 from app.qualification.models import IcpConfig, QualificationResult
 from app.reports.models import SavedView
@@ -38,11 +39,13 @@ __all__ = [
     "DealStageChange",
     "DiscoveredCompany",
     "DiscoveryJob",
+    "EmailMessage",
     "Evidence",
     "IcpConfig",
     "Invite",
     "Lead",
     "LeadBrief",
+    "Mailbox",
     "Observation",
     "Opportunity",
     "OpportunityCandidate",
