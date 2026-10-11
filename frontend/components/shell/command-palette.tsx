@@ -1,13 +1,14 @@
 "use client";
 
-import { CornerDownLeft, LogOut, Moon, Search, Sun, Target, X, type LucideIcon } from "lucide-react";
+import { Bookmark, CornerDownLeft, LogOut, Moon, Search, Sun, Target, X, type LucideIcon } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from "react";
 
 import { visibleNav } from "@/components/shell/nav";
 import { useTheme } from "@/components/shell/theme";
 import { cx } from "@/components/ui/cx";
-import type { Session } from "@/lib/types";
+import { can, useApi } from "@/lib/hooks";
+import type { SavedView, Session } from "@/lib/types";
 
 type Command = { id: string; group: string; label: string; hint?: string; icon: LucideIcon; run: () => void };
 
@@ -21,6 +22,7 @@ export function CommandPalette({ session, open, onClose, onSignOut }: { session:
   const [query, setQuery] = useState("");
   const [index, setIndex] = useState(0);
   const input = useRef<HTMLInputElement>(null);
+  const { data: views } = useApi<SavedView[]>(open && can(session, "accounts.read", "accounts.read_own") ? "/saved-views" : null);
 
   useEffect(() => {
     if (open) input.current?.focus();
@@ -32,8 +34,17 @@ export function CommandPalette({ session, open, onClose, onSignOut }: { session:
       onClose();
     };
     const pages = visibleNav(session).flatMap((g) => g.items.map((i) => ({ id: i.href, group: "Go to", label: i.label, hint: g.label, icon: i.icon, run: go(i.href) })));
+    const saved = (views ?? []).map((v) => ({
+      id: `view:${v.id}`,
+      group: "Saved views",
+      label: v.name,
+      hint: v.shared ? "Team view" : "My view",
+      icon: Bookmark,
+      run: go(v.query ? `${v.path}?${v.query}` : v.path),
+    }));
     return [
       ...pages,
+      ...saved,
       {
         id: "theme",
         group: "Preferences",
@@ -46,7 +57,7 @@ export function CommandPalette({ session, open, onClose, onSignOut }: { session:
       },
       { id: "signout", group: "Preferences", label: "Sign out", icon: LogOut, run: onSignOut },
     ];
-  }, [session, theme, setTheme, router, onClose, onSignOut]);
+  }, [session, views, theme, setTheme, router, onClose, onSignOut]);
 
   const q = query.trim().toLowerCase();
   const matches = commands.filter((c) => !q || c.label.toLowerCase().includes(q) || (c.hint ?? "").toLowerCase().includes(q));

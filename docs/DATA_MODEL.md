@@ -157,6 +157,12 @@ Contacts: `POST /accounts/{id}/contacts` and `PATCH /contacts/{id}` (`source` "m
 
 `GET /follow-ups[?mine=true]` returns the follow-up engine's flags (overdue follow-up, no next action, stale opportunity, inactive deal) with the thresholds used. "Something happened" means a logged activity or a completed task on the opportunity or deal, or a deal's stage move; a record's creation starts the clock. Deals also show "inactive for N days" among their attention reasons on the board.
 
+## 4c. Reports and saved views (slice 3.3, migration `0016`)
+
+Reports have no tables: every dashboard figure is a query over the records above, run on request and limited to the accounts the user may see (`app/reports/service.py`). Each figure and breakdown carries its rule in words (`definition`) and, where a page lists the records, a link (`href`). Endpoints: `GET /reports/sales` (accounts.read or accounts.read_own; `?mine=true` for the user's own work), `GET /reports/lead-intelligence` (accounts.read or prospects.review) and `GET /reports/management` (new permission `reports.team`: Admin, Founder, Sales Manager), each with `period` = 7d, 30d, 90d, 365d or ytd. The conversion funnel follows the websites first researched in the period and counts each company at the furthest step it reached.
+
+**saved_views**: `user_id` (NULL is a team view), `name`, `path` (a VROS page that keeps its filters in the address), `query` (its query string), `position`, `created_by_id`. Only the link is stored, so a view always shows current data through the page's own permissions. `GET/POST /saved-views`, `DELETE /saved-views/{id}`; sharing or removing a team view needs `config.manage` and is audited. Migration 0016 seeds the team's eight starting views.
+
 ## 5. Tables added in later phases (names reserved)
 
 | Phase | Tables |

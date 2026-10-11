@@ -569,3 +569,45 @@ export type Forecast = {
   lost_unknown_value_count: number;
   months: { month: string; count: number; value: number; weighted: number }[];
 };
+
+// --- reporting (slice 3.3) ---
+
+export type ReportPeriod = "7d" | "30d" | "90d" | "365d" | "ytd";
+
+export type ReportMoney = { amount: number; currency: string };
+
+/** One figure on a dashboard. `value` null is Unknown; `definition` says exactly how it is counted. */
+export type ReportFigure = {
+  key: string;
+  label: string;
+  value: number | null;
+  unit: "count" | "percent" | "days" | "money" | "score";
+  definition: string;
+  currency: string | null;
+  detail: string | null;
+  href: string | null;
+};
+
+export type ReportCell = number | string | null | ReportMoney[];
+
+export type ReportTable = {
+  key: string;
+  label: string;
+  definition: string;
+  columns: string[];
+  rows: { label: string; values: ReportCell[]; href: string | null }[];
+  note: string | null;
+};
+
+export type FunnelStep = { key: string; label: string; count: number; definition: string };
+
+export type Dashboard = {
+  period: ReportPeriod;
+  start: string;
+  end: string;
+  figures: ReportFigure[];
+  tables: ReportTable[];
+  funnel: FunnelStep[] | null;
+};
+
+export type SavedView = { id: string; name: string; path: string; query: string; shared: boolean; can_delete: boolean };

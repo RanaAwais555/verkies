@@ -19,6 +19,7 @@ from app.discovery.models import DiscoveredCompany, DiscoveryJob
 from app.evidence.models import Claim, Evidence, Observation
 from app.opportunities.models import OpportunityCandidate, OpportunityCategory
 from app.qualification.models import IcpConfig, QualificationResult
+from app.reports.models import SavedView
 from app.research.models import RawResponse, ResearchPage, ResearchRun, ResearchStage
 from app.scoring.models import ScoreSnapshot, ScoringConfig
 from app.similarity.models import SimilarityResult
@@ -56,6 +57,7 @@ __all__ = [
     "ResearchRun",
     "ResearchStage",
     "Role",
+    "SavedView",
     "ScoreSnapshot",
     "ScoringConfig",
     "Service",

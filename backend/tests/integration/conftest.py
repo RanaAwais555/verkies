@@ -9,6 +9,7 @@ import os
 import uuid
 from collections.abc import Iterator
 from dataclasses import dataclass
+from urllib.parse import urlencode
 
 import pytest
 from alembic.config import Config
@@ -48,6 +49,18 @@ def _seed_configs() -> tuple[dict, dict]:  # type: ignore[type-arg]
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
     return module.ICP_V1, module.SCORING_V1
+
+
+def _seed_views() -> list[tuple[str, str, dict[str, str]]]:
+    """The team's saved views exactly as migration 0016 seeds them."""
+    import importlib.util
+
+    path = os.path.join(BACKEND_DIR, "alembic", "versions", "0016_reports_and_saved_views.py")
+    spec = importlib.util.spec_from_file_location("seed_0016", path)
+    assert spec and spec.loader
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return list(module.TEAM_VIEWS)
 
 
 def alembic_config(url: str) -> Config:
@@ -92,6 +105,15 @@ def clean_db(engine: Engine) -> Iterator[None]:
                     " VALUES (gen_random_uuid(), 1, true, CAST(:c AS jsonb), 'seed')"
                 ),
                 {"c": json.dumps(config)},
+            )
+        # Saved views reference users too: restore the team views migration 0016 seeds.
+        for position, (name, path, query) in enumerate(_seed_views()):
+            conn.execute(
+                text(
+                    "INSERT INTO saved_views (id, user_id, name, path, query, position)"
+                    " VALUES (gen_random_uuid(), NULL, :n, :p, :q, :pos)"
+                ),
+                {"n": name, "p": path, "q": urlencode(query), "pos": position},
             )
 
 
