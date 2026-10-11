@@ -1,6 +1,13 @@
 """Imports every model so Base.metadata is complete (Alembic and tests use this)."""
 
-from app.accounts.models import Account, AccountDomain, AccountIdentifier, Contact, Suppression
+from app.accounts.models import (
+    Account,
+    AccountDomain,
+    AccountDuplicateDismissal,
+    AccountIdentifier,
+    Contact,
+    Suppression,
+)
 from app.audit.models import AuditLog
 from app.auth.models import Invite, Permission, Role, User, UserSession
 from app.briefs.models import LeadBrief
@@ -18,6 +25,7 @@ from app.similarity.models import SimilarityResult
 __all__ = [
     "Account",
     "AccountDomain",
+    "AccountDuplicateDismissal",
     "AccountIdentifier",
     "Activity",
     "AuditLog",

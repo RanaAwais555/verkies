@@ -104,6 +104,25 @@ class Account(IdMixin, TimestampMixin, SoftDeleteMixin, Base):
     linkedin_employee_range: Mapped[str | None] = mapped_column(String(40))
     linkedin_employee_range_at: Mapped[datetime | None]
 
+    # Set (with deleted_at) when this account was merged into another. Its append-only history
+    # (evidence, observations, score snapshots, timeline) stays here and is read with the survivor.
+    merged_into_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("accounts.id"), index=True)
+
+
+class AccountDuplicateDismissal(IdMixin, CreatedMixin, Base):
+    """A reviewer's decision that two suggested accounts are different companies."""
+
+    __tablename__ = "account_duplicate_dismissals"
+    __table_args__ = (
+        UniqueConstraint("account_a_id", "account_b_id"),
+        CheckConstraint("account_a_id < account_b_id", name="ordered_pair"),
+    )
+
+    account_a_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("accounts.id"))
+    account_b_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("accounts.id"))
+    dismissed_by_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("users.id"))
+    reason: Mapped[str | None] = mapped_column(Text)
+
 
 class AccountDomain(IdMixin, CreatedMixin, Base):
     __tablename__ = "account_domains"

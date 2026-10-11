@@ -7,6 +7,7 @@ from fastapi import FastAPI, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.trustedhost import TrustedHostMiddleware
 
+from app.accounts.duplicates_router import router as duplicates_router
 from app.accounts.router import router as accounts_router
 from app.audit.router import router as audit_router
 from app.auth.admin_router import router as users_router
@@ -19,6 +20,7 @@ from app.crm.router import router as crm_router
 from app.discovery.router import registry_router, search_router
 from app.discovery.router import router as discovery_router
 from app.health.router import router as health_router
+from app.leads.router import router as leads_router
 from app.prospects.router import router as prospects_router
 from app.research.router import router as research_router
 from app.scoring.config_router import router as config_router
@@ -82,7 +84,9 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         research_router,
         config_router,
         prospects_router,
+        duplicates_router,
         accounts_router,
+        leads_router,
         crm_router,
         catalogue_router,
         discovery_router,
