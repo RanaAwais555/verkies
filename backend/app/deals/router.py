@@ -127,7 +127,7 @@ class DealOut(BaseModel):
             )
             if v.next_task
             else None,
-            last_activity_at=v.account.last_activity_at,
+            last_activity_at=v.last_activity_at,
             stage_entered_at=d.stage_entered_at,
             days_in_stage=max(0, (datetime.now(UTC) - d.stage_entered_at).days),
             closed_at=d.closed_at,

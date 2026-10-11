@@ -239,18 +239,86 @@ export type AccountSummary = {
   created_at: string;
 };
 
+/** Relationship tracking (§12), computed by the API from logged activities. */
+export type Relationship = {
+  first_interaction_at: string | null;
+  latest_interaction_at: string | null;
+  days_since_contact: number | null;
+  interactions: number;
+  last_reply_at: string | null;
+  attempts_since_reply: number;
+  response_status: "not_contacted" | "no_reply" | "awaiting_reply" | "replied";
+};
+
 export type Contact = {
   id: string;
   name: string;
   title: string | null;
+  department: string | null;
   email: string | null;
   phone: string | null;
+  linkedin_url: string | null;
+  notes: string | null;
   decision_maker_role: string | null;
   verification_status: string;
   source: string;
   source_url: string | null;
   collected_at: string;
   confidence: number;
+  relationship: Relationship | null;
+};
+
+export const DECISION_MAKER_ROLES = [
+  "economic_buyer",
+  "decision_maker",
+  "technical_buyer",
+  "product_buyer",
+  "marketing_buyer",
+  "operations_buyer",
+  "champion",
+  "influencer",
+  "user",
+  "procurement",
+] as const;
+
+export type ActivityKind = "call" | "meeting" | "note" | "message";
+
+export type Activity = {
+  id: string;
+  account_id: string;
+  account_name: string;
+  kind: ActivityKind;
+  channel: string;
+  direction: "outbound" | "inbound" | "conversation" | "internal";
+  call_outcome: "connected" | "no_answer" | "voicemail" | null;
+  occurred_at: string;
+  summary: string;
+  contact: { id: string; name: string | null } | null;
+  opportunity_id: string | null;
+  deal_id: string | null;
+  logged_by: { id: string; name: string | null } | null;
+  created_at: string;
+};
+
+export type FollowUpKind = "overdue_follow_up" | "no_next_action" | "stale_opportunity" | "inactive_deal";
+
+export type FollowUpFlag = {
+  kind: FollowUpKind;
+  account_id: string;
+  account_name: string;
+  ref_table: string;
+  ref_id: string;
+  title: string;
+  detail: string;
+  since: string | null;
+  owner: { id: string; name: string | null } | null;
+};
+
+export type FollowUps = {
+  flags: FollowUpFlag[];
+  counts: Record<FollowUpKind, number>;
+  stale_opportunity_days: number;
+  inactive_deal_days: number;
 };
 
 export type Lead = {
@@ -281,6 +349,7 @@ export type Account360 = AccountSummary & {
   tasks: Task[];
   research_runs: Pick<Run, "id" | "normalised_domain" | "status" | "review_status" | "created_at" | "finished_at">[];
   latest_brief_run_id: string | null;
+  relationship: Relationship;
 };
 
 export type TimelineEvent = {

@@ -96,7 +96,7 @@ Rejection reason enum (§3): no_commercial_opportunity, wrong_icp, inactive_comp
 **opportunities**: `account_id`, `lead_id`, `name`, `problem`, `category_id`, `service_id`, `estimated_value` null, `currency`, `probability` null, `expected_close` null, `stage`, `owner_id`, `next_action_task_id`.
 **contacts**: `account_id`, `name`, `title`, `department`, `email` null, `phone` null, `profile_url` null, `source`, `source_url`, `collected_at`, `confidence`, `decision_maker_role` enum (§6), `verification_status` (unverified, verified), `linkedin_url`, `linkedin_connection_status`. Phase 1 stores contacts found on team pages; email is stored only if published on the page.
 **tasks**: `account_id` (required), optional `contact_id`, `lead_id`, `opportunity_id`; `title`, `description`, `owner_id`, `due_at`, `priority`, `status`, `recurrence`, `completed_at`. `deal_id` and `project_id` are added with deals (Phase 3) and projects (Phase 4).
-**activities**: `account_id`, optional links as for tasks, `channel`, `activity_type`, `occurred_at`, `actor_id`, `summary`, `payload jsonb`.
+**activities**: `account_id`, optional links as for tasks plus `deal_id` (slice 3.2), `channel`, `direction` (outbound, inbound, conversation, internal; slice 3.2), `activity_type` (call, meeting, note, message), `occurred_at`, `actor_id`, `summary`, `payload jsonb` (a call's `call_outcome`). See §4b.
 **timeline_events**: append-only read model: `account_id`, `occurred_at`, `event_type`, `ref_table`, `ref_id`, `summary`. Written by services at the moment of the event (company discovered, website analysed, lead qualified, task created, …).
 
 Constraint: every open opportunity must have a next-action task with owner and due date, or it is returned by the "requires attention" query (§12).
@@ -147,12 +147,22 @@ Lead search (slice 2.6, `backend/app/leads`): `GET /leads/search?q=` reads a pla
 
 `tasks.deal_id` links a task to a deal; a deal's task is also its opportunity's next action. A move also sets the opportunity's `stage` to the stage key, writes the timeline and the audit log, and an account merge carries its deals with it. The forecast (`GET /deals/forecast`) groups by currency and counts deals without a value, without a probability or without a close date instead of treating them as zero.
 
+## 4b. Activities, relationships and follow-ups (slice 3.2, migration `0015`)
+
+`activities` gains `deal_id` and `direction`, with indexes on (account, time), (contact, time), opportunity and deal. `POST /activities` logs one (the kind sets the channel and direction: a connected call or a meeting is a conversation, an unanswered call or a sent message is outbound, a received message inbound, a note internal), writes a timeline event dated `occurred_at` and an `activity.logged` audit entry, and can create the follow-up task in the same transaction. Activities are not edited through the API. They move with an account merge and are part of the account's audit view.
+
+Relationship tracking has no table: it is folded from a contact's (or an account's) activities on read (`app/crm/activities.py`), so it always agrees with them.
+
+Contacts: `POST /accounts/{id}/contacts` and `PATCH /contacts/{id}` (`source` "manual", confidence 1.00, unverified until marked). Suppressed emails and domains are refused; an email already on the account is a 409. Creation writes the timeline; both write the audit log.
+
+`GET /follow-ups[?mine=true]` returns the follow-up engine's flags (overdue follow-up, no next action, stale opportunity, inactive deal) with the thresholds used. "Something happened" means a logged activity or a completed task on the opportunity or deal, or a deal's stage move; a record's creation starts the clock. Deals also show "inactive for N days" among their attention reasons on the board.
+
 ## 5. Tables added in later phases (names reserved)
 
 | Phase | Tables |
 | --- | --- |
 | 2 | `discovery_jobs` and `discovered_companies` exist since slice 2.1. Buying signals (slice 2.2) are observations in the `signals` area with dated evidence (migration `0009`), so they share evidence, attempts and append-only history with all other findings; no separate signal tables were needed |
-| 3 | `pipelines`, `pipeline_stages`, `deals` and `deal_stage_changes` exist since slice 3.1; `communications`, `meetings`, `proposals`, `documents`, `mailboxes`, `templates`, `sequences`, `sequence_steps`, `enrollments`, `messages`, `linkedin_imports` |
+| 3 | `pipelines`, `pipeline_stages`, `deals` and `deal_stage_changes` exist since slice 3.1; logged meetings, calls and messages are `activities` (slice 3.2), and `meetings` stays reserved for scheduled meetings with calendar sync; `communications`, `proposals`, `documents`, `mailboxes`, `templates`, `sequences`, `sequence_steps`, `enrollments`, `messages`, `linkedin_imports` |
 | 4 | `projects`, `milestones`, `project_risks`, `client_health_snapshots`, `expansion_opportunities`, `referrals` |
 | 5 | `feedback`, `deal_outcomes`, `learned_weights` |
 | 6 | `monitors`, `monitor_snapshots`, `monitor_events` |

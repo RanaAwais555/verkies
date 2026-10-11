@@ -19,6 +19,7 @@ from app.accounts import access
 from app.accounts.models import Account
 from app.audit import service as audit
 from app.auth.models import User
+from app.config import get_settings
 from app.core.enums import (
     AccountType,
     AuditSource,
@@ -29,6 +30,8 @@ from app.core.enums import (
 )
 from app.core.errors import Conflict, NotFound, ValidationFailed
 from app.crm import timeline
+from app.crm.activities import latest_touch
+from app.crm.follow_ups import is_quiet, last_touch
 from app.crm.models import Opportunity, Task
 from app.deals.models import Deal, DealStageChange, Pipeline, PipelineStage
 
@@ -66,9 +69,17 @@ def weighted(deal: Deal, stage: PipelineStage) -> Decimal | None:
     return (deal.value * probability / 100).quantize(Decimal("0.01"))
 
 
-def attention_reasons(deal: Deal, next_task: Task | None) -> list[str]:
+def attention_reasons(
+    deal: Deal,
+    next_task: Task | None,
+    last_activity_at: datetime | None = None,
+    *,
+    now: datetime | None = None,
+    inactive_days: int | None = None,
+) -> list[str]:
     """§12's next-action engine applied to deals: every open deal needs an owner, a next task and
-    an expected close date."""
+    an expected close date. With `inactive_days`, the follow-up engine's inactive-deal flag too:
+    nothing logged and no stage move for that many days."""
     if deal.outcome is not StageOutcome.OPEN:
         return []
     reasons = []
@@ -78,6 +89,10 @@ def attention_reasons(deal: Deal, next_task: Task | None) -> list[str]:
         reasons.append("no next task")
     if deal.expected_close is None:
         reasons.append("no expected close date")
+    if inactive_days is not None:
+        since = last_touch(deal.stage_entered_at, last_activity_at)
+        if is_quiet(since, now or _now(), inactive_days):
+            reasons.append(f"inactive for {((now or _now()) - since).days} days")
     return reasons
 
 
@@ -147,6 +162,7 @@ class DealView:
     next_task: Task | None = None
     owner_name: str | None = None
     next_task_owner_name: str | None = None
+    last_activity_at: datetime | None = None
     attention: list[str] = field(default_factory=list)
 
 
@@ -184,6 +200,8 @@ async def _next_tasks(db: AsyncSession, deals: list[Deal]) -> dict[uuid.UUID, Ta
 async def _views(db: AsyncSession, rows: list[Any]) -> list[DealView]:
     deals = [r[0] for r in rows]
     next_tasks = await _next_tasks(db, deals)
+    touched = await latest_touch(db, "deal_id", [d.id for d in deals])
+    inactive_days = get_settings().inactive_deal_days
     opp_ids = [d.opportunity_id for d in deals if d.opportunity_id]
     opp_names = (
         dict(
@@ -219,7 +237,10 @@ async def _views(db: AsyncSession, rows: list[Any]) -> list[DealView]:
                 next_task=task,
                 owner_name=names.get(deal.owner_id) if deal.owner_id else None,
                 next_task_owner_name=names.get(task.owner_id) if task and task.owner_id else None,
-                attention=attention_reasons(deal, task),
+                last_activity_at=touched.get(deal.id),
+                attention=attention_reasons(
+                    deal, task, touched.get(deal.id), inactive_days=inactive_days
+                ),
             )
         )
     return views

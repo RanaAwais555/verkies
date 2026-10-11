@@ -186,6 +186,31 @@ class ActivityChannel(StrEnum):
     SYSTEM = "system"
 
 
+class ActivityKind(StrEnum):
+    """What a person logs by hand (slice 3.2). Emails arrive with mailbox sync in slice 3.4."""
+
+    CALL = "call"
+    MEETING = "meeting"
+    NOTE = "note"
+    MESSAGE = "message"
+
+
+class ActivityDirection(StrEnum):
+    """Who spoke. It drives relationship tracking: a reply is an inbound message or a
+    conversation; an outbound message or an unanswered call is an attempt; a note is neither."""
+
+    OUTBOUND = "outbound"
+    INBOUND = "inbound"
+    CONVERSATION = "conversation"
+    INTERNAL = "internal"
+
+
+class CallOutcome(StrEnum):
+    CONNECTED = "connected"
+    NO_ANSWER = "no_answer"
+    VOICEMAIL = "voicemail"
+
+
 class ServiceSlot(StrEnum):
     PRIMARY = "primary"
     SECONDARY = "secondary"
