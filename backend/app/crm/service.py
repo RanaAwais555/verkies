@@ -8,7 +8,7 @@ import uuid
 from datetime import UTC, datetime
 from typing import Any
 
-from sqlalchemy import ColumnElement, select
+from sqlalchemy import ColumnElement, Select, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.accounts import access
@@ -16,7 +16,7 @@ from app.accounts.models import Account
 from app.audit import service as audit
 from app.auth.models import User
 from app.catalogue.models import Service
-from app.core.enums import AuditSource, TaskStatus
+from app.core.enums import AuditSource, StageOutcome, TaskStatus
 from app.core.errors import Conflict, NotFound, ValidationFailed
 from app.crm import timeline
 from app.crm.models import Opportunity, Task
@@ -41,6 +41,11 @@ def attention_reasons(opportunity: Opportunity, task: Task | None) -> list[str]:
     if task.due_at is None:
         reasons.append("next action has no due date")
     return reasons
+
+
+def responsible(owner: Any) -> ColumnElement[Any]:
+    """Who answers for a record: its own owner, or the account's owner when it has none."""
+    return func.coalesce(owner, Account.owner_id)
 
 
 def _task_scope(user: User) -> list[ColumnElement[bool]]:
@@ -137,6 +142,7 @@ async def create_task(
     opportunity_id: uuid.UUID | None,
     description: str | None,
     deal_id: uuid.UUID | None = None,
+    contact_id: uuid.UUID | None = None,
 ) -> Task:
     """A new task on an account. With an opportunity, it becomes that opportunity's next
     action, which clears "requires attention" once it has an owner and a due date. With a deal,
@@ -163,6 +169,7 @@ async def create_task(
             raise ValidationFailed("That opportunity is not on this account.")
     task = Task(
         account_id=account.id,
+        contact_id=contact_id,
         opportunity_id=opportunity_id,
         deal_id=deal_id,
         lead_id=opportunity.lead_id if opportunity else None,
@@ -270,19 +277,34 @@ async def _refresh_next_activity(
     ).scalar_one_or_none()
 
 
+def closed_opportunities() -> Select[Any]:
+    """Opportunities whose deal was won, lost or went inactive: they need no next action."""
+    return select(Deal.opportunity_id).where(
+        Deal.deleted_at.is_(None),
+        Deal.opportunity_id.is_not(None),
+        Deal.outcome.in_((StageOutcome.WON, StageOutcome.LOST, StageOutcome.INACTIVE)),
+    )
+
+
 async def requiring_attention(
-    db: AsyncSession, *, user: User, limit: int
+    db: AsyncSession, *, user: User, limit: int, mine: bool = False
 ) -> list[tuple[Opportunity, Account, list[str]]]:
     stmt = (
         select(Opportunity, Account, Task)
         .join(Account, Account.id == Opportunity.account_id)
         .outerjoin(Task, Task.id == Opportunity.next_action_task_id)
-        .where(Opportunity.deleted_at.is_(None), Account.deleted_at.is_(None))
+        .where(
+            Opportunity.deleted_at.is_(None),
+            Account.deleted_at.is_(None),
+            Opportunity.id.not_in(closed_opportunities()),
+        )
         .order_by(Account.priority_score.desc().nulls_last(), Opportunity.created_at)
     )
     clause = access.visible(user)
     if clause is not None:
         stmt = stmt.where(clause)
+    if mine:
+        stmt = stmt.where(responsible(Opportunity.owner_id) == user.id)
     found: list[tuple[Opportunity, Account, list[str]]] = []
     for opportunity, account, task in (await db.execute(stmt)).all():
         reasons = attention_reasons(opportunity, task)

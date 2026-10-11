@@ -1,9 +1,10 @@
 "use client";
 
-import { ExternalLink, Save, X } from "lucide-react";
+import { ExternalLink, NotebookPen, Save, X } from "lucide-react";
 import Link from "next/link";
 import { useState, type FormEvent } from "react";
 
+import { ActivityList, LogActivityForm } from "@/components/crm/activities";
 import { NewTaskForm } from "@/components/crm/tasks";
 import { Badge, Button, ErrorNote, Field, IconButton, inputClass } from "@/components/ui";
 import { api } from "@/lib/client";
@@ -77,6 +78,7 @@ export function DealPanel({ deal, onClose, onChange }: { deal: Deal; onClose: ()
   const { data: team } = useApi<TeamMember[]>("/team");
   const { busy, error, run } = useAction();
   const [adding, setAdding] = useState(false);
+  const [logging, setLogging] = useState(false);
 
   async function save(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -193,6 +195,30 @@ export function DealPanel({ deal, onClose, onChange }: { deal: Deal; onClose: ()
         ) : (
           <Button onClick={() => setAdding(true)}>Add next task</Button>
         )}
+      </div>
+
+      <div className="space-y-3 border-t border-grid pt-4">
+        <div className="flex items-center justify-between gap-2">
+          <h3 className="text-[13px] font-semibold text-fg">Activity</h3>
+          {!logging && (
+            <Button className="h-7 px-2.5 text-xs" icon={<NotebookPen className="h-3.5 w-3.5" />} onClick={() => setLogging(true)}>
+              Log activity
+            </Button>
+          )}
+        </div>
+        {logging && (
+          <LogActivityForm
+            key={deal.id}
+            accountId={deal.account_id}
+            dealId={deal.id}
+            onCancel={() => setLogging(false)}
+            onLogged={() => {
+              setLogging(false);
+              onChange();
+            }}
+          />
+        )}
+        <ActivityList query={`deal_id=${deal.id}`} limit={5} empty="Nothing logged on this deal yet." />
       </div>
       <Link href={`/accounts/${deal.account_id}`} className="inline-flex items-center gap-1.5 text-[13px] text-accent-text hover:underline">
         Open {deal.account_name}

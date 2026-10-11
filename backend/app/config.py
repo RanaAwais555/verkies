@@ -63,6 +63,11 @@ class Settings(BaseSettings):
     # Approval (PRODUCT_SPEC.md §5): the next-action task is due this many business days later.
     task_due_business_days: int = Field(default=2, ge=0, le=30)
 
+    # Follow-up engine (master context §12, slice 3.2). An open opportunity with no deal is stale,
+    # and an open deal inactive, when nothing has happened on it for this many days.
+    stale_opportunity_days: int = Field(default=14, ge=1, le=365)
+    inactive_deal_days: int = Field(default=21, ge=1, le=365)
+
     # Crawler (PROVIDER_SPEC.md §4). Identifies itself and how to reach Verkies.
     crawler_contact_url: str = "https://www.verkies.co"
     crawl_max_pages: int = Field(default=15, gt=0, le=100)

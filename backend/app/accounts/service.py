@@ -14,8 +14,9 @@ from app.briefs.models import LeadBrief
 from app.core.enums import AccountType
 from app.core.errors import NotFound
 from app.core.search import contains_pattern
-from app.crm.models import Lead, Opportunity, Task, TimelineEvent
-from app.crm.service import attention_reasons, opportunity_labels
+from app.crm import activities
+from app.crm.models import Activity, Lead, Opportunity, Task, TimelineEvent
+from app.crm.service import attention_reasons, closed_opportunities, opportunity_labels
 from app.deals.models import Deal
 from app.research.models import ResearchRun
 
@@ -116,6 +117,13 @@ async def account_360(db: AsyncSession, account: Account) -> dict[str, Any]:
         )
     ).scalar_one_or_none()
     task_by_id = {t.id: t for t in tasks}
+    closed = set(
+        (
+            await db.execute(
+                closed_opportunities().where(Deal.opportunity_id.in_([o.id for o in opportunities]))
+            )
+        ).scalars()
+    )
     owner_ids = {
         account.owner_id,
         *(t.owner_id for t in tasks),
@@ -127,9 +135,17 @@ async def account_360(db: AsyncSession, account: Account) -> dict[str, Any]:
         "domains": domains,
         "leads": leads,
         "opportunities": [
-            (o, attention_reasons(o, task_by_id.get(o.next_action_task_id))) for o in opportunities
+            (
+                o,
+                []
+                if o.id in closed
+                else attention_reasons(o, task_by_id.get(o.next_action_task_id)),
+            )
+            for o in opportunities
         ],
         "contacts": contacts,
+        "relationships": await activities.contact_relationships(db, [c.id for c in contacts]),
+        "relationship": await activities.account_relationship(db, account.id),
         "tasks": tasks,
         "research_runs": runs,
         "latest_brief_run_id": brief_run,
@@ -163,7 +179,7 @@ async def timeline_of(db: AsyncSession, account_id: uuid.UUID, limit: int) -> li
 async def audit_of(db: AsyncSession, account: Account, limit: int) -> list[AuditLog]:
     """Audit entries for the account and everything hanging off it."""
     related: list[uuid.UUID] = await merge.family_ids(db, account.id)
-    for model in (Lead, Opportunity, Deal, Task, Contact, ResearchRun):
+    for model in (Lead, Opportunity, Deal, Task, Contact, Activity, ResearchRun):
         related += list(
             (await db.execute(select(model.id).where(model.account_id == account.id))).scalars()
         )

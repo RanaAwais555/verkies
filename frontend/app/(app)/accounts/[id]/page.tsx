@@ -1,9 +1,11 @@
 "use client";
 
-import { AlertTriangle, ArrowRight, Globe, ListChecks, Plus, UserRound } from "lucide-react";
+import { AlertTriangle, ArrowRight, Globe, ListChecks, NotebookPen, Pencil, Plus, UserPlus, UserRound } from "lucide-react";
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
+import { ActivityList, LogActivityForm, RelationshipLine } from "@/components/crm/activities";
+import { ContactForm } from "@/components/crm/contact-form";
 import { EditTask, isOpen, NewTaskForm, TaskRow } from "@/components/crm/tasks";
 import { Timeline } from "@/components/crm/timeline";
 import { AccountDeals, OpenDealButton } from "@/components/deals/account-deals";
@@ -13,6 +15,7 @@ import {
   Button,
   Empty,
   ErrorNote,
+  IconButton,
   LinkButton,
   ProfileCard,
   Panel,
@@ -26,7 +29,7 @@ import {
   TextLink,
 } from "@/components/ui";
 import { ApiError } from "@/lib/client";
-import { formatDate, initials, label, percent } from "@/lib/format";
+import { formatDate, initials, label, percent, relativeDate } from "@/lib/format";
 import { can, useApi, useSession, useTab } from "@/lib/hooks";
 import type { Account360, AuditEntry, Deal } from "@/lib/types";
 
@@ -49,6 +52,101 @@ function Facts({ account }: { account: Account360 }) {
         </div>
       ))}
     </dl>
+  );
+}
+
+/** The people at the account: who they are, how VROS knows, and where the relationship stands. */
+function People({ account, refresh }: { account: Account360; refresh: () => void }) {
+  const [adding, setAdding] = useState(false);
+  const [editing, setEditing] = useState<string | null>(null);
+  return (
+    <Panel
+      title="People"
+      description="Named on the company's own pages or added by the team. Nobody is contacted without a lawful basis."
+      actions={
+        !adding && (
+          <Button onClick={() => setAdding(true)} icon={<UserPlus className="h-4 w-4" />}>
+            Add person
+          </Button>
+        )
+      }
+    >
+      {adding && (
+        <div className="mb-4">
+          <ContactForm
+            accountId={account.id}
+            onCancel={() => setAdding(false)}
+            onSaved={() => {
+              setAdding(false);
+              refresh();
+            }}
+          />
+        </div>
+      )}
+      {account.contacts.length === 0 && !adding ? (
+        <Empty icon={<UserRound className="h-4 w-4" />}>No people yet. Add someone you know at the company.</Empty>
+      ) : (
+        <ul className="divide-y divide-grid" data-testid="contacts">
+          {account.contacts.map((c) =>
+            editing === c.id ? (
+              <li key={c.id} className="py-3 first:pt-0 last:pb-0">
+                <ContactForm
+                  accountId={account.id}
+                  contact={c}
+                  onCancel={() => setEditing(null)}
+                  onSaved={() => {
+                    setEditing(null);
+                    refresh();
+                  }}
+                />
+              </li>
+            ) : (
+              <li key={c.id} className="flex gap-3 py-3 first:pt-0 last:pb-0" data-testid="contact">
+                <span aria-hidden className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-info-soft text-[11px] font-semibold text-info">
+                  {initials(c.name)}
+                </span>
+                <div className="min-w-0 flex-1 space-y-1">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="font-medium text-fg">{c.name}</span>
+                    {c.title && <span className="text-[13px] text-fg-2">{c.title}</span>}
+                    {c.decision_maker_role ? <Badge tone="accent">{label(c.decision_maker_role)}</Badge> : <Badge tone="amber">Role unconfirmed</Badge>}
+                    <Badge tone={c.verification_status === "verified" ? "green" : "neutral"}>{label(c.verification_status)}</Badge>
+                  </div>
+                  <div className="flex flex-wrap items-center gap-x-2 text-xs text-fg-3">
+                    <span>{c.email ?? "Email unknown"}</span>
+                    <span>· {c.phone ?? "phone unknown"}</span>
+                    {c.source === "manual" ? <span>· added by the team</span> : <span>· confidence {percent(c.confidence)}</span>}
+                    {c.source_url && <SourceLink url={c.source_url} />}
+                    {c.linkedin_url && <SourceLink url={c.linkedin_url} />}
+                  </div>
+                  {c.relationship && <RelationshipLine relationship={c.relationship} />}
+                  {c.notes && <p className="text-xs leading-relaxed text-fg-2">{c.notes}</p>}
+                </div>
+                <IconButton label={`Edit ${c.name}`} onClick={() => setEditing(c.id)}>
+                  <Pencil className="h-3.5 w-3.5" />
+                </IconButton>
+              </li>
+            ),
+          )}
+        </ul>
+      )}
+    </Panel>
+  );
+}
+
+function Activities({ account }: { account: Account360 }) {
+  return (
+    <div className="grid items-start gap-4 lg:grid-cols-2">
+      <Panel title="Log activity" description="Record a call, meeting, message or note after it happened. VROS never contacts anyone itself.">
+        <LogActivityForm accountId={account.id} />
+      </Panel>
+      <Panel
+        title="Logged activity"
+        description={account.relationship.interactions > 0 ? <RelationshipLine relationship={account.relationship} className="mt-1" /> : "Newest first."}
+      >
+        <ActivityList query={`account_id=${account.id}`} empty="Nothing logged yet. Log your first call, meeting or message." />
+      </Panel>
+    </div>
   );
 }
 
@@ -121,35 +219,7 @@ function Overview({ account, refresh, showActivity }: { account: Account360; ref
           )}
         </Panel>
 
-        <Panel title="People" description="Named on the company's own pages. Nobody is contacted without a lawful basis.">
-          {account.contacts.length === 0 ? (
-            <Empty icon={<UserRound className="h-4 w-4" />}>No people named on the company&apos;s pages.</Empty>
-          ) : (
-            <ul className="divide-y divide-grid" data-testid="contacts">
-              {account.contacts.map((c) => (
-                <li key={c.id} className="flex gap-3 py-3 first:pt-0 last:pb-0">
-                  <span aria-hidden className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-info-soft text-[11px] font-semibold text-info">
-                    {initials(c.name)}
-                  </span>
-                  <div className="min-w-0 flex-1 space-y-1">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <span className="font-medium text-fg">{c.name}</span>
-                      {c.title && <span className="text-[13px] text-fg-2">{c.title}</span>}
-                      {c.decision_maker_role ? <Badge tone="accent">{label(c.decision_maker_role)}</Badge> : <Badge tone="amber">Role unconfirmed</Badge>}
-                      <Badge tone={c.verification_status === "verified" ? "green" : "neutral"}>{label(c.verification_status)}</Badge>
-                    </div>
-                    <div className="flex flex-wrap items-center gap-x-2 text-xs text-fg-3">
-                      <span>{c.email ?? "Email unknown"}</span>
-                      <span>· {c.phone ?? "phone unknown"}</span>
-                      <span>· confidence {percent(c.confidence)}</span>
-                      {c.source_url && <SourceLink url={c.source_url} />}
-                    </div>
-                  </div>
-                </li>
-              ))}
-            </ul>
-          )}
-        </Panel>
+        <People account={account} refresh={refresh} />
 
         {deals.data && <AccountDeals deals={deals.data} />}
 
@@ -326,6 +396,7 @@ export default function AccountPage() {
   const tabs = [
     { key: "overview", label: "Overview" },
     { key: "leads", label: `Leads (${account.leads.length})` },
+    { key: "activities", label: "Activities" },
     { key: "tasks", label: `Tasks (${account.open_tasks} open)` },
     { key: "timeline", label: "Timeline" },
     ...(can(session, "audit.read") ? [{ key: "audit", label: "Audit" }] : []),
@@ -351,7 +422,10 @@ export default function AccountPage() {
               {account.primary_domain ?? "No website"}
             </span>
             <span>Owner: {account.owner?.name ?? "unassigned"}</span>
-            <span>Next activity: {account.next_activity_at ? formatDate(account.next_activity_at) : "none set"}</span>
+            <span>
+              Last contact: {account.relationship.latest_interaction_at ? relativeDate(account.relationship.latest_interaction_at).toLowerCase() : "never"}
+            </span>
+            <span>Next follow-up: {account.next_activity_at ? formatDate(account.next_activity_at) : "none set"}</span>
           </>
         }
         actions={
@@ -361,6 +435,9 @@ export default function AccountPage() {
                 Lead brief
               </LinkButton>
             )}
+            <Button onClick={() => setTab("activities")} icon={<NotebookPen className="h-4 w-4" />}>
+              Log activity
+            </Button>
             <Button onClick={() => setTab("tasks")} icon={<ListChecks className="h-4 w-4" />}>
               Tasks
             </Button>
@@ -370,6 +447,7 @@ export default function AccountPage() {
       />
       {tab === "overview" && <Overview account={account} refresh={() => mutate()} showActivity={() => setTab("timeline")} />}
       {tab === "leads" && <Leads account={account} />}
+      {tab === "activities" && <Activities account={account} />}
       {tab === "tasks" && <Tasks account={account} refresh={() => mutate()} />}
       {tab === "timeline" && (
         <Panel title="Timeline" description="Newest first. Includes what VROS did on its own, such as research and evidence updates.">

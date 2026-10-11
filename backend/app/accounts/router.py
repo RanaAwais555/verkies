@@ -27,7 +27,7 @@ from app.audit.router import AuditEntryOut
 from app.auth.deps import DbSession, require_permission
 from app.auth.models import User
 from app.core.enums import AccountType, AuditSource
-from app.crm.schemas import OpportunityOut, TaskOut
+from app.crm.schemas import OpportunityOut, RelationshipOut, TaskOut
 from app.discovery.csv_import import csv_safe
 
 router = APIRouter(prefix="/accounts", tags=["accounts"])
@@ -171,7 +171,11 @@ async def account_360(account_id: uuid.UUID, user: Member, db: DbSession) -> Acc
             OpportunityOut.of(o, reasons, labels=found["labels"])
             for o, reasons in found["opportunities"]
         ],
-        contacts=[ContactOut.of(c) for c in found["contacts"]],
+        contacts=[
+            ContactOut.of(c, RelationshipOut.of(found["relationships"][c.id]))
+            for c in found["contacts"]
+        ],
+        relationship=RelationshipOut.of(found["relationship"]),
         tasks=[
             TaskOut.of(t, owner_name=names.get(t.owner_id) if t.owner_id else None)
             for t in found["tasks"]

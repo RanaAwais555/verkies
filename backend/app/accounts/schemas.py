@@ -7,7 +7,7 @@ from typing import Any
 from pydantic import BaseModel
 
 from app.accounts.models import Account, Contact
-from app.crm.schemas import OpportunityOut, TaskOut
+from app.crm.schemas import OpportunityOut, RelationshipOut, TaskOut
 from app.research.models import ResearchRun
 
 SCORES = (
@@ -89,25 +89,33 @@ class ContactOut(BaseModel):
     id: uuid.UUID
     name: str
     title: str | None
+    department: str | None = None
     email: str | None
     phone: str | None
+    linkedin_url: str | None = None
+    notes: str | None = None
     decision_maker_role: str | None
     verification_status: str
     source: str
     source_url: str | None
     collected_at: datetime
     confidence: float
+    relationship: RelationshipOut | None = None
 
     @classmethod
-    def of(cls, c: Contact) -> "ContactOut":
+    def of(cls, c: Contact, relationship: RelationshipOut | None = None) -> "ContactOut":
         return cls(
             id=c.id,
             name=c.name,
             title=c.title,
+            department=c.department,
             email=c.email,
             phone=c.phone,
-            decision_maker_role=c.decision_maker_role.value if c.decision_maker_role else None,
-            verification_status=c.verification_status.value,
+            linkedin_url=c.linkedin_url,
+            notes=c.notes,
+            relationship=relationship,
+            decision_maker_role=str(c.decision_maker_role) if c.decision_maker_role else None,
+            verification_status=str(c.verification_status),
             source=c.source,
             source_url=c.source_url,
             collected_at=c.collected_at,
@@ -152,6 +160,9 @@ class Account360Out(AccountSummaryOut):
     tasks: list[TaskOut]
     research_runs: list[RunSummaryOut]
     latest_brief_run_id: uuid.UUID | None
+    # The follow-up engine's tracking for the whole account (§12): last contact, attempts and
+    # response status across everyone there. Next follow-up is `next_activity_at`.
+    relationship: RelationshipOut
 
 
 class TimelineEventOut(BaseModel):

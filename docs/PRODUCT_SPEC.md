@@ -53,6 +53,14 @@ Bulk discovery, external company registries, job-board and news signals, monitor
 - An open deal without an open next task, an owner or an expected close date is flagged on its card, in the spirit of §12's next-action engine.
 - The forecast shows total pipeline, weighted pipeline, expected value by close month, and won and lost value, each from the deals themselves.
 
+### Phase 3, slice 3.2: activities and contacts (§12)
+
+- A person logs a call, meeting, note or manual message after it happened, against an account and optionally a contact, an opportunity and a deal. A call records how it went (connected, no answer, voicemail); a message records its channel (email, LinkedIn, WhatsApp, other) and who sent it. Activities cannot be in the future and are never edited; a correction is a new note. VROS records; it never contacts anyone itself.
+- Each activity appears on the account timeline at the moment it happened, is audited, and updates the account's last activity. A follow-up task can be scheduled in the same step; it becomes the next task of the deal or opportunity the activity is about.
+- People can be added to an account and edited. A person added by hand is sourced "manual" and stays unverified until someone marks them verified. An address or domain on the suppression list cannot be added; the same email cannot be added twice to one account.
+- Relationship tracking per person and per account is computed from the activities on every read, never stored: first and latest interaction, the number of interactions, days since contact, and the response status. A reply is an inbound message or a conversation (a connected call or a meeting); an outbound message or an unanswered call is an attempt; a note is neither. The status is not contacted, no reply yet, awaiting reply (they replied before, we have reached out since) or replied. Sentiment and relationship strength are not inferred.
+- The follow-up engine flags four things, each computed from data: an **overdue follow-up** (an open task past its due date); **no next action** (an open opportunity without an owned, dated next action; won, lost and inactive deals no longer count); a **stale opportunity** (an open opportunity with no deal and nothing logged, completed or created for `VROS_STALE_OPPORTUNITY_DAYS`, default 14); an **inactive deal** (an open deal with no activity, completed task or stage move for `VROS_INACTIVE_DEAL_DAYS`, default 21). A deal is flagged instead of its opportunity once one is opened. Home lists the flags for everyone or just the user's own.
+
 ## 4. Acceptance: Definition of Done (§20) mapped to tests
 
 | Requirement | Verified by |

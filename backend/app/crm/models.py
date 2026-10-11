@@ -15,6 +15,7 @@ from sqlalchemy.orm import Mapped, mapped_column
 
 from app.core.enums import (
     ActivityChannel,
+    ActivityDirection,
     LeadStatus,
     PriorityBand,
     RejectionReason,
@@ -122,13 +123,27 @@ class Task(IdMixin, TimestampMixin, SoftDeleteMixin, Base):
 
 
 class Activity(IdMixin, CreatedMixin, Base):
+    """Something that happened with an account: a call, meeting, note or message (slice 3.2).
+
+    Logged activities are never edited; a correction is a new note. `activity_type` holds the
+    `ActivityKind`, and `payload` keeps kind-specific detail such as a call's outcome.
+    """
+
     __tablename__ = "activities"
+    __table_args__ = (
+        Index("ix_activities_account_time", "account_id", "occurred_at"),
+        Index("ix_activities_contact_time", "contact_id", "occurred_at"),
+    )
 
     account_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("accounts.id"), index=True)
     contact_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("contacts.id"))
     lead_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("leads.id"))
-    opportunity_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("opportunities.id"))
+    opportunity_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("opportunities.id"), index=True
+    )
+    deal_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("deals.id"), index=True)
     channel: Mapped[ActivityChannel] = mapped_column(text_enum(ActivityChannel))
+    direction: Mapped[ActivityDirection] = mapped_column(text_enum(ActivityDirection))
     activity_type: Mapped[str] = mapped_column(String(60))
     occurred_at: Mapped[datetime]
     actor_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("users.id"))
