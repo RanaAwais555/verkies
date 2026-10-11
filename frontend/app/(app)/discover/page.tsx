@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { type ChangeEvent, type FormEvent, type ReactNode } from "react";
 
-import { Badge, Button, Empty, ErrorNote, Field, inputClass, PageHeader, Panel, Skeleton, Spinner } from "@/components/ui";
+import { Badge, Button, controlClass, Empty, ErrorNote, Field, inputClass, PageHeader, Panel, Skeleton, Spinner } from "@/components/ui";
 import { api } from "@/lib/client";
 import { formatDate } from "@/lib/format";
 import { useAction, useApi } from "@/lib/hooks";
@@ -69,12 +69,12 @@ function WebSearch({ provider }: { provider: ProviderStatus }) {
       {provider.status !== "ok" ? (
         <Unavailable provider={provider} />
       ) : (
-        <form onSubmit={submit} className="flex flex-wrap gap-2">
-          <span className="relative min-w-64 flex-1">
+        <form onSubmit={submit} className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_auto_auto]">
+          <span className="relative">
             <Search aria-hidden className="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-fg-3" />
             <input name="query" required minLength={3} maxLength={200} aria-label="Search query" placeholder="What kind of companies?" className={`${inputClass} pl-8`} />
           </span>
-          <select name="pages" defaultValue="1" aria-label="Result pages" className={`${inputClass} w-auto`}>
+          <select name="pages" defaultValue="1" aria-label="Result pages" className={controlClass}>
             <option value="1">1 page of results</option>
             <option value="2">2 pages</option>
             <option value="3">3 pages</option>
@@ -125,14 +125,14 @@ function RegistrySearch({ provider }: { provider: ProviderStatus }) {
       {provider.status !== "ok" ? (
         <Unavailable provider={provider} />
       ) : (
-        <form onSubmit={submit} className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-          <Field label="SIC codes" hint={SIC_HINTS}>
+        <form onSubmit={submit} className="grid gap-3 sm:grid-cols-2 2xl:grid-cols-4">
+          <Field label="SIC codes">
             <input name="sic" required placeholder="69102, 69109" className={inputClass} />
           </Field>
           <Field label="Location">
             <input name="location" placeholder="e.g. Leeds" maxLength={80} className={inputClass} />
           </Field>
-          <Field label="Incorporated before" hint="Optional, e.g. 3+ years ago">
+          <Field label="Incorporated before (optional)">
             <input name="before" type="date" className={inputClass} />
           </Field>
           <Field label="How many">
@@ -144,7 +144,8 @@ function RegistrySearch({ provider }: { provider: ProviderStatus }) {
               ))}
             </select>
           </Field>
-          <div className="space-y-3 sm:col-span-2 xl:col-span-4">
+          <p className="text-xs leading-relaxed text-fg-3 sm:col-span-2 2xl:col-span-4">Common codes: {SIC_HINTS}. Any 5-digit code works.</p>
+          <div className="space-y-3 sm:col-span-2 2xl:col-span-4">
             <Button type="submit" busy={busy} icon={<Search className="h-4 w-4" />}>
               Find companies
             </Button>

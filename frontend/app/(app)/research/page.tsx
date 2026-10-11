@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useState } from "react";
 
 import { ResearchForm } from "@/components/research/research-form";
-import { Empty, ErrorNote, inputClass, PageHeader, Panel, Skeleton, StatusBadge, Table } from "@/components/ui";
+import { Empty, ErrorNote, controlClass, PageHeader, Panel, Skeleton, StatusBadge, Table } from "@/components/ui";
 import { withQuery } from "@/lib/client";
 import { formatDate } from "@/lib/format";
 import { can, useApi, useSession } from "@/lib/hooks";
@@ -39,9 +39,9 @@ export default function LeadIntelligencePage() {
           <div className="flex flex-wrap gap-2">
             <span className="relative">
               <Search aria-hidden className="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-fg-3" />
-              <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search by domain" aria-label="Search by domain" className={`${inputClass} w-56 pl-8`} />
+              <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search by domain" aria-label="Search by domain" className={`${controlClass} w-56 pl-8`} />
             </span>
-            <select value={review} onChange={(e) => setReview(e.target.value)} aria-label="Review status" className={`${inputClass} w-44`}>
+            <select value={review} onChange={(e) => setReview(e.target.value)} aria-label="Review status" className={`${controlClass} w-44`}>
               <option value="">Any decision</option>
               <option value="pending">Awaiting review</option>
               <option value="approved">Approved</option>

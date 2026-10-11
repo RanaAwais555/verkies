@@ -3,7 +3,7 @@
 import { Check, Copy, KeyRound, Link2, Pencil, UserPlus, X } from "lucide-react";
 import { useState, type FormEvent } from "react";
 
-import { Badge, Button, Checkbox, Empty, ErrorNote, Field, inputClass, PageHeader, Panel, Skeleton, SourceLink, Success, Tabs } from "@/components/ui";
+import { Badge, Button, Checkbox, Empty, ErrorNote, Field, inputClass, PageHeader, Panel, ProfileCard, Skeleton, SourceLink, Success, Tabs } from "@/components/ui";
 import { cx } from "@/components/ui/cx";
 import { api } from "@/lib/client";
 import { formatDate, initials, label, relativeDate } from "@/lib/format";
@@ -34,31 +34,20 @@ function Profile({ user }: { user: User }) {
   }
 
   return (
-    <div className="grid items-start gap-5 lg:grid-cols-2">
-      <Panel title="You">
-        <div className="mb-4 flex items-center gap-3">
-          <span aria-hidden className="grid h-11 w-11 place-items-center rounded-full bg-accent-soft text-sm font-semibold text-accent-text">
-            {initials(user.name)}
-          </span>
-          <div className="min-w-0">
-            <p className="font-medium text-fg">{user.name}</p>
-            <p className="truncate text-[13px] text-fg-3">{user.email}</p>
-          </div>
-        </div>
-        <dl className="grid grid-cols-[6.5rem_minmax(0,1fr)] gap-y-2.5 text-[13px]">
-          <dt className="text-fg-3">Roles</dt>
-          <dd className="flex flex-wrap gap-1">
-            {user.roles.map((r) => (
-              <Badge key={r} tone="accent">
-                {label(r)}
-              </Badge>
-            ))}
-          </dd>
-          <dt className="text-fg-3">Last sign-in</dt>
-          <dd className="text-fg">{formatDate(user.last_login_at, true)}</dd>
-        </dl>
-      </Panel>
-      <Panel title="Change password">
+    <div className="space-y-4">
+      <ProfileCard
+        round
+        tile={<span aria-hidden>{initials(user.name)}</span>}
+        title={user.name}
+        badges={user.roles.map((r) => (
+          <Badge key={r} tone="accent">
+            {label(r)}
+          </Badge>
+        ))}
+        tagline={user.email}
+        meta={<span>Last sign-in {formatDate(user.last_login_at, true)}</span>}
+      />
+      <Panel title="Change password" className="max-w-2xl">
         <form onSubmit={change} className="space-y-3">
           <Field label="Current password">
             <input name="current_password" type="password" required autoComplete="current-password" className={inputClass} />
@@ -131,51 +120,7 @@ function Team({ me }: { me: User }) {
   if (usersError) return <ErrorNote error={usersError} />;
   return (
     <div className="flex flex-wrap items-start gap-5">
-      <div className="flex min-w-0 flex-[2_1_520px] flex-col gap-5">
-        <Panel title={users ? `Members (${users.length})` : "Members"} primary>
-          {!users ? (
-            <Skeleton rows={4} />
-          ) : (
-            <ul className="divide-y divide-grid">
-              {users.map((u) => (
-                <li key={u.id} className={cx("space-y-2 py-3 first:pt-0 last:pb-0", !u.is_active && "opacity-60")}>
-                  <div className="flex flex-wrap items-center gap-2.5">
-                    <span aria-hidden className="grid h-8 w-8 place-items-center rounded-full bg-accent-soft text-[11px] font-semibold text-accent-text">
-                      {initials(u.name)}
-                    </span>
-                    <div className="min-w-0 flex-1">
-                      <p className="flex flex-wrap items-center gap-2 font-medium text-fg">
-                        {u.name}
-                        {u.id === me.id && <Badge>You</Badge>}
-                        {!u.is_active && <Badge tone="red">Deactivated</Badge>}
-                      </p>
-                      <p className="text-xs text-fg-3">
-                        {u.email} · last sign-in {u.last_login_at ? relativeDate(u.last_login_at) : "never"}
-                      </p>
-                    </div>
-                    {u.id !== me.id && (
-                      <Button variant={u.is_active ? "ghost" : "secondary"} onClick={() => update(u, { is_active: !u.is_active })}>
-                        {u.is_active ? "Deactivate" : "Reactivate"}
-                      </Button>
-                    )}
-                  </div>
-                  <div className="ml-[42px] flex flex-wrap gap-x-4 gap-y-1.5">
-                    {roles?.map((r) => (
-                      <Checkbox
-                        key={r.key}
-                        label={r.name}
-                        className="text-xs"
-                        checked={u.roles.includes(r.key)}
-                        onChange={(e) => update(u, { roles: e.target.checked ? [...u.roles, r.key] : u.roles.filter((k) => k !== r.key) })}
-                      />
-                    ))}
-                  </div>
-                </li>
-              ))}
-            </ul>
-          )}
-        </Panel>
-      </div>
+      {/* The invite form comes first: it is what an admin comes here to do. */}
       <div className="flex min-w-0 flex-[1_1_320px] flex-col gap-5">
         <Panel title="Invite a team member" description="Sign-up is by invitation only.">
           <form onSubmit={invite} className="space-y-3">
@@ -220,6 +165,51 @@ function Team({ me }: { me: User }) {
                   >
                     Revoke
                   </Button>
+                </li>
+              ))}
+            </ul>
+          )}
+        </Panel>
+      </div>
+      <div className="flex min-w-0 flex-[2_1_520px] flex-col gap-5">
+        <Panel title={users ? `Members (${users.length})` : "Members"} primary>
+          {!users ? (
+            <Skeleton rows={4} />
+          ) : (
+            <ul className="divide-y divide-grid">
+              {users.map((u) => (
+                <li key={u.id} className={cx("space-y-2 py-3 first:pt-0 last:pb-0", !u.is_active && "opacity-60")}>
+                  <div className="flex flex-wrap items-center gap-2.5">
+                    <span aria-hidden className="grid h-8 w-8 place-items-center rounded-full bg-accent-soft text-[11px] font-semibold text-accent-text">
+                      {initials(u.name)}
+                    </span>
+                    <div className="min-w-0 flex-1">
+                      <p className="flex flex-wrap items-center gap-2 font-medium text-fg">
+                        {u.name}
+                        {u.id === me.id && <Badge>You</Badge>}
+                        {!u.is_active && <Badge tone="red">Deactivated</Badge>}
+                      </p>
+                      <p className="text-xs text-fg-3">
+                        {u.email} · last sign-in {u.last_login_at ? relativeDate(u.last_login_at) : "never"}
+                      </p>
+                    </div>
+                    {u.id !== me.id && (
+                      <Button variant={u.is_active ? "ghost" : "secondary"} onClick={() => update(u, { is_active: !u.is_active })}>
+                        {u.is_active ? "Deactivate" : "Reactivate"}
+                      </Button>
+                    )}
+                  </div>
+                  <div className="ml-[42px] flex flex-wrap gap-x-4 gap-y-1.5">
+                    {roles?.map((r) => (
+                      <Checkbox
+                        key={r.key}
+                        label={r.name}
+                        className="text-xs"
+                        checked={u.roles.includes(r.key)}
+                        onChange={(e) => update(u, { roles: e.target.checked ? [...u.roles, r.key] : u.roles.filter((k) => k !== r.key) })}
+                      />
+                    ))}
+                  </div>
                 </li>
               ))}
             </ul>

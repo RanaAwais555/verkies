@@ -26,13 +26,13 @@ function kindOf(eventType: string) {
 }
 
 /** Everything that happened on an account, newest first, on a vertical rail. */
-export function Timeline({ accountId }: { accountId: string }) {
-  const { data, error } = useApi<TimelineEvent[]>(`/accounts/${accountId}/timeline?limit=500`);
+export function Timeline({ accountId, limit = 500, testId = "timeline" }: { accountId: string; limit?: number; testId?: string }) {
+  const { data, error } = useApi<TimelineEvent[]>(`/accounts/${accountId}/timeline?limit=${limit}`);
   if (error) return <ErrorNote error={error} />;
   if (!data) return <Skeleton rows={6} />;
   if (data.length === 0) return <Empty>Nothing has happened on this account yet.</Empty>;
   return (
-    <ol className="relative" data-testid="timeline">
+    <ol className="relative" data-testid={testId}>
       {data.map((e, i) => {
         const { icon: Icon, tint } = kindOf(e.event_type);
         return (

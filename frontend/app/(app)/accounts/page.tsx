@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useState } from "react";
 
-import { BandBadge, Empty, ErrorNote, inputClass, PageHeader, Panel, ScoreChip, Skeleton, Table } from "@/components/ui";
+import { BandBadge, Empty, ErrorNote, controlClass, PageHeader, Panel, ScoreChip, Skeleton, Table } from "@/components/ui";
 import { withQuery } from "@/lib/client";
 import { formatDate, label, relativeDate } from "@/lib/format";
 import { useApi } from "@/lib/hooks";
@@ -50,9 +50,9 @@ export default function AccountsPage() {
           <div className="flex flex-wrap gap-2">
             <span className="relative">
               <Search aria-hidden className="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-fg-3" />
-              <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Name or domain" aria-label="Search accounts" className={`${inputClass} w-56 pl-8`} />
+              <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Name or domain" aria-label="Search accounts" className={`${controlClass} w-56 pl-8`} />
             </span>
-            <select value={type} onChange={(e) => setType(e.target.value)} aria-label="Account type" className={`${inputClass} w-44`}>
+            <select value={type} onChange={(e) => setType(e.target.value)} aria-label="Account type" className={`${controlClass} w-44`}>
               <option value="">Any type</option>
               <option value="prospect">Prospect</option>
               <option value="qualified_prospect">Qualified prospect</option>
@@ -63,7 +63,7 @@ export default function AccountsPage() {
               <option value="competitor">Competitor</option>
               <option value="suppressed">Suppressed</option>
             </select>
-            <select value={owner} onChange={(e) => setOwner(e.target.value)} aria-label="Owner" className={`${inputClass} w-40`}>
+            <select value={owner} onChange={(e) => setOwner(e.target.value)} aria-label="Owner" className={`${controlClass} w-40`}>
               <option value="">Any owner</option>
               <option value="me">Mine</option>
               <option value="unassigned">Unassigned</option>

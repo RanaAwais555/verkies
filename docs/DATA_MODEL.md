@@ -124,9 +124,16 @@ As implemented (slice 1.6):
 - Contacts are de-duplicated by name within the account.
 - Identifier matching arrives with the registries in Phase 2.
 
+Duplicate review and merge (slice 2.6, migration `0013`):
+- `GET /account-duplicates` suggests live account pairs with similar names (`pg_trgm` ≥ 0.6), the same legal name, or the same website name under a different ending (`harbour.test` / `harbour.co.uk`). Pairs a reviewer marked as different companies (`account_duplicate_dismissals`, one row per pair, smaller id first) are not suggested again.
+- `POST /accounts/{keep}/merge` (permission `accounts.merge`: Admin, Founder, Sales Manager; a reason is required) moves the mutable rows to the kept account: domains (as extra domains), identifiers, contacts, leads, opportunities, tasks, activities, research runs, lead briefs and discovery matches. The kept account takes any field it has no value for, the earlier next activity and the later last activity. Everything happens in one transaction with an `account.merged` audit entry and a timeline event.
+- Evidence, claims, observations, score snapshots and timeline events are append-only (§6), so they stay on the retired account. It is soft-deleted with `merged_into_id` pointing at the survivor (chains are re-pointed, so one level), and the survivor's timeline and audit read include it. Opening a retired account returns `404` with code `merged` and `details.merged_into`, which the app follows.
+
 ## 4. Search
 
 `pg_trgm` indexes on account names and domains exist from Phase 1 (duplicate detection). `tsvector` generated columns and the single `search` service fanning out over accounts, contacts, leads, opportunities, tasks and evidence (§16) are added in the slice that builds global search.
+
+Lead search (slice 2.6, `backend/app/leads`): `GET /leads/search?q=` reads a plain-English request with deterministic rules (`interpret.py`, no AI) into filters over accounts: industry, city, country, opportunity categories (any of), dated buying signals (each one required, within a window), priority band, account type and owner. Words that match no rule become a visible "name, industry or description mentions" filter; requests that cannot be answered yet (similarity to a client) are reported as unsupported, never guessed. `GET /leads/top` is the same ranking restricted to open, scored prospects outside the Reject band and the suppression list. Results are ordered by the stored priority score (then timing, data confidence, least recently touched), and each one is explained from its latest score snapshot's breakdown, dated signals with their source, and open opportunities.
 
 ## 5. Tables added in later phases (names reserved)
 

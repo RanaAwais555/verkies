@@ -1,6 +1,6 @@
 "use client";
 
-import { RotateCcw, Square } from "lucide-react";
+import { Globe, RotateCcw, Square } from "lucide-react";
 import { useParams } from "next/navigation";
 import { useState } from "react";
 
@@ -11,7 +11,7 @@ import { IntelligenceView } from "@/components/research/intelligence";
 import { Outcome } from "@/components/research/outcome";
 import { PagesView } from "@/components/research/pages";
 import { Progress } from "@/components/research/progress";
-import { Button, ErrorNote, PageHeader, Skeleton, SourceLink, StatusBadge, Tabs, TextLink } from "@/components/ui";
+import { Button, ErrorNote, ProfileCard, Skeleton, SourceLink, StatusBadge, Tabs, TextLink } from "@/components/ui";
 import { api } from "@/lib/client";
 import { formatDate } from "@/lib/format";
 import { can, useAction, useApi, useSession, useTab } from "@/lib/hooks";
@@ -45,22 +45,38 @@ export default function ResearchRunPage() {
   const reviewable = completed && run.review_status === "pending" && reviewer && brief && assessment;
 
   return (
-    <div className="space-y-5">
-      <PageHeader
-        eyebrow="Lead Intelligence"
+    <div className="space-y-4">
+      <ProfileCard
+        tile={<Globe aria-hidden className="h-8 w-8" />}
         title={run.normalised_domain}
+        tagline={brief?.summary.company ?? (completed ? undefined : "Research in progress. The brief appears here when it is ready.")}
+        tabs={
+          completed && (
+            <Tabs
+              label="Research"
+              active={tab}
+              onChange={setTab}
+              tabs={[
+                { key: "brief", label: "Lead brief" },
+                { key: "assessment", label: "Opportunities and scores" },
+                { key: "intelligence", label: "Intelligence" },
+                { key: "pages", label: "Pages crawled" },
+              ]}
+            />
+          )
+        }
         badges={
           <>
             <StatusBadge status={run.status} />
             <StatusBadge status={run.review_status} />
           </>
         }
-        description={
-          <span className="flex flex-wrap items-center gap-x-2 gap-y-1">
+        meta={
+          <>
             <SourceLink url={run.input_url} />
-            <span className="text-fg-3">· started {formatDate(run.created_at, true)}</span>
-            {run.retry_count > 0 && <span className="text-fg-3">· attempt {run.retry_count + 1}</span>}
-          </span>
+            <span>Started {formatDate(run.created_at, true)}</span>
+            {run.retry_count > 0 && <span>Attempt {run.retry_count + 1}</span>}
+          </>
         }
         actions={
           <>
@@ -96,17 +112,6 @@ export default function ResearchRunPage() {
       )}
       {completed && (
         <>
-          <Tabs
-            label="Research"
-            active={tab}
-            onChange={setTab}
-            tabs={[
-              { key: "brief", label: "Lead brief" },
-              { key: "assessment", label: "Opportunities and scores" },
-              { key: "intelligence", label: "Intelligence" },
-              { key: "pages", label: "Pages crawled" },
-            ]}
-          />
           {tab === "brief" && (brief ? <BriefView brief={brief} /> : <Skeleton rows={8} />)}
           {tab === "assessment" && (assessment ? <AssessmentView assessment={assessment} /> : <Skeleton rows={6} />)}
           {tab === "intelligence" && <IntelligenceView runId={id} />}
