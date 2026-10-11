@@ -26,7 +26,7 @@ Phases follow §20. Phase 1 must work reliably end to end before any later phase
 | 2.3 Company registries ✅ | Companies House (free API key) and Wikidata: identifiers, status, incorporation date, SIC codes, officers as decision makers | Registry facts cited as evidence; dissolved companies rejected as inactive |
 | 2.4 Web search discovery ✅ | Self-hosted SearXNG (optional Compose profile) finds candidate company websites; results become a discovery job checked like an import | Provider tests with a fake transport; endpoint tests with a fake provider; browser test against a fake SearXNG |
 | 2.5 Companies House depth and registry discovery ✅ | Filing history (size from the accounts type; dated director appointments, name changes, share allotments, charges as signals), people with significant control, insolvency/dormant review flags; discovery by SIC code, location and age with websites accepted only when they show the same company number | Parser tests, the depth flowing into scores, people, ICP and the brief; discovery end to end against a fake register and local sites |
-| 2.6 Search, top leads and duplicates | Plain-English search turned into filters over what VROS knows, "find my next 20 leads" ranking, duplicate review and account merge | Each lead's rank explained; merges audited |
+| 2.6 Search, top leads and duplicates ✅ | Plain-English search turned into filters over what VROS knows, "find my next 20 leads" ranking, duplicate review and account merge | Each lead's rank explained; merges audited |
 
 ## Later phases
 

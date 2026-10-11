@@ -1,8 +1,8 @@
 "use client";
 
 import { AlertTriangle, ArrowRight, Globe, ListChecks, Plus, UserRound } from "lucide-react";
-import { useParams } from "next/navigation";
-import { useState } from "react";
+import { useParams, useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
 
 import { EditTask, isOpen, NewTaskForm, TaskRow } from "@/components/crm/tasks";
 import { Timeline } from "@/components/crm/timeline";
@@ -24,6 +24,7 @@ import {
   Tabs,
   TextLink,
 } from "@/components/ui";
+import { ApiError } from "@/lib/client";
 import { formatDate, initials, label, percent } from "@/lib/format";
 import { can, useApi, useSession, useTab } from "@/lib/hooks";
 import type { Account360, AuditEntry } from "@/lib/types";
@@ -295,6 +296,13 @@ export default function AccountPage() {
   const { data: session } = useSession();
   const { data: account, error, mutate } = useApi<Account360>(`/accounts/${id}`);
   const [tab, setTab] = useTab("overview");
+  const router = useRouter();
+  // A link to an account that was merged away: go to the account it was merged into.
+  const mergedInto = error instanceof ApiError && error.code === "merged" ? String(error.details?.merged_into ?? "") : "";
+  useEffect(() => {
+    if (mergedInto) router.replace(`/accounts/${mergedInto}`);
+  }, [mergedInto, router]);
+  if (mergedInto) return <Skeleton rows={8} />;
   if (error) return <ErrorNote error={error} />;
   if (!account) return <Skeleton rows={8} />;
 

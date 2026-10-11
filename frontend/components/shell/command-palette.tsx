@@ -1,6 +1,6 @@
 "use client";
 
-import { CornerDownLeft, LogOut, Moon, Search, Sun, X, type LucideIcon } from "lucide-react";
+import { CornerDownLeft, LogOut, Moon, Search, Sun, Target, X, type LucideIcon } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from "react";
 
@@ -61,6 +61,17 @@ export function CommandPalette({ session, open, onClose, onSignOut }: { session:
           icon: Search,
           run: () => {
             router.push(`/accounts?q=${encodeURIComponent(query.trim())}`);
+            onClose();
+          },
+        },
+        {
+          id: "leads",
+          group: "Search",
+          label: `Find leads: “${query.trim()}”`,
+          hint: "Plain-English search, ranked with reasons",
+          icon: Target,
+          run: () => {
+            router.push(`/leads?q=${encodeURIComponent(query.trim())}`);
             onClose();
           },
         },

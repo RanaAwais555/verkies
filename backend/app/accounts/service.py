@@ -6,7 +6,7 @@ from typing import Any
 from sqlalchemy import Select, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.accounts import access
+from app.accounts import access, merge
 from app.accounts.models import Account, AccountDomain, Contact
 from app.audit.models import AuditLog
 from app.auth.models import User
@@ -56,6 +56,13 @@ async def list_accounts(
 
 async def get_account(db: AsyncSession, *, user: User, account_id: uuid.UUID) -> Account:
     account = await db.get(Account, account_id)
+    if account is not None and account.merged_into_id is not None:
+        # An old link to a merged account: say where it went, so the client can follow.
+        raise NotFound(
+            "This account was merged into another.",
+            code="merged",
+            details={"merged_into": str(account.merged_into_id)},
+        )
     if (
         account is None
         or account.deleted_at is not None
@@ -138,11 +145,13 @@ async def user_names(db: AsyncSession, ids: set[uuid.UUID]) -> dict[uuid.UUID, s
 
 
 async def timeline_of(db: AsyncSession, account_id: uuid.UUID, limit: int) -> list[TimelineEvent]:
+    """The account's timeline, including the history of accounts merged into it."""
+    ids = await merge.family_ids(db, account_id)
     return list(
         (
             await db.execute(
                 select(TimelineEvent)
-                .where(TimelineEvent.account_id == account_id)
+                .where(TimelineEvent.account_id.in_(ids))
                 .order_by(TimelineEvent.occurred_at.desc(), TimelineEvent.id.desc())
                 .limit(limit)
             )
@@ -152,7 +161,7 @@ async def timeline_of(db: AsyncSession, account_id: uuid.UUID, limit: int) -> li
 
 async def audit_of(db: AsyncSession, account: Account, limit: int) -> list[AuditLog]:
     """Audit entries for the account and everything hanging off it."""
-    related: list[uuid.UUID] = [account.id]
+    related: list[uuid.UUID] = await merge.family_ids(db, account.id)
     for model in (Lead, Opportunity, Task, Contact, ResearchRun):
         related += list(
             (await db.execute(select(model.id).where(model.account_id == account.id))).scalars()
