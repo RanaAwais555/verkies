@@ -9,6 +9,7 @@ the internal hostnames (Prometheus on the Docker network, or localhost): Caddy f
   review, open monitoring alerts, overdue tasks, jobs waiting in the Celery queue.
 - The worker: task successes, failures, retries and time spent, and when each task last
   succeeded (app.observability.worker), so a daily job that stops running can raise an alert.
+- Backups (slice 7.2): when each backup step last succeeded and whether its latest run failed.
 
 Counts only: no names, emails, URLs or other personal data are ever labels.
 """
@@ -37,6 +38,7 @@ from app.db import get_sessionmaker
 from app.monitoring.models import MonitorAlert
 from app.observability.worker import LAST_SUCCESS_KEY, TASKS_KEY
 from app.research.models import ResearchRun
+from app.system import backups
 
 METRICS_PATH = "/metrics"
 CELERY_QUEUE = "celery"
@@ -128,6 +130,19 @@ async def live_metrics(settings: Settings) -> bytes:
                     )
                 ).scalar_one()
             )
+            last_ok = gauge(
+                "vros_backup_last_success_timestamp_seconds",
+                "When each backup step last succeeded (Unix time).",
+                ("kind",),
+            )
+            failing = gauge(
+                "vros_backup_last_failed", "1 when a backup step's latest run failed.", ("kind",)
+            )
+            for s in await backups.status(db):
+                if s.last_ok is not None:
+                    last_ok.labels(s.kind).set(s.last_ok.finished_at.timestamp())
+                if s.latest is not None:
+                    failing.labels(s.kind).set(1 if s.latest.status == "failed" else 0)
         up.labels("database").set(1)
     except Exception:
         up.labels("database").set(0)

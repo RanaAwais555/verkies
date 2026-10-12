@@ -81,7 +81,7 @@ Tests cover each rule: every private, loopback, link-local, CGNAT, multicast, re
 - The size limit (`VROS_DOCUMENT_MAX_BYTES`, 10 MB) is enforced while the body is read, and Caddy limits request bodies to 10MB as well.
 - Files are stored under the SHA-256 of their bytes, never under a name a person typed; the hash is checked again on every download, so a file changed on disk is not served.
 - Downloads are always attachments with the recorded type, `X-Content-Type-Options: nosniff`, a sandboxing `Content-Security-Policy` and `Cache-Control: no-store`. VROS never renders an uploaded file.
-- A document is visible only to people who can see its account. Removing one hides it and is audited; the bytes stay in storage and the nightly backup (`ops/backup.sh` archives `storage/documents`).
+- A document is visible only to people who can see its account. Removing one hides it and is audited; the bytes stay in storage and the nightly backup (`ops/backup/backup.sh` archives `storage/documents`).
 
 ## 5. Audit
 
@@ -93,7 +93,7 @@ Append-only `audit_log` records user, time, object, action, old value, new value
 - Lawful basis note (B2B legitimate interest, UK GDPR / PECR) is recorded for contact data; a deletion/suppression path exists from Phase 1 (`suppressions`) so a person or domain can be removed and never re-added.
 - No scraping of LinkedIn and no stored LinkedIn credentials or cookies (§12A).
 - Outreach controls (opt-out, suppression, send caps, CAN-SPAM footer) arrive with Phase 3 per §12B and are listed in `ROADMAP.md`.
-- Backups, retention and disaster recovery: Phase 7.
+- Backups (slice 7.2): off-site copies are encrypted with age to a public key whose private half is kept offline by the owner, so the server and the storage provider cannot read them; the upload is refused when no key is set. Local copies are kept 14 days and off-site copies 30. A weekly drill proves the latest dump restores. Restores need the private key, which is copied to the server only for the restore and deleted after.
 
 ## 7. Logging and privacy
 

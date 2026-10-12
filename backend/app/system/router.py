@@ -1,13 +1,19 @@
 """/system/providers (PROVIDER_SPEC.md §5): which optional providers are switched on, so a
 missing key shows up as a degraded mode instead of silently missing data. Configuration only;
-nothing here makes an outside call."""
+nothing here makes an outside call.
 
-from typing import Literal
+/system/backups (slice 7.2): how the backup service's steps last went, for admins."""
 
-from fastapi import APIRouter
+from datetime import datetime
+from typing import Annotated, Literal
+
+from fastapi import APIRouter, Depends
 from pydantic import BaseModel
 
-from app.auth.deps import AppSettings, CurrentUser
+from app.auth.deps import AppSettings, CurrentUser, DbSession, require_permission
+from app.auth.models import User
+from app.system import backups
+from app.system.models import BackupRun
 
 router = APIRouter(prefix="/system", tags=["system"])
 
@@ -61,4 +67,47 @@ async def providers(_: CurrentUser, settings: AppSettings) -> list[ProviderStatu
             status="ok" if settings.wikidata_enabled else "off",
             detail="Company facts by official website" if settings.wikidata_enabled else "Off",
         ),
+    ]
+
+
+Admin = Annotated[User, Depends(require_permission("config.manage", "users.manage"))]
+
+
+class BackupRunOut(BaseModel):
+    status: Literal["ok", "failed", "skipped"]
+    started_at: datetime
+    finished_at: datetime
+    bytes: int | None
+    detail: str | None
+
+    @classmethod
+    def of(cls, run: BackupRun | None) -> "BackupRunOut | None":
+        if run is None:
+            return None
+        return cls(
+            status=run.status,  # type: ignore[arg-type]
+            started_at=run.started_at,
+            finished_at=run.finished_at,
+            bytes=run.bytes,
+            detail=run.detail,
+        )
+
+
+class BackupStatusOut(BaseModel):
+    kind: str
+    label: str
+    latest: BackupRunOut | None
+    last_ok: BackupRunOut | None
+
+
+@router.get("/backups")
+async def backup_status(_: Admin, db: DbSession) -> list[BackupStatusOut]:
+    return [
+        BackupStatusOut(
+            kind=s.kind,
+            label=backups.LABELS[s.kind],
+            latest=BackupRunOut.of(s.latest),
+            last_ok=BackupRunOut.of(s.last_ok),
+        )
+        for s in await backups.status(db)
     ]

@@ -61,3 +61,16 @@ export function money(value: number | null | undefined, currency = "GBP", unknow
     return `${currency} ${Math.round(value).toLocaleString("en-GB")}`;
   }
 }
+
+/** 1.2 MB, 340 KB: file sizes for people. */
+export function fileSize(bytes: number | null | undefined): string {
+  if (bytes === null || bytes === undefined) return "";
+  const units = ["bytes", "KB", "MB", "GB", "TB"];
+  let value = bytes;
+  let unit = 0;
+  while (value >= 1024 && unit < units.length - 1) {
+    value /= 1024;
+    unit += 1;
+  }
+  return unit === 0 ? `${value} bytes` : `${value.toFixed(value < 10 ? 1 : 0)} ${units[unit]}`;
+}

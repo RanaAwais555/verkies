@@ -7,9 +7,9 @@ import { Badge, Button, Checkbox, Empty, ErrorNote, Field, inputClass, PageHeade
 import { MailboxSettings } from "@/components/mail/mailbox-settings";
 import { cx } from "@/components/ui/cx";
 import { api } from "@/lib/client";
-import { formatDate, initials, label, relativeDate } from "@/lib/format";
+import { fileSize, formatDate, initials, label, relativeDate } from "@/lib/format";
 import { can, useAction, useApi, useSession, useTab } from "@/lib/hooks";
-import type { ConfigVersion, Invite, ProviderStatus, Readiness, ReferenceProject, Role, Service, User } from "@/lib/types";
+import type { BackupStatus, ConfigVersion, Invite, ProviderStatus, Readiness, ReferenceProject, Role, Service, User } from "@/lib/types";
 
 function Profile({ user }: { user: User }) {
   const { busy, error, run } = useAction();
@@ -479,6 +479,57 @@ function SystemStatus() {
   );
 }
 
+const BACKUP_TONE: Record<string, "green" | "red" | "neutral"> = { ok: "green", failed: "red", skipped: "neutral" };
+
+/** Slice 7.2: what the backup service last did. Runs only with the production Compose files. */
+function Backups() {
+  const { data, error } = useApi<BackupStatus[]>("/system/backups");
+  if (error) return <ErrorNote error={error} />;
+  const none = data?.every((b) => !b.latest);
+  return (
+    <Panel
+      title="Backups"
+      description="A nightly database dump and documents archive, an encrypted off-site copy, and a weekly test that restores the latest dump. See docs/DEPLOY_HETZNER.md §7."
+      testId="backups"
+    >
+      {!data ? (
+        <Skeleton rows={4} />
+      ) : none ? (
+        <p className="text-[13px] text-fg-3">No backups recorded. The backup service runs with the production Compose files (docker-compose.prod.yml).</p>
+      ) : (
+        <ul className="divide-y divide-grid">
+          {data.map((b) => (
+            <li key={b.kind} className="flex flex-wrap items-start gap-x-3 gap-y-1 py-3 first:pt-0 last:pb-0" data-testid="backup-row">
+              <span className="min-w-[10rem] font-medium text-fg">{b.label}</span>
+              <span className="min-w-0 flex-1 space-y-0.5 text-[13px]">
+                {b.latest ? (
+                  <>
+                    <span className="flex flex-wrap items-center gap-2">
+                      <Badge tone={BACKUP_TONE[b.latest.status]}>{label(b.latest.status)}</Badge>
+                      <span className="text-fg-2" title={formatDate(b.latest.finished_at, true)}>
+                        {relativeDate(b.latest.finished_at)}
+                      </span>
+                      {b.latest.bytes !== null && <span className="text-fg-3">{fileSize(b.latest.bytes)}</span>}
+                    </span>
+                    {b.latest.detail && <span className="block break-words text-xs text-fg-3">{b.latest.detail}</span>}
+                    {b.latest.status === "failed" && (
+                      <span className="block text-xs text-fg-3">
+                        Last success: {b.last_ok ? formatDate(b.last_ok.finished_at, true) : "never"}
+                      </span>
+                    )}
+                  </>
+                ) : (
+                  <span className="text-fg-3">Not run yet</span>
+                )}
+              </span>
+            </li>
+          ))}
+        </ul>
+      )}
+    </Panel>
+  );
+}
+
 export default function SettingsPage() {
   const { data: session } = useSession();
   const [tab, setTab] = useTab("profile");
@@ -509,6 +560,7 @@ export default function SettingsPage() {
       {tab === "system" && (
         <div className="space-y-5">
           <SystemStatus />
+          {can(session, "config.manage", "users.manage") && <Backups />}
           <Providers />
         </div>
       )}

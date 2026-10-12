@@ -38,6 +38,7 @@ from app.reports.models import SavedView
 from app.research.models import RawResponse, ResearchPage, ResearchRun, ResearchStage
 from app.scoring.models import ScoreSnapshot, ScoringConfig
 from app.similarity.models import SimilarityResult
+from app.system.models import BackupRun
 
 __all__ = [
     "Account",
@@ -47,6 +48,7 @@ __all__ = [
     "Activity",
     "AlertRule",
     "AuditLog",
+    "BackupRun",
     "Base",
     "Claim",
     "ClientFeedback",

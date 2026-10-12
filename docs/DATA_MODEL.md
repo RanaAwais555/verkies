@@ -253,3 +253,7 @@ Implemented in migration `0002_integrity_rules` and covered by `tests/integratio
 - At most one active `icp_configs` and one active `scoring_configs` row.
 - `service_matches` has at most one row per slot (primary, secondary, expansion), so at most three per run.
 - `leads.research_run_id` is unique (migration `0007`): a research run becomes at most one lead, so a prospect cannot be approved twice.
+
+## 4n. Operations (slice 7.2, migration `0029`)
+
+**backup_runs**: one row per backup step, written by `ops/backup/backup.sh` with psql (the id defaults in the database): `kind` (dump, documents, offsite, drill), `status` (ok, failed, skipped), `started_at`, `finished_at`, `bytes`, `detail` (the file, the remote, or what went wrong).

@@ -64,3 +64,27 @@ groups:
         annotations:
           summary: More than 50 jobs have waited for a worker for 30 minutes.
           description: Research is queued faster than one worker can run it.
+
+      - alert: VrosBackupLate
+        expr: time() - vros_backup_last_success_timestamp_seconds{kind="dump"} > 26 * 3600
+        for: 30m
+        labels: { severity: critical }
+        annotations:
+          summary: No database dump has succeeded for over 26 hours.
+          description: Check `docker compose logs backup` and Settings > System > Backups.
+
+      - alert: VrosBackupFailing
+        expr: vros_backup_last_failed == 1
+        for: 5m
+        labels: { severity: warning }
+        annotations:
+          summary: "The latest backup step {{ $labels.kind }} failed."
+          description: Settings > System > Backups shows what went wrong.
+
+      - alert: VrosRestoreDrillLate
+        expr: time() - vros_backup_last_success_timestamp_seconds{kind="drill"} > 8 * 86400
+        for: 1h
+        labels: { severity: warning }
+        annotations:
+          summary: No restore test has succeeded for over 8 days.
+          description: The backup service restores the latest dump once a week; check its log.
