@@ -17,6 +17,7 @@ from app.auth.tokens import new_token, tokens_match
 from app.config import Settings, get_settings
 from app.core.errors import NotAuthenticated, PermissionDenied
 from app.db import get_session
+from app.security import ratelimit
 
 CSRF_HEADER = "X-CSRF-Token"
 SAFE_METHODS = frozenset({"GET", "HEAD", "OPTIONS"})
@@ -64,7 +65,9 @@ async def current_session(request: Request, db: DbSession, settings: AppSettings
 CurrentSession = Annotated[UserSession, Depends(current_session)]
 
 
-async def current_user(session: CurrentSession) -> User:
+async def current_user(session: CurrentSession, settings: AppSettings) -> User:
+    # A brake on runaway scripts with a stolen or shared session (slice 7.3).
+    await ratelimit.hit(settings, "api", str(session.user_id))
     return session.user
 
 

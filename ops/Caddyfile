@@ -10,7 +10,9 @@
 		X-Content-Type-Options "nosniff"
 		X-Frame-Options "DENY"
 		Referrer-Policy "strict-origin-when-cross-origin"
-		Permissions-Policy "camera=(), microphone=(), geolocation=()"
+		Permissions-Policy "camera=(), microphone=(), geolocation=(), payment=(), usb=()"
+		Cross-Origin-Opener-Policy "same-origin"
+		Cross-Origin-Resource-Policy "same-origin"
 		-Server
 	}
 
@@ -19,10 +21,19 @@
 	}
 
 	handle /api/* {
+		# JSON only: nothing in an API response may run, load or be framed. "?" keeps a policy
+		# the API set itself (document downloads add a sandbox).
+		header ?Content-Security-Policy "default-src 'none'; frame-ancestors 'none'; base-uri 'none'"
+		header Cache-Control "no-store"
 		reverse_proxy api:8000
 	}
 
 	handle {
+		# Everything comes from this origin: fonts are self-hosted at build time and there are
+		# no outside scripts, images or frames. Scripts and styles allow 'unsafe-inline' because
+		# Next.js inlines its hydration data; no outside origin is allowed, eval is not, and
+		# crawled text is always rendered as text (SECURITY.md §4).
+		header Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; connect-src 'self'; worker-src 'self' blob:; frame-src 'none'; frame-ancestors 'none'; object-src 'none'; base-uri 'self'; form-action 'self'"
 		reverse_proxy frontend:3000
 	}
 }

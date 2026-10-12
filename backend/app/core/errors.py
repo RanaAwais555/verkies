@@ -51,4 +51,5 @@ def install_error_handlers(app: FastAPI) -> None:
         error: dict[str, Any] = {"code": exc.code, "message": exc.message}
         if exc.details is not None:
             error["details"] = exc.details
-        return JSONResponse(status_code=exc.status_code, content={"error": error})
+        headers = getattr(exc, "headers", None)  # e.g. Retry-After on 429
+        return JSONResponse(status_code=exc.status_code, content={"error": error}, headers=headers)

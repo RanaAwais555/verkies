@@ -61,6 +61,17 @@ class Settings(BaseSettings):
     # After this many consecutive wrong passwords the account is locked for the lockout period.
     login_max_failures: int = Field(default=5, gt=0)
     login_lockout_minutes: int = Field(default=15, gt=0)
+    # Rate limits (slice 7.3; app/security/ratelimit.py). Sign-in and invite links per client
+    # address per 10 minutes; password changes and research per person per hour; every API
+    # request per person per minute (a brake on runaway scripts, far above normal use).
+    rate_limits_enabled: bool = True
+    rate_limit_login_per_ip: int = Field(default=20, gt=0)
+    rate_limit_invite_per_ip: int = Field(default=20, gt=0)
+    rate_limit_password_changes_per_hour: int = Field(default=10, gt=0)
+    rate_limit_research_per_hour: int = Field(default=120, gt=0)
+    rate_limit_api_per_minute: int = Field(default=1200, gt=0)
+    # Refuse new passwords found in breaches (k-anonymity range API; app/security/breached.py).
+    breached_password_check: bool = True
 
     # Approval (PRODUCT_SPEC.md §5): the next-action task is due this many business days later.
     task_due_business_days: int = Field(default=2, ge=0, le=30)

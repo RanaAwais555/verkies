@@ -22,6 +22,7 @@ from app.auth.schemas import (
     UserOut,
 )
 from app.core.errors import NotAuthenticated
+from app.security import ratelimit
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
@@ -39,6 +40,7 @@ async def login(
     db: DbSession,
     settings: AppSettings,
 ) -> SessionOut:
+    await ratelimit.hit(settings, "login", _client(request)[0] or "unknown")
     try:
         user = await service.authenticate(
             db, email=body.email, password=body.password, settings=settings
@@ -69,7 +71,10 @@ async def me(user: CurrentUser, request: Request, settings: AppSettings) -> Sess
 
 
 @router.post("/password", status_code=status.HTTP_204_NO_CONTENT)
-async def change_password(body: PasswordChange, session: CurrentSession, db: DbSession) -> None:
+async def change_password(
+    body: PasswordChange, session: CurrentSession, db: DbSession, settings: AppSettings
+) -> None:
+    await ratelimit.hit(settings, "password", str(session.user.id))
     await service.change_password(
         db,
         user=session.user,
@@ -81,7 +86,10 @@ async def change_password(body: PasswordChange, session: CurrentSession, db: DbS
 
 
 @router.post("/invites/inspect")
-async def inspect_invite(body: InviteToken, db: DbSession, settings: AppSettings) -> InviteInfo:
+async def inspect_invite(
+    body: InviteToken, request: Request, db: DbSession, settings: AppSettings
+) -> InviteInfo:
+    await ratelimit.hit(settings, "invite", _client(request)[0] or "unknown")
     invite = await service.find_valid_invite(db, body.token, settings=settings)
     return InviteInfo(
         email=invite.email, roles=sorted(r.key for r in invite.roles), expires_at=invite.expires_at
@@ -96,6 +104,7 @@ async def accept_invite(
     db: DbSession,
     settings: AppSettings,
 ) -> SessionOut:
+    await ratelimit.hit(settings, "invite", _client(request)[0] or "unknown")
     user = await service.accept_invite(
         db, token=body.token, name=body.name, password=body.password, settings=settings
     )

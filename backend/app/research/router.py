@@ -28,6 +28,7 @@ from app.research.schemas import (
     ScoreOut,
     StartRun,
 )
+from app.security import ratelimit
 
 logger = logging.getLogger(__name__)
 
@@ -80,6 +81,7 @@ async def _enqueue_or_fail(db: DbSession, run_id: uuid.UUID, user: User, enqueue
 async def start(
     body: StartRun, user: Researcher, db: DbSession, settings: AppSettings, enqueue: Enqueuer
 ) -> RunOut:
+    await ratelimit.hit(settings, "research", str(user.id))
     run = await service.start_run(db, user=user, url=body.url, settings=settings)
     await db.commit()
     await _enqueue_or_fail(db, run.id, user, enqueue)

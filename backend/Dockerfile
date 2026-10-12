@@ -32,7 +32,9 @@ EXPOSE 8000
 # Behind Caddy: trust X-Forwarded-* from the proxy. The API port is never published in
 # production, so only Caddy can reach it.
 ENV FORWARDED_ALLOW_IPS="*"
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--proxy-headers"]
+# Trust X-Forwarded-For from any peer: only Caddy and the frontend can reach the API, and Caddy
+# replaces whatever a client sent with the address it saw (rate limits and sessions need it).
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--proxy-headers", "--forwarded-allow-ips", "*"]
 
 FROM api AS worker
 USER root

@@ -1,14 +1,15 @@
 # VROS Security
 
-Implements §17. Security for the user-submitted-URL crawler is Phase 1 scope; broader hardening and review are Phase 7.
+Implements §17. Security for the user-submitted-URL crawler is Phase 1 scope; the broader review was slice 7.3 (§9 lists what it found and what changed).
 
 ## 1. Authentication and sessions
 
 - **Invite-only team access.** There is no public sign-up. The first admin is created on the server with `python -m app.cli create-admin`. After that, admins invite teammates: each invite is bound to one email address, single-use, expires after 7 days, and carries the roles the teammate will get. A new invite to the same address replaces the pending one. The invite link puts the token in the URL fragment (`/invite#token=…`), which browsers never send to servers, so it does not appear in proxy or access logs. Until outreach email exists (Phase 3) the admin copies the link to the teammate. Admins can deactivate a user at any time, which ends all their sessions. VROS refuses to remove or deactivate the last active admin.
-- Email + password. Passwords hashed with Argon2id (rehashed on login when parameters change); never logged. Policy: 12-256 characters, not trivially repetitive, not containing the email name. A breached-password check is not implemented; it would need either a bundled list or an outside service and is tracked for Phase 7.
+- Email + password. Passwords hashed with Argon2id (rehashed on login when parameters change); never logged. Policy: 12-256 characters, not trivially repetitive, not containing the email name, and **not in a known data breach** (slice 7.3): every new password (first admin, invite, password change) is checked against the Pwned Passwords range API by k-anonymity, so only the first 5 characters of its SHA-1 hash leave the server and the match is made locally. If the service cannot be reached the password is accepted and a warning logged. `VROS_BREACHED_PASSWORD_CHECK=false` switches it off.
 - **Sessions are server-side.** The browser holds a random 256-bit token in an `HttpOnly`, `SameSite=Lax` cookie (`Secure` and `__Host-` prefixed over HTTPS); the database stores only its HMAC (keyed with `VROS_SECRET_KEY`). A session ends after 12 hours idle or 14 days in total (configurable), on logout, on deactivation, or when the user changes password (other sessions only). There are no JWTs, so revocation is immediate.
 - **CSRF:** double-submit token. A second, readable cookie holds a random token that the frontend echoes in `X-CSRF-Token` on every state-changing request; the API rejects a mismatch. `SameSite=Lax` is a second layer.
 - **Lockout:** after 5 consecutive wrong passwords the account is locked for 15 minutes (configurable). Every response to a failed sign-in is the same generic message, and an unknown email still costs a full hash, so attackers cannot tell which accounts exist. Every failure, including attempts during a lockout, is audited.
+- **Rate limits** (slice 7.3, Redis, fixed windows): sign-in 20 attempts per client address per 10 minutes, so one address cannot spray passwords across many accounts; invite links 20 per address per 10 minutes; password changes 10 per person per hour; starting research 120 per person per hour; and any API request 1,200 per person per minute as a brake on runaway scripts. Over a limit the API answers 429 with `Retry-After`. If Redis is down requests are allowed and a warning logged. The client address is the one Caddy saw: uvicorn trusts `X-Forwarded-For` (only Caddy and the frontend can reach the API, and Caddy replaces any value a client sends), so a forged header cannot dodge the limit.
 - Optional TOTP later. No paid identity provider.
 
 ## 2. Authorisation (RBAC)
@@ -54,15 +55,15 @@ Tests cover each rule: every private, loopback, link-local, CGNAT, multicast, re
 
 - Input validation with Pydantic on every request; typed responses.
 - SQL injection: SQLAlchemy parameterised queries only; no string-built SQL.
-- XSS: React escaping by default; crawled text is **untrusted** and always rendered as text. No `dangerouslySetInnerHTML` on crawled content. Strict CSP.
+- XSS: React escaping by default; crawled text is **untrusted** and always rendered as text. No `dangerouslySetInnerHTML` on crawled content. Content-Security-Policy on every page (slice 7.3, set by Caddy): everything from the site's own origin only, no outside scripts, frames, objects or form targets, no `eval`, and no framing of VROS. Scripts and styles allow `'unsafe-inline'` because Next.js inlines its hydration data; see §9.
 - CSRF: see §1 (double-submit token plus `SameSite=Lax`).
 - Prompt injection: crawled content is data. It is passed to models inside delimited blocks, the model has no tools and no authority, and output is schema-validated and grounded (AI_SPEC.md §3). A page that says "ignore previous instructions" cannot change a score or action.
-- Rate limiting on API and auth endpoints (Redis).
+- Rate limiting on sign-in, invites, password changes, research and the API as a whole (§1).
 - File handling: size and type limits, generated storage keys, no user-controlled paths.
 - Production refuses to start with missing or default secrets (ARCHITECTURE.md §9). TLS everywhere via Caddy with HSTS.
 - Secrets in environment or a secrets manager; `.env` is git-ignored; stored mailbox passwords are encrypted at rest (Fernet, with a key derived from `VROS_SECRET_KEY` by HKDF) and never returned by the API; changing the secret key means each person reconnects their mailbox (slice 3.4).
-- Dependency pinning and automated vulnerability checks in CI.
-- Secure headers on API and frontend.
+- Dependencies are pinned (`uv.lock`, `package-lock.json`) and CI audits them on every pull request: `pip-audit` for Python and `npm audit` for the production npm dependencies; a known high-severity vulnerability fails the build.
+- Secure headers (Caddy): HSTS, `nosniff`, `X-Frame-Options: DENY`, a strict referrer policy, a permissions policy denying camera, microphone, location, payment and USB, `Cross-Origin-Opener-Policy` and `Cross-Origin-Resource-Policy: same-origin`, and the CSP above. API responses add `Content-Security-Policy: default-src 'none'` and `Cache-Control: no-store`.
 
 ### Imports and exports
 
@@ -104,3 +105,19 @@ Metrics (slice 7.1) are counts only: labels are HTTP methods, route templates, s
 ## 8. Review checklist (every PR touching these areas)
 
 New route has a permission check · new fetch path uses the safe `Fetcher` · new rendering of crawled text is escaped · new table has FK, indexes and audit where needed · new config is validated.
+
+## 9. Security review (slice 7.3)
+
+Each section above was compared with the code. What was found, and what was done:
+
+| # | Finding | Severity | Outcome |
+| --- | --- | --- | --- |
+| 1 | §4 promised rate limiting on API and auth endpoints; only the per-account lockout existed. One address could spray passwords across every account, and anyone could lock a colleague out on purpose (the lockout still does that, but now only 20 tries per address per 10 minutes) | High | Fixed: Redis rate limits (§1) |
+| 2 | Behind Caddy every request appeared to come from Caddy: uvicorn trusted forwarded headers from 127.0.0.1 only, so session records held the proxy's address and per-address limits would have limited everyone together | Medium | Fixed: `--forwarded-allow-ips`; checked that a forged `X-Forwarded-For` through Caddy is ignored |
+| 3 | §4 promised a strict CSP; the app sent none (only document downloads had one) | Medium | Fixed: CSP and cross-origin headers in Caddy; 11 pages, navigation and writes checked with zero violations |
+| 4 | §4 promised automated vulnerability checks in CI; CI ran `npm ci --no-audit` and no Python audit | Medium | Fixed: `pip-audit` and `npm audit` in CI. At the review: Python 0 known vulnerabilities, production npm 0 |
+| 5 | No breached-password check (tracked since Phase 1) | Medium | Fixed: k-anonymity range check (§1) |
+| 6 | The dev-only lint toolchain (`eslint-config-next` → `fast-glob` → `micromatch` → `braces` 3.0.3) has a high-severity advisory (GHSA-vfj7-8cjw-p6xm, stack exhaustion from crafted glob patterns) with no fixed release | Low | Accepted: never shipped in the image and only ever given our own lint patterns; CI audits production dependencies. Revisit when `braces` publishes a fix |
+| 7 | The CSP allows `'unsafe-inline'` scripts: Next.js inlines hydration data, and nonces would force every page to render per request | Low | Accepted: all other script sources are blocked, `eval` is not allowed, and crawled or user text is always rendered as text, never as HTML |
+
+Checked and unchanged: sessions (server-side, HMAC-stored tokens, idle and absolute expiry, revoked on logout, deactivation and password change), CSRF (double-submit plus `SameSite=Lax`), the SSRF guard and its tests (§3), uploads (§4: type from bytes, size enforced while reading, hash-named storage, attachment-only downloads), secrets (production refuses defaults; mailbox passwords encrypted), metrics and backups exposure (§6, §7).
