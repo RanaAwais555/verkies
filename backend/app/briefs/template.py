@@ -55,6 +55,13 @@ class BriefInputs:
     reference_names: list[str]
 
 
+def _similar_to(similarity: SimilarityResult) -> str:
+    """A won client is named as one, so nobody mistakes it for a portfolio case study."""
+    if similarity.kind == "client":
+        return f"{similarity.project} (a Verkies client)"
+    return similarity.project
+
+
 def evidence_index(facts: Facts) -> dict[str, Evidence]:
     """Evidence a claim may cite: the excerpt plus the observation's structured value, both
     taken from the same page."""
@@ -228,7 +235,7 @@ def build(inputs: BriefInputs) -> Draft:
     if primary:
         text = f"{primary.service.name} fits the strongest need found: {lower_first(primary.candidate.title)}."
         if inputs.similarity:
-            text += f" It resembles Verkies' work for {inputs.similarity.project}."
+            text += f" It resembles Verkies' work for {_similar_to(inputs.similarity)}."
         why.append(
             DraftClaim(
                 ClaimClass.RECOMMENDATION,
@@ -318,9 +325,11 @@ def build(inputs: BriefInputs) -> Draft:
     )
 
     sections["similar_project"] = (
-        Section(notes=[f"{inputs.similarity.project}: {inputs.similarity.because}"])
+        Section(notes=[f"{_similar_to(inputs.similarity)}: {inputs.similarity.because}"])
         if inputs.similarity
-        else Section(unknown="Unknown: no complete reference-project profile to compare yet.")
+        else Section(
+            unknown="Unknown: no complete reference-project or won-client profile to compare yet."
+        )
     )
 
     angle: list[DraftClaim] = []

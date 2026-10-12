@@ -12,7 +12,7 @@ from app.briefs.claims import SECTIONS
 from app.briefs.models import LeadBrief
 from app.briefs.template import BriefInputs, company_name
 from app.briefs.writer import write_brief
-from app.catalogue.models import ReferenceProject, Service, ServiceMatch
+from app.catalogue.models import Service, ServiceMatch
 from app.core.enums import BriefMode
 from app.evidence.models import Claim, claim_evidence, claim_support
 from app.providers.ai import AIProvider
@@ -40,12 +40,12 @@ async def match_stage(
                     confidence=Decimal(str(match.confidence)),
                 )
             )
-        project_ids = {p.name: p.id for p in (await db.execute(select(ReferenceProject))).scalars()}
         for result in results:
             db.add(
                 SimilarityRow(
                     research_run_id=run_id,
-                    reference_project_id=project_ids[result.project],
+                    reference_project_id=result.ref_id if result.kind == "project" else None,
+                    client_account_id=result.ref_id if result.kind == "client" else None,
                     similarity_score=None if result.score is None else Decimal(str(result.score)),
                     similar_because=result.because,
                 )
@@ -54,8 +54,15 @@ async def match_stage(
     top = best_similarity(results)
     return {
         "services": [{"slot": m.slot.value, "service": m.service.key} for m in matches],
-        "similarity": {"project": top.project, "score": top.score} if top else None,
-        "reference_profiles_complete": sum(1 for r in ctx.references if r.profile_complete),
+        "similarity": {"project": top.project, "kind": top.kind, "score": top.score}
+        if top
+        else None,
+        "reference_profiles_complete": sum(
+            1 for r in ctx.references if r.profile_complete and r.kind == "project"
+        ),
+        "client_profiles_complete": sum(
+            1 for r in ctx.references if r.profile_complete and r.kind == "client"
+        ),
     }
 
 

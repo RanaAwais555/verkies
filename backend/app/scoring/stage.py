@@ -16,6 +16,7 @@ from app.catalogue.models import ReferenceProject, Service
 from app.core.enums import SuppressionKind
 from app.evidence.models import Observation
 from app.intelligence.facts import Fact, Facts
+from app.learning.references import client_references
 from app.opportunities.detectors import Candidate, detect
 from app.opportunities.models import (
     OpportunityCandidate,
@@ -94,16 +95,30 @@ def solved_by_map(services: list[ServiceInfo]) -> dict[str, list[str]]:
     return mapping
 
 
-async def references(db: AsyncSession) -> list[ReferenceProfile]:
+async def references(db: AsyncSession, run: ResearchRun | None = None) -> list[ReferenceProfile]:
+    """Verkies' reference projects, then the clients it won (slice 5.4), never the prospect
+    itself."""
     rows = (
         await db.execute(select(ReferenceProject).options(selectinload(ReferenceProject.services)))
     ).scalars()
-    return [
+    projects = [
         ReferenceProfile(
-            r.name, r.industry, r.problem, tuple(s.key for s in r.services), r.profile_complete
+            r.name,
+            r.industry,
+            r.problem,
+            tuple(s.key for s in r.services),
+            r.profile_complete,
+            kind="project",
+            ref_id=r.id,
         )
         for r in rows
     ]
+    clients = await client_references(
+        db,
+        exclude_domain=run.normalised_domain if run else None,
+        exclude_account=run.account_id if run else None,
+    )
+    return projects + clients
 
 
 async def suppression_for(db: AsyncSession, domain: str) -> str | None:
@@ -148,7 +163,7 @@ async def load_context(db: AsyncSession, run_id: uuid.UUID) -> Context:
         candidates=detect(facts),
         solved_by=solved_by_map(services),
         services=services,
-        references=await references(db),
+        references=await references(db, run),
         icp_config_id=icp_row.id,
         icp_config=IcpConfigModel.model_validate(icp_row.config),
         scoring_config_id=scoring_row.id,

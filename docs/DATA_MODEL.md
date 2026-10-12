@@ -221,6 +221,10 @@ Endpoints: `GET /sales-feedback/kinds`, `GET|POST /accounts/{id}/sales-feedback`
 
 Endpoints: `GET|POST /learning/proposals`, `POST /learning/proposals/{id}/activate` and `/dismiss` (`config.manage`; `reports.team` may read).
 
+## 4l. Client similarity (slice 5.4, migration `0025`)
+
+**similarity_results** gains `client_account_id`; `reference_project_id` becomes nullable, and exactly one of the two is set (check `one_reference`). Client references are built on each research run from current won `deal_outcomes`; nothing else is stored.
+
 ## 5. Tables added in later phases (names reserved)
 
 | Phase | Tables |

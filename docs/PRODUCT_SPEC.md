@@ -138,6 +138,13 @@ Bulk discovery, external company registries, job-board and news signals, monitor
 - **Nothing changes until an admin activates a proposal.** Activating saves a new config version (validated and audited exactly like an edit in Settings) and is refused if the configuration changed in the meantime. Proposals can be dismissed with a reason, and the new version can be edited in Settings at any time: human override is kept. Managers can see proposals; only admins make and activate them.
 - Existing scores are not recalculated by activating; new research uses the new version, and every score records the version it used.
 
+### Phase 5, slice 5.4: similarity learning (§11, §15)
+
+- **Won clients become similarity references** alongside Verkies' reference projects, so client similarity reflects who actually buys. A client's profile comes from the outcomes of the deals Verkies won with it (slice 5.1): the industry when it was won, the services sold and the problems those deals answered.
+- Like a reference project, a client is compared only when its profile is complete (industry known, and a service or a problem); otherwise it is skipped. A lost deal makes no reference, and a prospect is never compared with its own account.
+- The brief names a matching client as a client ("Acme Legal (a Verkies client): similar because same industry"), never as a portfolio case study. With no complete project or client profile, similarity stays **Unknown**.
+- Similarity results record which reference they were against: a reference project or a client account, exactly one.
+
 ## 4. Acceptance: Definition of Done (§20) mapped to tests
 
 | Requirement | Verified by |
