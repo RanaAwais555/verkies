@@ -84,6 +84,15 @@ class Settings(BaseSettings):
     linkedin_daily_limit: int = Field(default=15, ge=1, le=100)
     linkedin_weekly_limit: int = Field(default=80, ge=1, le=200)
 
+    # Client health (slice 4.2). No contact with a client for this many days turns them Yellow,
+    # then Red; a milestone this many days overdue is Red; feedback counts for this many days.
+    client_quiet_yellow_days: int = Field(default=30, ge=1, le=365)
+    client_quiet_red_days: int = Field(default=60, ge=1, le=730)
+    client_milestone_red_days: int = Field(default=14, ge=1, le=365)
+    client_feedback_days: int = Field(default=90, ge=1, le=730)
+    # Messages to a client with no reply since, before engagement counts as falling (Yellow).
+    client_unanswered_messages: int = Field(default=3, ge=1, le=20)
+
     # Crawler (PROVIDER_SPEC.md §4). Identifies itself and how to reach Verkies.
     crawler_contact_url: str = "https://www.verkies.co"
     crawl_max_pages: int = Field(default=15, gt=0, le=100)

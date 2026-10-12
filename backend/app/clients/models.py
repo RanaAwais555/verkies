@@ -1,14 +1,23 @@
 """Projects, their milestones and risks: lightweight delivery tracking after a deal is won
-(master context §6, §14; slice 4.1). VROS does not try to replace a project tool."""
+(master context §6, §14; slice 4.1). VROS does not try to replace a project tool. Client feedback
+and the history of client health (slice 4.2)."""
 
 import uuid
 from datetime import date, datetime
 
-from sqlalchemy import CheckConstraint, ForeignKey, Index, SmallInteger, String, Text, text
+from sqlalchemy import CheckConstraint, ForeignKey, Index, SmallInteger, String, Text, func, text
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column
 
-from app.core.enums import ProjectStatus, RiskSeverity
-from app.core.models import Base, IdMixin, SoftDeleteMixin, TimestampMixin, text_enum
+from app.core.enums import HealthColour, ProjectStatus, RiskSeverity, Sentiment
+from app.core.models import (
+    Base,
+    CreatedMixin,
+    IdMixin,
+    SoftDeleteMixin,
+    TimestampMixin,
+    text_enum,
+)
 
 
 class Project(IdMixin, TimestampMixin, SoftDeleteMixin, Base):
@@ -67,3 +76,28 @@ class ProjectRisk(IdMixin, TimestampMixin, Base):
     resolved_at: Mapped[datetime | None]
     resolved_by_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("users.id"))
     resolution: Mapped[str | None] = mapped_column(Text)
+
+
+class ClientFeedback(IdMixin, CreatedMixin, Base):
+    """What a client said about working with Verkies, recorded by the person they said it to."""
+
+    __tablename__ = "client_feedback"
+
+    account_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("accounts.id"), index=True)
+    project_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("projects.id"))
+    sentiment: Mapped[Sentiment] = mapped_column(text_enum(Sentiment))
+    note: Mapped[str | None] = mapped_column(Text)
+    received_on: Mapped[date]
+    recorded_by_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("users.id"))
+
+
+class ClientHealthSnapshot(IdMixin, Base):
+    """A client's health each time it changed colour, with the reasons at that moment. The
+    current health is always computed from the records; these rows are its history."""
+
+    __tablename__ = "client_health_snapshots"
+
+    account_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("accounts.id"), index=True)
+    colour: Mapped[HealthColour] = mapped_column(text_enum(HealthColour))
+    reasons: Mapped[list[dict[str, str]]] = mapped_column(JSONB, default=list)
+    assessed_at: Mapped[datetime] = mapped_column(server_default=func.now())

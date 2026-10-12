@@ -95,6 +95,15 @@ Bulk discovery, external company registries, job-board and news signals, monitor
 - An open project lists the plain facts someone should look at: no project owner, past its target date, overdue milestones, open high risks and overdue tasks. None is a judgement; how a client is doing overall (Green, Yellow, Red) is slice 4.2.
 - Conversion, new projects, status changes, milestones reached and risks raised or resolved are on the account's timeline and in the audit log. Projects follow the account's visibility and move with it when accounts are merged.
 
+### Phase 4, slice 4.2: client health and retention (§14)
+
+- Every client is **Green, Yellow or Red**, worked out from the records on every read, and always shown with its reasons. **Red** when any of: an open project marked At Risk; a high risk open on an open project; a milestone 14 or more days overdue; no contact for 60 days; or negative feedback as the latest within 90 days. **Yellow** when any of: a project On Hold or past its target date; any overdue milestone or task; a medium risk open; no contact for 30 days; or three messages without a reply. **Green** otherwise. Contact is a logged call, meeting, email or message; the clock starts at the client-since date. The thresholds are settings (`VROS_CLIENT_QUIET_YELLOW_DAYS`, `VROS_CLIENT_QUIET_RED_DAYS`, `VROS_CLIENT_MILESTONE_RED_DAYS`, `VROS_CLIENT_FEEDBACK_DAYS`, `VROS_CLIENT_UNANSWERED_MESSAGES`).
+- **Satisfaction is never guessed.** People record what a client said (positive, neutral or negative, with a note and the date); only that counts.
+- **Retention engine:** each morning (06:00 UTC, run by the worker's embedded scheduler) VROS records any change of colour, with its reasons, as the client's health history and on the timeline. When a client turns Red it raises **Client risk detected** on the timeline and gives the account manager (or the owner) a follow-up task, unless one is already open. Negative feedback is checked at once rather than the next morning. Managers can run the check at any time. Nothing contacts the client.
+- **Clients** page: every client, worst first, with its reasons, account manager, last contact and open projects; filtered by colour or to my clients. Red clients also appear on the Command Center, the management dashboard has a **Clients at risk** table, and the team has an **At-Risk Clients** saved view.
+- **Ending a client relationship** makes the account a former client, keeping everything; open projects must be completed or cancelled first. Winning and converting a new deal makes them a client again.
+- Deferred to slice 4.3: expansion potential as part of health.
+
 ## 4. Acceptance: Definition of Done (§20) mapped to tests
 
 | Requirement | Verified by |

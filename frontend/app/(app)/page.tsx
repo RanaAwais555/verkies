@@ -4,6 +4,7 @@ import { Inbox, ListChecks } from "lucide-react";
 import Link from "next/link";
 import { useState, type ReactNode } from "react";
 
+import { ClientRisks } from "@/components/clients/health";
 import { FollowUpsPanel } from "@/components/crm/follow-ups";
 import { TaskRow } from "@/components/crm/tasks";
 import { ResearchForm } from "@/components/research/research-form";
@@ -245,6 +246,7 @@ export default function CommandCenterPage() {
           <aside className="flex min-w-0 flex-col gap-4 lg:col-start-2 xl:sticky xl:top-20 xl:col-start-3 xl:row-start-1" aria-label="Your work">
             <MyTasks />
             <FollowUpsPanel />
+            <ClientRisks />
           </aside>
         )}
       </div>

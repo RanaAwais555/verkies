@@ -1,6 +1,7 @@
 """Celery app. Long-running work (crawls, analysis, scoring) runs here, never in a request."""
 
 from celery import Celery
+from celery.schedules import crontab
 
 import app.models  # noqa: F401 - the worker must know every table (foreign keys span modules)
 from app.config import get_settings
@@ -19,6 +20,13 @@ def create_celery() -> Celery:
         accept_content=["json"],
         timezone="UTC",
         enable_utc=True,
+        # Run by the worker's embedded beat (`--beat`); one worker container runs it.
+        beat_schedule={
+            "client-health-daily": {
+                "task": "vros.clients.health_sweep",
+                "schedule": crontab(hour=6, minute=0),
+            },
+        },
     )
     celery.autodiscover_tasks(["app.workers"])
     return celery

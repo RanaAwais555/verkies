@@ -9,6 +9,7 @@ from celery.exceptions import SoftTimeLimitExceeded
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 from sqlalchemy.pool import NullPool
 
+from app.clients import health
 from app.config import get_settings
 from app.providers.ai import build_ai_provider
 from app.providers.fetch import build_fetcher, build_renderer
@@ -106,3 +107,23 @@ async def find_websites_job(job_id: uuid.UUID) -> None:
 @celery_app.task(name="vros.discovery.find_websites", soft_time_limit=1800, time_limit=1900)
 def discovery_find_websites(job_id: str) -> None:
     asyncio.run(find_websites_job(uuid.UUID(job_id)))
+
+
+async def client_health_job() -> None:
+    settings = get_settings()
+    engine = create_async_engine(settings.database_url, poolclass=NullPool)
+    try:
+        async with async_sessionmaker(engine, expire_on_commit=False)() as db:
+            done = await health.sweep(db)
+        logger.info(
+            "client health checked",
+            extra={"assessed": done.assessed, "changed": done.changed, "risks": done.risks_raised},
+        )
+    finally:
+        await engine.dispose()
+
+
+@celery_app.task(name="vros.clients.health_sweep", soft_time_limit=600, time_limit=660)
+def client_health_sweep() -> None:
+    """The retention engine's daily run (slice 4.2), scheduled by the worker's beat."""
+    asyncio.run(client_health_job())

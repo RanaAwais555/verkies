@@ -785,3 +785,36 @@ export type Project = {
 };
 
 export type ProjectDetail = Project & { risks: ProjectRisk[]; tasks: Task[] };
+
+export type HealthColour = "green" | "yellow" | "red";
+export type HealthReason = { level: "red" | "yellow"; text: string };
+
+export type ClientSummary = {
+  account_id: string;
+  name: string;
+  primary_domain: string | null;
+  account_manager: Owner | null;
+  client_since: string | null;
+  health: HealthColour;
+  reasons: HealthReason[];
+  last_contact_at: string | null;
+  open_projects: number;
+  latest_feedback: "positive" | "neutral" | "negative" | null;
+  latest_feedback_on: string | null;
+};
+
+export type ClientFeedback = {
+  id: string;
+  sentiment: "positive" | "neutral" | "negative";
+  note: string | null;
+  received_on: string;
+  project_id: string | null;
+  recorded_by: string | null;
+  created_at: string;
+};
+
+export type AccountHealth = {
+  current: ClientSummary | null;
+  history: { colour: HealthColour; reasons: HealthReason[]; assessed_at: string }[];
+  feedback: ClientFeedback[];
+};

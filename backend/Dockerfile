@@ -41,4 +41,5 @@ RUN uv sync --frozen --no-dev --extra render
 # Headless shell only, with its system libraries. Installed as root, readable by vros.
 RUN playwright install --with-deps --only-shell chromium && chmod -R a+rX /ms-playwright
 USER vros
-CMD ["celery", "-A", "app.workers.celery_app:celery_app", "worker", "--loglevel=INFO", "--concurrency=2"]
+# --beat runs the daily schedule (client health) inside this worker; keep one worker container.
+CMD ["celery", "-A", "app.workers.celery_app:celery_app", "worker", "--beat", "--schedule=/tmp/celerybeat-schedule", "--loglevel=INFO", "--concurrency=2"]

@@ -187,13 +187,19 @@ Migration 0018 seeds the default sequence and its four templates and the `outrea
 
 Endpoints: `POST /deals/{id}/convert`, `PUT /accounts/{id}/account-manager`, `/projects` (list with `status`, `account_id`, `mine`; create; read; update), `/projects/{id}/milestones`, `/milestones/{id}`, `/projects/{id}/risks` and `/risks/{id}`. Deals report the `project_id` of their project once converted.
 
+## 4g. Client health (slice 4.2, migration `0020`)
+
+**client_feedback**: `account_id`, `project_id` (optional), `sentiment` (positive, neutral, negative), `note`, `received_on`, `recorded_by_id`. **client_health_snapshots**: `account_id`, `colour` (green, yellow, red), `reasons` (JSON list of `{level, text}`), `assessed_at`: one row each time a client's colour changes; the current health is always computed, never read from here. Migration 0020 also adds the team's "At-Risk Clients" saved view.
+
+Endpoints: `GET /clients` (`health`, `mine`), `POST /clients/health-check` (`reports.team`), `GET /accounts/{id}/health`, `POST /accounts/{id}/feedback`, `POST /accounts/{id}/end-client`. The worker task `vros.clients.health_sweep` runs daily from the worker's embedded beat.
+
 ## 5. Tables added in later phases (names reserved)
 
 | Phase | Tables |
 | --- | --- |
 | 2 | `discovery_jobs` and `discovered_companies` exist since slice 2.1. Buying signals (slice 2.2) are observations in the `signals` area with dated evidence (migration `0009`), so they share evidence, attempts and append-only history with all other findings; no separate signal tables were needed |
 | 3 | `pipelines`, `pipeline_stages`, `deals` and `deal_stage_changes` exist since slice 3.1; logged meetings, calls and messages are `activities` (slice 3.2), and `meetings` stays reserved for scheduled meetings with calendar sync; `mailboxes` and `email_messages` (the §12B Message object for email) exist since slice 3.4; `outreach_templates`, `sequences`, `sequence_steps`, `enrollments` and `enrollment_steps` exist since slice 3.5; `proposals`, `documents`, `linkedin_imports` |
-| 4 | `projects`, `milestones` and `project_risks` exist since slice 4.1; `client_health_snapshots`, `expansion_opportunities`, `referrals` |
+| 4 | `projects`, `milestones` and `project_risks` exist since slice 4.1, `client_feedback` and `client_health_snapshots` since slice 4.2; `expansion_opportunities`, `referrals` |
 | 5 | `feedback`, `deal_outcomes`, `learned_weights` |
 | 6 | `monitors`, `monitor_snapshots`, `monitor_events` |
 

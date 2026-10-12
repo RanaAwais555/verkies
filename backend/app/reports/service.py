@@ -23,9 +23,11 @@ from app.accounts import access
 from app.accounts.models import Account
 from app.auth.models import User
 from app.catalogue.models import Service
+from app.clients import health
 from app.config import Settings
 from app.core.enums import (
     ActivityDirection,
+    HealthColour,
     ObservationArea,
     ReviewStatus,
     StageOutcome,
@@ -987,6 +989,26 @@ async def management(db: AsyncSession, *, user: User, period: Period) -> Dashboa
                     [n, _money_cell((d.value, d.currency) for d, *_ in lost if d.lost_reason == r)],
                 )
                 for r, n in reasons.most_common()
+            ],
+        )
+    )
+    at_risk = [
+        v for v in await health.list_clients(db, user=user) if v.colour is not HealthColour.GREEN
+    ]
+    board.tables.append(
+        Table(
+            "clients_at_risk",
+            "Clients at risk",
+            "Right now, whatever the period: clients whose health is Red or Yellow, worst first, "
+            "with the main reason.",
+            ["Health", "Main reason", "Account manager"],
+            [
+                Row(
+                    v.account.name,
+                    [v.colour.value.capitalize(), v.reasons[0].text, v.manager_name or "Not set"],
+                    href=f"/accounts/{v.account.id}?tab=client",
+                )
+                for v in at_risk
             ],
         )
     )

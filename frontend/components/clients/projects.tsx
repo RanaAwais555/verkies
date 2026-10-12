@@ -7,6 +7,7 @@ import { useState, type FormEvent } from "react";
 
 import { MilestoneRows, milestonesOf } from "@/components/clients/convert";
 import { Badge, Button, controlClass, Empty, ErrorNote, Field, inputClass, Panel, Skeleton, Table, type Tone } from "@/components/ui";
+import { cx } from "@/components/ui/cx";
 import { api } from "@/lib/client";
 import { formatDate } from "@/lib/format";
 import { useAction, useApi } from "@/lib/hooks";
@@ -196,7 +197,7 @@ function AccountManager({ account }: { account: Account360 }) {
           defaultValue={account.account_manager?.id ?? ""}
           disabled={busy}
           onChange={(e) => run(() => api(`/accounts/${account.id}/account-manager`, { method: "PUT", body: { account_manager_id: e.target.value || null } }))}
-          className={controlClass}
+          className={cx(controlClass, "block")}
         >
           <option value="">Not set</option>
           {team?.map((m) => (
