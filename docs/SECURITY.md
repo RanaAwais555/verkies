@@ -75,6 +75,14 @@ Tests cover each rule: every private, loopback, link-local, CGNAT, multicast, re
   - CSV cells starting with `=`, `+`, `-`, `@`, tab or carriage return are prefixed with `'` so spreadsheets do not run them as formulas.
   - Every export is audited (`accounts.exported`, with format and count).
 
+### Uploaded documents (slice 4.4)
+
+- Only PDF, Word, Excel and PowerPoint (`.docx`, `.xlsx`, `.pptx`), PNG, JPEG, WebP, plain text, Markdown and CSV are accepted. The type is decided from the file's own bytes (signatures, the parts inside an Office ZIP, UTF-8 for text) and must match the file's extension; HTML, SVG, scripts, programs and macro-enabled Office files are refused.
+- The size limit (`VROS_DOCUMENT_MAX_BYTES`, 10 MB) is enforced while the body is read, and Caddy limits request bodies to 10MB as well.
+- Files are stored under the SHA-256 of their bytes, never under a name a person typed; the hash is checked again on every download, so a file changed on disk is not served.
+- Downloads are always attachments with the recorded type, `X-Content-Type-Options: nosniff`, a sandboxing `Content-Security-Policy` and `Cache-Control: no-store`. VROS never renders an uploaded file.
+- A document is visible only to people who can see its account. Removing one hides it and is audited; the bytes stay in storage and the nightly backup (`ops/backup.sh` archives `storage/documents`).
+
 ## 5. Audit
 
 Append-only `audit_log` records user, time, object, action, old value, new value, source and reason for: research approval/rejection, score or config changes, owner changes, stage changes, user and role changes, and imports. Database triggers block `UPDATE`/`DELETE` on audit rows.

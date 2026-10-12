@@ -851,3 +851,22 @@ export type Referral = {
   received_on: string;
   recorded_by: string | null;
 };
+
+export type DocumentKind = "proposal" | "requirements" | "brief" | "contract" | "sow" | "meeting_notes" | "screenshot" | "project_document" | "other";
+
+export type VrosDocument = {
+  id: string;
+  account_id: string;
+  account_name: string | null;
+  opportunity_id: string | null;
+  deal_id: string | null;
+  project_id: string | null;
+  kind: DocumentKind;
+  kind_label: string;
+  title: string;
+  filename: string;
+  content_type: string;
+  size_bytes: number;
+  uploaded_by: string | null;
+  created_at: string;
+};

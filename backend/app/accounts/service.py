@@ -19,6 +19,7 @@ from app.crm import activities
 from app.crm.models import Activity, Lead, Opportunity, Task, TimelineEvent
 from app.crm.service import attention_reasons, closed_opportunities, opportunity_labels
 from app.deals.models import Deal
+from app.documents.models import Document
 from app.research.models import ResearchRun
 
 
@@ -192,6 +193,7 @@ async def audit_of(db: AsyncSession, account: Account, limit: int) -> list[Audit
         ResearchRun,
         ClientFeedback,
         ExpansionOpportunity,
+        Document,
     ):
         related += list(
             (await db.execute(select(model.id).where(model.account_id == account.id))).scalars()

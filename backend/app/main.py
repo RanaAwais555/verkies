@@ -21,6 +21,7 @@ from app.crm.router import router as crm_router
 from app.deals.router import router as deals_router
 from app.discovery.router import registry_router, search_router
 from app.discovery.router import router as discovery_router
+from app.documents.router import router as documents_router
 from app.health.router import router as health_router
 from app.leads.router import router as leads_router
 from app.mail.router import router as mail_router
@@ -98,6 +99,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         mail_router,
         outreach_router,
         clients_router,
+        documents_router,
         catalogue_router,
         discovery_router,
         search_router,

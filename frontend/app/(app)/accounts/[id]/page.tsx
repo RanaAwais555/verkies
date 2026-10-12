@@ -15,6 +15,7 @@ import { ClientHealthPanel } from "@/components/clients/health";
 import { AccountReferrals } from "@/components/clients/referrals";
 import { AccountProjects } from "@/components/clients/projects";
 import { AccountDeals, OpenDealButton } from "@/components/deals/account-deals";
+import { DocumentsPanel } from "@/components/documents/documents";
 import {
   Badge,
   BandBadge,
@@ -444,6 +445,7 @@ export default function AccountPage() {
     { key: "leads", label: `Leads (${account.leads.length})` },
     { key: "activities", label: "Activities" },
     { key: "emails", label: "Emails" },
+    { key: "documents", label: "Documents" },
     { key: "tasks", label: `Tasks (${account.open_tasks} open)` },
     { key: "client", label: account.account_type === "customer" ? "Client" : "Projects" },
     { key: "timeline", label: "Timeline" },
@@ -507,6 +509,7 @@ export default function AccountPage() {
           <EmailList query={`account_id=${account.id}`} empty="No email with this company yet." />
         </Panel>
       )}
+      {tab === "documents" && <DocumentsPanel accountId={account.id} withLinks />}
       {tab === "tasks" && <Tasks account={account} refresh={() => mutate()} />}
       {tab === "client" && (
         <div className="space-y-4">

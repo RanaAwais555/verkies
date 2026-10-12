@@ -390,6 +390,20 @@ class ReferralStatus(StrEnum):
     DECLINED = "declined"
 
 
+class DocumentKind(StrEnum):
+    """§14 documents."""
+
+    PROPOSAL = "proposal"
+    REQUIREMENTS = "requirements"
+    BRIEF = "brief"
+    CONTRACT = "contract"
+    SOW = "sow"
+    MEETING_NOTES = "meeting_notes"
+    SCREENSHOT = "screenshot"
+    PROJECT_DOCUMENT = "project_document"
+    OTHER = "other"
+
+
 class RiskSeverity(StrEnum):
     LOW = "low"
     MEDIUM = "medium"
