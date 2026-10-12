@@ -22,6 +22,10 @@ router = APIRouter(tags=["reports"])
 Member = Annotated[User, Depends(require_permission("accounts.read", "accounts.read_own"))]
 Analyst = Annotated[User, Depends(require_permission("accounts.read", "prospects.review"))]
 Manager = Annotated[User, Depends(require_permission("reports.team"))]
+# Changes only the person's own things, so read access is enough (slice 7.4).
+Personal = Annotated[
+    User, Depends(require_permission("accounts.read", "accounts.read_own", personal=True))
+]
 
 # Pages a saved view may point at: the ones that keep their filters in the address.
 VIEW_PAGES = (
@@ -119,7 +123,7 @@ async def saved_views(user: Member, db: DbSession) -> list[SavedViewOut]:
 
 
 @router.post("/saved-views", status_code=201)
-async def save_view(body: NewSavedView, user: Member, db: DbSession) -> SavedViewOut:
+async def save_view(body: NewSavedView, user: Personal, db: DbSession) -> SavedViewOut:
     if body.shared and SHARE not in user.permission_keys:
         raise PermissionDenied("Only someone who manages configuration can share a view.")
     owner = None if body.shared else user.id
@@ -155,7 +159,7 @@ async def save_view(body: NewSavedView, user: Member, db: DbSession) -> SavedVie
 
 
 @router.delete("/saved-views/{view_id}", status_code=204)
-async def delete_view(view_id: uuid.UUID, user: Member, db: DbSession) -> Response:
+async def delete_view(view_id: uuid.UUID, user: Personal, db: DbSession) -> Response:
     view = await db.get(SavedView, view_id)
     if view is None or (view.user_id is not None and view.user_id != user.id):
         raise NotFound("Saved view not found.")

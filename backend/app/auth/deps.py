@@ -74,12 +74,31 @@ async def current_user(session: CurrentSession, settings: AppSettings) -> User:
 CurrentUser = Annotated[User, Depends(current_user)]
 
 
-def require_permission(*keys: str) -> Callable[[User], Awaitable[User]]:
-    """Allow the request if the user holds any of the given permissions."""
+# Seeing records is not changing them (slice 7.4): a change made through a route that the user
+# may use only because they can read accounts also needs records.write, which Viewer lacks.
+READ_PERMISSIONS = frozenset({"accounts.read", "accounts.read_own"})
+WRITE_PERMISSION = "records.write"
 
-    async def check(user: CurrentUser) -> User:
-        if not user.permission_keys.intersection(keys):
+
+def require_permission(
+    *keys: str, personal: bool = False
+) -> Callable[[Request, User], Awaitable[User]]:
+    """Allow the request if the user holds any of the given permissions. A change (any method
+    but GET, HEAD and OPTIONS) allowed only by a read permission also needs records.write,
+    unless the route changes only the person's own things (personal=True: watching an
+    account, their saved views, their mailbox)."""
+
+    async def check(request: Request, user: CurrentUser) -> User:
+        granted = user.permission_keys.intersection(keys)
+        if not granted:
             raise PermissionDenied("You do not have permission to do this.")
+        if (
+            request.method not in SAFE_METHODS
+            and not personal
+            and granted <= READ_PERMISSIONS
+            and WRITE_PERMISSION not in user.permission_keys
+        ):
+            raise PermissionDenied("Your role can view records but not change them.")
         return user
 
     return check

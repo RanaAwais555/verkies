@@ -19,6 +19,10 @@ router = APIRouter(tags=["monitoring"])
 
 Member = Annotated[User, Depends(require_permission("accounts.read", "accounts.read_own"))]
 Admin = Annotated[User, Depends(require_permission("config.manage"))]
+# Changes only the person's own things, so read access is enough (slice 7.4).
+Personal = Annotated[
+    User, Depends(require_permission("accounts.read", "accounts.read_own", personal=True))
+]
 
 
 class QueueUnavailable(AppError):
@@ -92,13 +96,13 @@ class AlertOut(BaseModel):
 
 
 @router.put("/accounts/{account_id}/watch", status_code=204)
-async def watch(account_id: uuid.UUID, user: Member, db: DbSession) -> Response:
+async def watch(account_id: uuid.UUID, user: Personal, db: DbSession) -> Response:
     await service.watch(db, user=user, account_id=account_id)
     return Response(status_code=204)
 
 
 @router.delete("/accounts/{account_id}/watch", status_code=204)
-async def unwatch(account_id: uuid.UUID, user: Member, db: DbSession) -> Response:
+async def unwatch(account_id: uuid.UUID, user: Personal, db: DbSession) -> Response:
     await service.unwatch(db, user=user, account_id=account_id)
     return Response(status_code=204)
 

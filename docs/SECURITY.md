@@ -16,16 +16,25 @@ Implements §17. Security for the user-submitted-URL crawler is Phase 1 scope; t
 
 Roles: Admin, Founder/Management, Sales Manager, Salesperson, Researcher, Project Manager, Viewer. Permissions are rows (`permissions`, `role_permissions`), not code constants, and are enforced by a FastAPI dependency on every route. Default is deny.
 
-Phase 1 defaults:
+Permissions by role, as the migrations seed them (reviewed in slice 7.4):
 
-| Capability | Admin | Founder | Sales Mgr | Salesperson | Researcher | Project Mgr | Viewer |
+| Permission | Admin | Founder | Sales Mgr | Salesperson | Researcher | Project Mgr | Viewer |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| Start research | ✓ | ✓ | ✓ | ✓ | ✓ | | |
-| Approve / reject prospect | ✓ | ✓ | ✓ | ✓ | | | |
-| View accounts and leads | ✓ | ✓ | ✓ | ✓ (own + unassigned) | ✓ | ✓ (clients) | ✓ (permitted) |
-| Edit ICP, scoring, catalogue | ✓ | | | | | | |
-| View audit log | ✓ | ✓ | ✓ | | | | |
-| Manage users | ✓ | | | | | | |
+| `accounts.read`: see every account | ✓ | ✓ | ✓ | | ✓ | ✓ | ✓ |
+| `accounts.read_own`: see own and unassigned accounts | ✓ | | | ✓ | | | |
+| `records.write`: create and change records | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | |
+| `research.run`: start research | ✓ | ✓ | ✓ | ✓ | ✓ | | |
+| `prospects.review`: approve or reject prospects | ✓ | ✓ | ✓ | ✓ | | | |
+| `accounts.merge`: merge duplicates | ✓ | ✓ | ✓ | | | | |
+| `outreach.manage`: templates and sequences | ✓ | ✓ | ✓ | | | | |
+| `reports.team`: team dashboards | ✓ | ✓ | ✓ | | | | |
+| `audit.read`: audit log | ✓ | ✓ | ✓ | | | | |
+| `config.manage`: ICP, scoring, catalogue, alert rules | ✓ | | | | | | |
+| `users.manage`: invite and manage users | ✓ | | | | | | |
+
+**Seeing is not changing (slice 7.4).** Most routes that create or change records (people, activities, tasks, deals, projects, documents and so on) are open to anyone who can see the account. Until 7.4 that meant a Viewer could change them. Now a change (any method but GET) that a person may make only because of `accounts.read` or `accounts.read_own` also needs `records.write`, which every role but Viewer has; the API answers 403 "Your role can view records but not change them". The rule lives in one place (`require_permission` in `app/auth/deps.py`), so a new route gets it without doing anything. Routes that change only the person's own things are marked `personal`: watching an account and their saved views. The app labels a read-only person "View only".
+
+**Every route is tested (slice 7.4).** `tests/integration/test_access_control.py` reads every route from the app's own OpenAPI schema and checks that each one refuses a stranger (401) and a signed-in person with no role (403), that every change refuses a Viewer (403), and that every route scoped to an account answers for someone else's account exactly as for one that does not exist. The routes that are meant to be different are listed in that file by name: public (health, sign-in, invite links), open to anyone signed in (their own session, password and notifications; the team list, services and reference projects every screen needs; which providers are on) and personal. A new route fails the test until it either refuses these people or is added to a list on purpose.
 
 As implemented (slice 1.6):
 - **Accounts:** `accounts.read` sees every account. `accounts.read_own` (Salesperson) sees accounts it owns or that have no owner, with their tasks, opportunities and timeline. Another person's account answers 404, not 403, so its existence is not revealed.
