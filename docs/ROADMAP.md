@@ -47,6 +47,15 @@ Phases follow §20. Phase 1 must work reliably end to end before any later phase
 | 4.3 Expansion and referrals ✅ | Evidence-based expansion opportunities on clients (land and expand, §11), referral tracking (source, referred company, status, conversion, revenue), the expansion report | No recommendation without evidence; referral conversion traced to deals |
 | 4.4 Documents ✅ | Proposals, contracts, SOWs, briefs and project files stored and linked to their account, deal or project | Upload limits and types enforced; files only visible to people who can see the record |
 
+## Phase 5: Learning
+
+| Slice | Delivers | Exit criteria |
+| --- | --- | --- |
+| 5.1 Feedback and outcomes ✅ | §15 salesperson feedback (the fifteen kinds) on an account or opportunity; for every deal won or lost, a record of what was true at the close (§13 won-deal data: service, opportunity type, industry, size, geography, source, buyer role, sales cycle, value, dated signals, first and closing scores, most similar reference project), superseded if the deal is reopened; a backfill for deals closed earlier, marked as captured late | Captured in the same transaction as the stage move; Unknown stays Unknown; history never rewritten |
+| 5.2 Win/loss analysis | Win rates and values by industry, size, geography, service, opportunity type, source, buyer role and signal; lost reasons; what feedback said about leads that were won or lost; every figure with its sample size, and small samples marked as too few to learn from | Figures traceable to outcomes; no conclusion drawn from fewer than the minimum sample |
+| 5.3 Learned proposals | Proposed changes to scoring weights and ICP from outcomes, each with the evidence behind it, never active until a person activates it (SCORING_SPEC.md §7) | Proposals reproducible from the same data; activation creates a new versioned config and is audited; human override kept |
+| 5.4 Similarity learning | Won clients become similarity references alongside Verkies' reference projects, so client similarity reflects who actually buys | Similarity still Unknown without complete profiles; tests for the new references |
+
 ## Later phases
 
 | Phase | Theme | Headline deliverables |

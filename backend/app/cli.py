@@ -1,6 +1,7 @@
 """Server-side admin commands.
 
     python -m app.cli create-admin --email you@verkies.co --name "Your Name"
+    python -m app.cli backfill-outcomes
 
 The password is prompted for (twice), or read from VROS_ADMIN_PASSWORD for automation.
 In Docker:  docker compose exec api python -m app.cli create-admin --email ... --name ...
@@ -34,12 +35,23 @@ async def _create_admin(email: str, name: str, password: str) -> None:
         print(f"Admin created: {user.email}")
 
 
+async def _backfill_outcomes() -> None:
+    from app.learning.capture import backfill
+
+    async with get_sessionmaker()() as db:
+        count = await backfill(db)
+        print(f"Recorded outcomes for {count} won or lost deal(s), marked as captured late.")
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="python -m app.cli")
     commands = parser.add_subparsers(dest="command", required=True)
     create = commands.add_parser("create-admin", help="create an admin account")
     create.add_argument("--email", required=True)
     create.add_argument("--name", required=True)
+    commands.add_parser(
+        "backfill-outcomes", help="record outcomes for deals closed before slice 5.1"
+    )
     args = parser.parse_args(argv)
 
     if args.command == "create-admin":
@@ -48,6 +60,8 @@ def main(argv: list[str] | None = None) -> int:
         except AppError as exc:
             print(f"Error: {exc.message}", file=sys.stderr)
             return 1
+    elif args.command == "backfill-outcomes":
+        asyncio.run(_backfill_outcomes())
     return 0
 
 

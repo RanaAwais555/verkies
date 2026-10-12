@@ -27,6 +27,7 @@ from app.deals.models import Deal, DealStageChange, Pipeline, PipelineStage
 from app.discovery.models import DiscoveredCompany, DiscoveryJob
 from app.documents.models import Document
 from app.evidence.models import Claim, Evidence, Observation
+from app.learning.models import DealOutcome, SalesFeedback
 from app.mail.models import EmailMessage, Mailbox
 from app.opportunities.models import OpportunityCandidate, OpportunityCategory
 from app.outreach.models import Enrollment, EnrollmentStep, OutreachTemplate, Sequence, SequenceStep
@@ -49,6 +50,7 @@ __all__ = [
     "ClientHealthSnapshot",
     "Contact",
     "Deal",
+    "DealOutcome",
     "DealStageChange",
     "DiscoveredCompany",
     "DiscoveryJob",
@@ -82,6 +84,7 @@ __all__ = [
     "ResearchRun",
     "ResearchStage",
     "Role",
+    "SalesFeedback",
     "SavedView",
     "ScoreSnapshot",
     "ScoringConfig",

@@ -207,6 +207,14 @@ Endpoints: `GET /accounts/{id}/expansion`, `POST /accounts/{id}/expansion/{candi
 
 Endpoints: `POST /accounts/{id}/documents?filename=&kind=&title=&project_id=&deal_id=&opportunity_id=` with the file as the request body, `GET /documents` (`account_id`, `project_id`, `deal_id`, `kind`), `PATCH /documents/{id}`, `DELETE /documents/{id}`, `GET /documents/{id}/download`.
 
+## 4j. Learning inputs (slice 5.1, migration `0023`)
+
+**sales_feedback**: `account_id`, `lead_id`, `opportunity_id`, `kind` (the fifteen §15 kinds), `note`, `given_by_id`, `created_at`.
+
+**deal_outcomes**: one row per close of a deal (at most one current per deal; reopening sets `superseded_at`): `deal_id`, `account_id`, `outcome` (won, lost), `lost_reason`, `closed_at`, `captured_late`, `recorded_at`, `superseded_at`, `pipeline_key`, `value`, `currency`, `service_id`, `category_id`, `industry`, `company_size_band`, `hq_country`, `source`, `buyer_role`, `deal_days`, `lead_days`, `signals` (JSON: signal, date, evidence id), `first_scores`, `close_scores` (JSON; null is Unknown), `reference_project_id`.
+
+Endpoints: `GET /sales-feedback/kinds`, `GET|POST /accounts/{id}/sales-feedback`, `GET /deals/{id}/outcome`.
+
 ## 5. Tables added in later phases (names reserved)
 
 | Phase | Tables |
@@ -214,7 +222,7 @@ Endpoints: `POST /accounts/{id}/documents?filename=&kind=&title=&project_id=&dea
 | 2 | `discovery_jobs` and `discovered_companies` exist since slice 2.1. Buying signals (slice 2.2) are observations in the `signals` area with dated evidence (migration `0009`), so they share evidence, attempts and append-only history with all other findings; no separate signal tables were needed |
 | 3 | `pipelines`, `pipeline_stages`, `deals` and `deal_stage_changes` exist since slice 3.1; logged meetings, calls and messages are `activities` (slice 3.2), and `meetings` stays reserved for scheduled meetings with calendar sync; `mailboxes` and `email_messages` (the §12B Message object for email) exist since slice 3.4; `outreach_templates`, `sequences`, `sequence_steps`, `enrollments` and `enrollment_steps` exist since slice 3.5; `documents` since slice 4.4 (a proposal is a document of kind proposal); `proposals` (structured proposals), `linkedin_imports` |
 | 4 | `projects`, `milestones` and `project_risks` exist since slice 4.1, `client_feedback` and `client_health_snapshots` since slice 4.2, `expansion_opportunities` and `referrals` since slice 4.3 |
-| 5 | `feedback`, `deal_outcomes`, `learned_weights` |
+| 5 | `sales_feedback` and `deal_outcomes` exist since slice 5.1; `learned_weights` |
 | 6 | `monitors`, `monitor_snapshots`, `monitor_events` |
 
 ## 6. Integrity rules enforced in the database

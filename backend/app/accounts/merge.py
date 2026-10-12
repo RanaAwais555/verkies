@@ -36,6 +36,7 @@ from app.crm.models import Activity, Lead, Opportunity, Task
 from app.deals.models import Deal
 from app.discovery.models import DiscoveredCompany
 from app.documents.models import Document
+from app.learning.models import DealOutcome, SalesFeedback
 from app.research.models import ResearchRun
 
 NAME_SIMILARITY = 0.6  # the pg_trgm threshold used everywhere duplicates are looked up (§16)
@@ -66,6 +67,8 @@ MOVABLE: tuple[tuple[Any, Any], ...] = (
     (Deal, Deal.account_id),
     (Project, Project.account_id),
     (Document, Document.account_id),
+    (SalesFeedback, SalesFeedback.account_id),
+    (DealOutcome, DealOutcome.account_id),
     (ResearchRun, ResearchRun.account_id),
     (LeadBrief, LeadBrief.account_id),
     (DiscoveredCompany, DiscoveredCompany.matched_account_id),
