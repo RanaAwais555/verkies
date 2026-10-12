@@ -30,6 +30,7 @@ from app.auth.models import User
 from app.core.enums import AccountType, AuditSource
 from app.crm.schemas import OpportunityOut, RelationshipOut, TaskOut
 from app.discovery.csv_import import csv_safe
+from app.monitoring import service as monitoring
 from app.monitoring.models import Watch
 
 router = APIRouter(prefix="/accounts", tags=["accounts"])
@@ -160,6 +161,7 @@ async def account_360(account_id: uuid.UUID, user: Member, db: DbSession) -> Acc
         client_since=account.client_since,
         watching=user.id in watcher_ids,
         watchers=len(watcher_ids),
+        attention=(await monitoring.attention(db, [account.id])).get(account.id),
         domains=[d.domain for d in found["domains"]],
         scores={name: as_float(getattr(account, name)) for name in SCORES},
         leads=[

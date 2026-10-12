@@ -1,6 +1,6 @@
 "use client";
 
-import { Check, Eye, EyeOff, Radar, RefreshCw } from "lucide-react";
+import { Check, Eye, EyeOff, ListChecks, Radar, RefreshCw } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
 
@@ -8,7 +8,7 @@ import { Badge, Button, Empty, ErrorNote, Panel, Skeleton, SourceLink, Table, ty
 import { api } from "@/lib/client";
 import { formatDate, label, relativeDate } from "@/lib/format";
 import { useAction, useApi } from "@/lib/hooks";
-import type { MonitorAlert, WatchedAccount, WebsiteChange } from "@/lib/types";
+import type { AlertFlag, MonitorAlert, WatchedAccount, WebsiteChange } from "@/lib/types";
 
 const KIND: Record<string, { label: string; tone: Tone }> = {
   job_posting: { label: "Hiring", tone: "accent" },
@@ -16,6 +16,21 @@ const KIND: Record<string, { label: string; tone: Tone }> = {
   registry: { label: "Companies House", tone: "purple" },
   website: { label: "Website", tone: "amber" },
 };
+
+const FLAG: Record<AlertFlag, { label: string; tone: Tone }> = {
+  opportunity_detected: { label: "Opportunity Detected", tone: "green" },
+  requires_review: { label: "Requires review", tone: "red" },
+};
+
+/** The flag an alert rule raised, on an alert or an account. */
+export function FlagBadge({ flag, title }: { flag: AlertFlag | null; title?: string }) {
+  if (!flag) return null;
+  return (
+    <Badge tone={FLAG[flag].tone} title={title}>
+      {FLAG[flag].label}
+    </Badge>
+  );
+}
 
 const TOPIC: Record<WebsiteChange["topic"], string> = {
   services: "Services",
@@ -83,6 +98,17 @@ function AlertRow({ alert, showAccount }: { alert: MonitorAlert; showAccount: bo
       <Badge tone={kind.tone}>{kind.label}</Badge>
       <span className="min-w-0 flex-1 space-y-0.5">
         <span className={alert.reviewed ? "block text-[13px] text-fg-3" : "block text-[13px] font-medium text-fg"}>{alert.title}</span>
+        {(alert.raised || alert.task_id) && (
+          <span className="flex flex-wrap items-center gap-1.5 py-0.5" data-testid="alert-rules">
+            <FlagBadge flag={alert.raised} title={`Alert rules: ${alert.rules.map((r) => r.name).join(", ")}`} />
+            {alert.task_id && (
+              <Link href={`/accounts/${alert.account_id}?tab=tasks`} className="inline-flex items-center gap-1 text-xs text-accent-text hover:underline">
+                <ListChecks className="h-3.5 w-3.5" />
+                Follow-up task
+              </Link>
+            )}
+          </span>
+        )}
         <span className="block text-xs text-fg-3">
           {showAccount && (
             <>
@@ -157,6 +183,11 @@ export function WatchedTable({ mine }: { mine: boolean }) {
                 {w.name}
               </Link>
               <span className="block text-xs text-fg-3">{w.primary_domain ?? label(w.account_type)}</span>
+              {w.attention && (
+                <span className="mt-1 block">
+                  <FlagBadge flag={w.attention} />
+                </span>
+              )}
             </td>
             <td className="whitespace-nowrap text-fg-2" title={formatDate(w.last_checked_at, true)}>
               {w.last_checked_at ? relativeDate(w.last_checked_at) : <span className="text-fg-3">Not yet</span>}

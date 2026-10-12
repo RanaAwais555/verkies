@@ -143,6 +143,8 @@ def clean_db(engine: Engine) -> Iterator[None]:
         # And the client views of migration 0020.
         _load_migration("0020_client_health.py").seed_client_views(conn)
         _load_migration("0021_expansion_and_referrals.py").seed_expansion_views(conn)
+        # And the starting alert rules of migration 0028.
+        _load_migration("0028_alert_rules.py").seed_default_rules(conn)
 
 
 def make_user(

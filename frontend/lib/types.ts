@@ -346,6 +346,8 @@ export type Account360 = AccountSummary & {
   client_since: string | null;
   watching: boolean;
   watchers: number;
+  /** Slice 6.3: raised by an unreviewed monitoring alert. */
+  attention: AlertFlag | null;
   domains: string[];
   scores: Record<string, number | null>;
   leads: Lead[];
@@ -963,7 +965,38 @@ export type WatchedAccount = {
   watching: boolean;
   last_checked_at: string | null;
   open_alerts: number;
+  attention: AlertFlag | null;
 };
+
+/** Slice 6.3: what an alert rule raised. */
+export type AlertFlag = "opportunity_detected" | "requires_review";
+
+export type AlertRule = {
+  id: string;
+  name: string;
+  active: boolean;
+  kinds: string[];
+  signals: string[];
+  topics: string[];
+  action: AlertFlag | "task";
+  task_title: string | null;
+  updated_at: string;
+};
+
+export type RuleChoices = Record<"actions" | "kinds" | "signals" | "topics", { key: string; label: string }[]>;
+
+export type AppNotification = {
+  id: string;
+  kind: string;
+  title: string;
+  body: string | null;
+  account_id: string | null;
+  link: string | null;
+  created_at: string;
+  read: boolean;
+};
+
+export type NotificationKind = { kind: string; label: string; on: boolean };
 
 /** A website change (slice 6.2): what changed, with the text before and after. */
 export type WebsiteChange = {
@@ -988,4 +1021,7 @@ export type MonitorAlert = {
   created_at: string;
   reviewed: boolean;
   detail: WebsiteChange | null;
+  raised: AlertFlag | null;
+  rules: { id: string; name: string; action: string }[];
+  task_id: string | null;
 };

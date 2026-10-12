@@ -157,6 +157,9 @@ class Account360Out(AccountSummaryOut):
     # Monitoring (slice 6.1): whether the person viewing watches it, and how many do.
     watching: bool = False
     watchers: int = 0
+    # Alert rules (slice 6.3): opportunity_detected or requires_review while an alert that
+    # raised it is unreviewed.
+    attention: str | None = None
     domains: list[str]
     # All ten dimensions; null means Unknown, never zero.
     scores: dict[str, float | None]

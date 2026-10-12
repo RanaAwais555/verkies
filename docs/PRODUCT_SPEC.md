@@ -163,6 +163,14 @@ Bulk discovery, external company registries, job-board and news signals, monitor
   - services, pricing, technology and contact routes: the same extractors run over the old and the new copies of the same pages, so an added or removed technology, phone number, email address, contact form, booking tool, live chat, pricing page, subscription pricing or payment provider is reported with its evidence.
 - A page that could not be fetched is recorded as an error on the check, never as a removal, and changes nothing. Each change is also an observation on the monitoring check with its evidence, and the account's timeline gets one line per check listing what changed.
 
+### Phase 6, slice 6.3: alert rules, auto-tasks and notifications (§15, §13 Notifications)
+
+- **Alert rules** run over every new alert a monitoring check records. A rule matches by alert kind (job posting, news, Companies House, website change), signal (funding, new leadership, hiring for product…) and, for website changes, topic (services, pricing, technology, contact routes, pages); each list it sets must match and an empty list matches anything, but a rule must set at least one. Its action is one of:
+  - **Opportunity Detected** or **Account Requires Review**: the alert carries the flag (Opportunity Detected outranks Requires review). An account is flagged while it has an unreviewed flagged alert, so reviewing the alerts clears it; the flag shows on the account page, the watched list and the Monitoring page's Flagged tab, and the timeline gets a line.
+  - **Follow-up task**: one task per rule and check for the account's manager (else owner), due after the usual follow-up days and listing the alerts with their sources. While that rule's task is still open for the account, new matching alerts join it instead of adding another.
+- Migration `0028` seeds five starting rules from §15: funding, acquisition or expansion → Opportunity Detected; new service or product launch → Opportunity Detected; leadership change → Requires review; services or pricing changed on the website → Requires review; hiring for product or engineering → follow-up task. Admins (`config.manage`) add, edit, switch off and delete rules on the Monitoring page; everyone can see them; every change is audited.
+- **In-app notifications**: watchers of the account get one per check ("Northwind Legal: Opportunity Detected", or "3 new alerts"), and a rule's task owner gets one for the task. The bell in the top bar shows how many are unread; the Notifications page lists them, marks them read, and lets each person switch either kind off. Nothing is emailed or sent anywhere, and nobody outside is contacted.
+
 ## 4. Acceptance: Definition of Done (§20) mapped to tests
 
 | Requirement | Verified by |

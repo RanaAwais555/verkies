@@ -4,7 +4,7 @@ import uuid
 from datetime import datetime
 
 from sqlalchemy import Column, ForeignKey, String, Table, Text
-from sqlalchemy.dialects.postgresql import CITEXT
+from sqlalchemy.dialects.postgresql import CITEXT, JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.core.models import Base, CreatedMixin, IdMixin, TimestampMixin
@@ -59,6 +59,8 @@ class User(IdMixin, TimestampMixin, Base):
     last_login_at: Mapped[datetime | None]
     failed_login_count: Mapped[int] = mapped_column(default=0)
     locked_until: Mapped[datetime | None]
+    # In-app notifications switched off, by kind (slice 6.3); anything not listed is on.
+    notifications_off: Mapped[list[str]] = mapped_column(JSONB, default=list, server_default="[]")
     roles: Mapped[list[Role]] = relationship(
         secondary=user_roles, lazy="selectin", order_by=Role.key
     )
