@@ -8,13 +8,40 @@ import { Badge, Button, Empty, ErrorNote, Panel, Skeleton, SourceLink, Table, ty
 import { api } from "@/lib/client";
 import { formatDate, label, relativeDate } from "@/lib/format";
 import { useAction, useApi } from "@/lib/hooks";
-import type { MonitorAlert, WatchedAccount } from "@/lib/types";
+import type { MonitorAlert, WatchedAccount, WebsiteChange } from "@/lib/types";
 
 const KIND: Record<string, { label: string; tone: Tone }> = {
   job_posting: { label: "Hiring", tone: "accent" },
   news: { label: "News", tone: "blue" },
   registry: { label: "Companies House", tone: "purple" },
+  website: { label: "Website", tone: "amber" },
 };
+
+const TOPIC: Record<WebsiteChange["topic"], string> = {
+  services: "Services",
+  pricing: "Pricing",
+  technology: "Technology",
+  contact: "Contact routes",
+  pages: "Pages",
+};
+
+/** What a page or fact said when VROS last read it, and what it says now. */
+function BeforeAfter({ change }: { change: WebsiteChange }) {
+  return (
+    <span className="mt-1.5 grid gap-2 sm:grid-cols-2" data-testid="before-after">
+      <span className="block min-w-0 rounded-md bg-sunken px-2.5 py-2">
+        <span className="block text-[11px] font-medium uppercase tracking-wide text-fg-3">
+          Before{change.before_seen_at && `, read ${formatDate(change.before_seen_at)}`}
+        </span>
+        <span className="mt-0.5 block break-words text-xs text-fg-2">{change.before ?? "Not there"}</span>
+      </span>
+      <span className="block min-w-0 rounded-md bg-sunken px-2.5 py-2">
+        <span className="block text-[11px] font-medium uppercase tracking-wide text-fg-3">Now</span>
+        <span className="mt-0.5 block break-words text-xs text-fg">{change.after}</span>
+      </span>
+    </span>
+  );
+}
 
 /** Watch or stop watching an account; when watching, check its sources now. */
 export function WatchButton({ accountId, watching, onChange }: { accountId: string; watching: boolean; onChange: () => void }) {
@@ -65,10 +92,11 @@ function AlertRow({ alert, showAccount }: { alert: MonitorAlert; showAccount: bo
               {" · "}
             </>
           )}
-          {alert.signal_label ?? (alert.signal ? label(alert.signal) : "Signal")}
+          {alert.detail ? TOPIC[alert.detail.topic] ?? label(alert.detail.topic) : (alert.signal_label ?? (alert.signal ? label(alert.signal) : "Signal"))}
           {alert.happened_on && ` · ${formatDate(alert.happened_on)}`} · found {relativeDate(alert.created_at).toLowerCase()}
         </span>
         <SourceLink url={alert.source_url} />
+        {alert.detail && <BeforeAfter change={alert.detail} />}
       </span>
       {!alert.reviewed && (
         <Button
@@ -150,7 +178,7 @@ export function AccountAlerts({ accountId }: { accountId: string }) {
   return (
     <Panel
       title="Monitoring"
-      description="New hiring, news and Companies House filings found when VROS re-checked this account's own sources."
+      description="New hiring, news, Companies House filings and website changes found when VROS re-checked this account's own sources."
       testId="account-monitoring"
     >
       <AlertList query={`account_id=${accountId}`} showAccount={false} empty="Nothing new found yet. Watched accounts are checked every morning." />

@@ -1,9 +1,9 @@
-"""/monitoring and /accounts/{id}/watch: watchlists, monitoring checks and alerts (slice 6.1)."""
+"""/monitoring and /accounts/{id}/watch: watchlists, checks and alerts (slices 6.1, 6.2)."""
 
 import uuid
 from collections.abc import Callable
 from datetime import date, datetime
-from typing import Annotated
+from typing import Annotated, Any
 
 from fastapi import APIRouter, Depends, Query, Response
 from pydantic import BaseModel
@@ -61,6 +61,8 @@ class AlertOut(BaseModel):
     happened_on: date | None
     created_at: datetime
     reviewed: bool
+    # A website change: change, topic, before, before_url, before_seen_at, after.
+    detail: dict[str, Any] | None
 
     @classmethod
     def of(cls, a: MonitorAlert, account_name: str) -> "AlertOut":
@@ -76,6 +78,7 @@ class AlertOut(BaseModel):
             happened_on=a.happened_on,
             created_at=a.created_at,
             reviewed=a.reviewed_at is not None,
+            detail=a.detail,
         )
 
 

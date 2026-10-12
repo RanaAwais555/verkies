@@ -227,7 +227,7 @@ Endpoints: `GET|POST /learning/proposals`, `POST /learning/proposals/{id}/activa
 
 ## 4m. Monitoring (slice 6.1, migration `0026`)
 
-**research_runs** gains `kind` (research, monitor; default research) and `review_status` gains `not_required` for monitoring checks. **watches**: `account_id`, `user_id` (unique pair). **monitor_alerts**: `account_id`, `research_run_id` (the monitoring check), `observation_id` (what it read, with its evidence), `kind` (job_posting, news, registry), `signal`, `title`, `source_url`, `happened_on`, `reviewed_at`, `reviewed_by_id`.
+**research_runs** gains `kind` (research, monitor; default research) and `review_status` gains `not_required` for monitoring checks. **watches**: `account_id`, `user_id` (unique pair). **monitor_alerts**: `account_id`, `research_run_id` (the monitoring check), `observation_id` (what it read, with its evidence), `kind` (job_posting, news, registry), `signal`, `title`, `source_url`, `happened_on`, `reviewed_at`, `reviewed_by_id`. Slice 6.2 (migration `0027`) adds kind `website` and `detail` (JSONB, website changes only: `change` page_added, page_removed, page_changed, added or removed; `topic` services, pricing, technology, contact or pages; `before`, `before_url`, `before_seen_at`, `after`). Its observation is `website.change` on the monitoring check.
 
 Endpoints: `PUT|DELETE /accounts/{id}/watch`, `POST /accounts/{id}/monitor/check` (queues `vros.monitoring.check_account`), `GET /monitoring/watched?mine=`, `GET /monitoring/alerts?account_id=&open=&mine=`, `POST /monitoring/alerts/{id}/review`. The worker runs `vros.monitoring.check_watched` daily at 05:00 UTC.
 

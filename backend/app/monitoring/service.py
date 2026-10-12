@@ -1,4 +1,4 @@
-"""Watchlists and signal monitoring (master context §15 Monitoring; slice 6.1).
+"""Watchlists and monitoring (master context §15 Monitoring; slices 6.1 and 6.2).
 
 A watched account is re-checked from the sources its latest research found: the job boards and
 news feeds its own site links to, and its Companies House record (filings, officers). Every check
@@ -7,6 +7,9 @@ with research) holding what it read, so ranking, timing and the learning engine 
 like any others. A signal VROS had not seen before for that account becomes an alert and a line
 on the timeline. Nothing is contacted and nothing is guessed: an account with no research has
 nothing to check, and a source that fails is reported, never treated as "no news".
+
+The same check reads the account's own pages again and records what changed on its website
+(app.monitoring.website): each change is an alert of kind "website" with the text before and after.
 """
 
 import uuid
@@ -21,14 +24,24 @@ from app.accounts import access
 from app.accounts.models import Account
 from app.audit import service as audit
 from app.auth.models import User
-from app.core.enums import AuditSource, JobStatus, ObservationArea, ReviewStatus, RunKind
+from app.core.enums import (
+    AuditSource,
+    EvidenceType,
+    JobStatus,
+    ObservationArea,
+    ReviewStatus,
+    RunKind,
+)
 from app.core.errors import NotFound
 from app.crm import timeline
 from app.evidence.models import Observation as ObservationRow
 from app.intelligence.stage import persist_observation
+from app.intelligence.types import Observation
 from app.leads.ranking import SIGNAL_LABELS
+from app.monitoring import website
 from app.monitoring.models import MonitorAlert, Watch
 from app.providers.fetch.safe_http import SafeHttpFetcher
+from app.providers.storage import Storage
 from app.registry import stage as registry
 from app.research.crawler import PageSource
 from app.research.models import ResearchRun
@@ -183,6 +196,7 @@ class MonitorDeps:
     fetcher: SafeHttpFetcher
     boards: jobs.JobBoards
     registries: registry.Registries
+    storage: Storage
 
 
 @dataclass
@@ -193,6 +207,7 @@ class CheckResult:
     run_id: uuid.UUID | None = None
     read: int = 0
     new: int = 0
+    changes: int = 0
     errors: list[str] = field(default_factory=list)
 
 
@@ -224,6 +239,7 @@ async def check_account(
         if latest is None:
             return CheckResult(account_id, False, "no completed research to know its sources")
         facts = await load_facts(db, latest)
+        pages = await website.snapshots(db, latest.id, deps.storage)
         requester = (
             requested_by
             or (
@@ -257,7 +273,9 @@ async def check_account(
         facts, domain, deps.fetcher, deps.registries, today
     )
     found += registry_found
-    errors = list(report.get("errors", [])) + list(registry_report.get("errors", []))
+    read = await website.reread(deps.source, pages)
+    changes = website.compare(read)
+    errors = list(report.get("errors", [])) + list(registry_report.get("errors", [])) + read.errors
 
     async with deps.sessionmaker() as db:
         now = _now()
@@ -285,7 +303,43 @@ async def check_account(
                 if mark not in seen:
                     seen.add(mark)
                     new.append((item, row))
+        changed: list[tuple[website.Change, ObservationRow]] = []
+        for change in changes:
+            observation = Observation(
+                ObservationArea.WEBSITE,
+                "website.change",
+                {"title": change.title, **change.detail()},
+                change.url,
+                change.after[:300],
+                evidence_type=EvidenceType.PAGE_CONTENT,
+            )
+            changed.append((change, persist_observation(db, run.id, 0, observation)))
         await db.flush()
+        for change, row in changed:
+            db.add(
+                MonitorAlert(
+                    account_id=account_id,
+                    research_run_id=run.id,
+                    observation_id=row.id,
+                    kind="website",
+                    title=change.title[:500],
+                    source_url=change.url,
+                    detail=change.detail(),
+                )
+            )
+        if changed:
+            titles = "; ".join(c.title for c, _ in changed[:5])[:300]
+            plural = "s" if len(changed) != 1 else ""
+            more = "; …" if len(changed) > 5 else "."
+            timeline.add(
+                db,
+                account_id=account_id,
+                event_type="monitoring.website_changes",
+                summary=f"Monitoring found {len(changed)} website change{plural}: {titles}{more}",
+                actor_id=None,
+                ref_table="research_runs",
+                ref_id=run.id,
+            )
         for item, row in new:
             published = item.value.get("published")
             db.add(
@@ -318,7 +372,14 @@ async def check_account(
             )
         await db.commit()
         return CheckResult(
-            account_id, True, None, run.id, read=len(found), new=len(new), errors=errors
+            account_id,
+            True,
+            None,
+            run.id,
+            read=len(found) + len(read.pages),
+            new=len(new),
+            changes=len(changed),
+            errors=errors,
         )
 
 
