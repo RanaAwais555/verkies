@@ -6,6 +6,7 @@ import {
   Columns3,
   Compass,
   FolderKanban,
+  HeartPulse,
   GitMerge,
   LayoutDashboard,
   Send,
@@ -46,6 +47,7 @@ export const NAV: NavGroup[] = [
     label: "Workspace",
     items: [
       { href: "/tasks", label: "Tasks", icon: SquareCheckBig, needs: ACCOUNTS },
+      { href: "/clients", label: "Clients", icon: HeartPulse, needs: ACCOUNTS },
       { href: "/projects", label: "Projects", icon: FolderKanban, needs: ACCOUNTS },
       { href: "/follow-ups", label: "Follow-ups", icon: Bell, needs: ACCOUNTS },
       { href: "/views", label: "Saved views", icon: Bookmark, needs: ACCOUNTS },

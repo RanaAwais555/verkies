@@ -1,5 +1,5 @@
 """/projects, /deals/{id}/convert and the account manager: client conversion and lightweight
-project tracking (slice 4.1)."""
+project tracking (slice 4.1); /clients, client health, feedback and retention (slice 4.2)."""
 
 import uuid
 from datetime import date, datetime
@@ -11,10 +11,11 @@ from pydantic import BaseModel, Field
 from app.accounts.schemas import OwnerOut
 from app.auth.deps import DbSession, require_permission
 from app.auth.models import User
-from app.clients import service
-from app.clients.models import Milestone, ProjectRisk
+from app.clients import health, service
+from app.clients.health import ClientView
+from app.clients.models import ClientFeedback, Milestone, ProjectRisk
 from app.clients.service import NewMilestone, NewProject, ProjectView
-from app.core.enums import ProjectStatus, RiskSeverity
+from app.core.enums import HealthColour, ProjectStatus, RiskSeverity, Sentiment
 from app.core.errors import ValidationFailed
 from app.crm.schemas import TaskOut
 from app.crm.service import list_tasks_for_project
@@ -357,3 +358,157 @@ async def update_risk(risk_id: uuid.UUID, body: UpdateRisk, user: Member, db: Db
     assert risk is not None
     await db.refresh(risk)
     return RiskOut.of(risk)
+
+
+# --- client health, feedback and retention (slice 4.2) -----------------------------------------
+
+Manager = Annotated[User, Depends(require_permission("reports.team"))]
+
+
+class ReasonOut(BaseModel):
+    level: str
+    text: str
+
+
+class FeedbackOut(BaseModel):
+    id: uuid.UUID
+    sentiment: str
+    note: str | None
+    received_on: date
+    project_id: uuid.UUID | None
+    recorded_by: str | None
+    created_at: datetime
+
+    @classmethod
+    def of(cls, f: ClientFeedback, names: dict[uuid.UUID, str]) -> "FeedbackOut":
+        return cls(
+            id=f.id,
+            sentiment=f.sentiment.value,
+            note=f.note,
+            received_on=f.received_on,
+            project_id=f.project_id,
+            recorded_by=names.get(f.recorded_by_id) if f.recorded_by_id else None,
+            created_at=f.created_at,
+        )
+
+
+class ClientOut(BaseModel):
+    account_id: uuid.UUID
+    name: str
+    primary_domain: str | None
+    account_manager: OwnerOut | None
+    client_since: date | None
+    health: str
+    reasons: list[ReasonOut]
+    last_contact_at: datetime | None
+    open_projects: int
+    latest_feedback: str | None
+    latest_feedback_on: date | None
+
+    @classmethod
+    def of(cls, v: ClientView) -> "ClientOut":
+        a, fb = v.account, v.facts.feedback
+        return cls(
+            account_id=a.id,
+            name=a.name,
+            primary_domain=a.primary_domain,
+            account_manager=OwnerOut(id=a.account_manager_id, name=v.manager_name or "Unknown")
+            if a.account_manager_id
+            else None,
+            client_since=a.client_since,
+            health=v.colour.value,
+            reasons=[ReasonOut(**r.as_dict()) for r in v.reasons],
+            last_contact_at=v.facts.relationship.latest_interaction_at,
+            open_projects=len(v.facts.projects),
+            latest_feedback=fb.sentiment.value if fb else None,
+            latest_feedback_on=fb.received_on if fb else None,
+        )
+
+
+class SnapshotOut(BaseModel):
+    colour: str
+    reasons: list[ReasonOut]
+    assessed_at: datetime
+
+
+class AccountHealthOut(BaseModel):
+    current: ClientOut | None
+    history: list[SnapshotOut]
+    feedback: list[FeedbackOut]
+
+
+class FeedbackIn(BaseModel):
+    sentiment: Sentiment
+    note: str | None = Field(default=None, max_length=4000)
+    received_on: date | None = None
+    project_id: uuid.UUID | None = None
+
+
+class EndClientIn(BaseModel):
+    reason: str = Field(min_length=3, max_length=500)
+
+
+class SweepOut(BaseModel):
+    assessed: int
+    changed: int
+    risks_raised: int
+
+
+@router.get("/clients")
+async def list_clients(
+    user: Member,
+    db: DbSession,
+    health_: Annotated[HealthColour | None, Query(alias="health")] = None,
+    mine: bool = False,
+) -> list[ClientOut]:
+    views = await health.list_clients(db, user=user, colour=health_, mine=mine)
+    return [ClientOut.of(v) for v in views]
+
+
+@router.post("/clients/health-check")
+async def check_client_health(user: Manager, db: DbSession) -> SweepOut:
+    """Run the retention engine now instead of waiting for the daily run."""
+    done = await health.sweep(db)
+    return SweepOut(assessed=done.assessed, changed=done.changed, risks_raised=done.risks_raised)
+
+
+@router.get("/accounts/{account_id}/health")
+async def account_health(account_id: uuid.UUID, user: Member, db: DbSession) -> AccountHealthOut:
+    found = await health.account_health(db, user=user, account_id=account_id)
+    return AccountHealthOut(
+        current=ClientOut.of(found.current) if found.current else None,
+        history=[
+            SnapshotOut(
+                colour=s.colour.value,
+                reasons=[ReasonOut(**r) for r in s.reasons],
+                assessed_at=s.assessed_at,
+            )
+            for s in found.history
+        ],
+        feedback=[FeedbackOut.of(f, found.recorded_by) for f in found.feedback],
+    )
+
+
+@router.post("/accounts/{account_id}/feedback", status_code=201)
+async def record_feedback(
+    account_id: uuid.UUID, body: FeedbackIn, user: Member, db: DbSession
+) -> FeedbackOut:
+    feedback = await health.record_feedback(
+        db,
+        user=user,
+        account_id=account_id,
+        sentiment=body.sentiment,
+        note=body.note,
+        received_on=body.received_on,
+        project_id=body.project_id,
+    )
+    await db.refresh(feedback)
+    return FeedbackOut.of(feedback, {user.id: user.name})
+
+
+@router.post("/accounts/{account_id}/end-client", status_code=204)
+async def end_client(
+    account_id: uuid.UUID, body: EndClientIn, user: Member, db: DbSession
+) -> Response:
+    await health.end_client(db, user=user, account_id=account_id, reason=body.reason)
+    return Response(status_code=204)

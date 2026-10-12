@@ -12,7 +12,13 @@ from app.audit.models import AuditLog
 from app.auth.models import Invite, Permission, Role, User, UserSession
 from app.briefs.models import LeadBrief
 from app.catalogue.models import ReferenceProject, Service, ServiceMatch
-from app.clients.models import Milestone, Project, ProjectRisk
+from app.clients.models import (
+    ClientFeedback,
+    ClientHealthSnapshot,
+    Milestone,
+    Project,
+    ProjectRisk,
+)
 from app.core.models import Base
 from app.crm.models import Activity, Lead, Opportunity, Task, TimelineEvent
 from app.deals.models import Deal, DealStageChange, Pipeline, PipelineStage
@@ -36,6 +42,8 @@ __all__ = [
     "AuditLog",
     "Base",
     "Claim",
+    "ClientFeedback",
+    "ClientHealthSnapshot",
     "Contact",
     "Deal",
     "DealStageChange",

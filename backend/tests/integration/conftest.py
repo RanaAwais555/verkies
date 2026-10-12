@@ -75,6 +75,17 @@ def _seed_outreach(conn: Connection) -> None:
     module.seed_default_sequence(conn)
 
 
+def _load_migration(filename: str):  # type: ignore[no-untyped-def]
+    import importlib.util
+
+    path = os.path.join(BACKEND_DIR, "alembic", "versions", filename)
+    spec = importlib.util.spec_from_file_location(f"seed_{filename[:4]}", path)
+    assert spec and spec.loader
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
 def alembic_config(url: str) -> Config:
     config = Config(os.path.join(BACKEND_DIR, "alembic.ini"))
     config.attributes["database_url"] = url
@@ -129,6 +140,8 @@ def clean_db(engine: Engine) -> Iterator[None]:
             )
         # Outreach templates and sequences reference users as well.
         _seed_outreach(conn)
+        # And the client views of migration 0020.
+        _load_migration("0020_client_health.py").seed_client_views(conn)
 
 
 def make_user(

@@ -359,6 +359,22 @@ class ProjectStatus(StrEnum):
     CANCELLED = "cancelled"
 
 
+class HealthColour(StrEnum):
+    """§14 client health."""
+
+    GREEN = "green"
+    YELLOW = "yellow"
+    RED = "red"
+
+
+class Sentiment(StrEnum):
+    """How a client says they feel, recorded by a person from a conversation or a review."""
+
+    POSITIVE = "positive"
+    NEUTRAL = "neutral"
+    NEGATIVE = "negative"
+
+
 class RiskSeverity(StrEnum):
     LOW = "low"
     MEDIUM = "medium"
