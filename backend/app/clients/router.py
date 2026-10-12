@@ -1,5 +1,6 @@
 """/projects, /deals/{id}/convert and the account manager: client conversion and lightweight
-project tracking (slice 4.1); /clients, client health, feedback and retention (slice 4.2)."""
+project tracking (slice 4.1); /clients, client health, feedback and retention (slice 4.2);
+expansion suggestions and referrals (slice 4.3)."""
 
 import uuid
 from datetime import date, datetime
@@ -11,11 +12,11 @@ from pydantic import BaseModel, Field
 from app.accounts.schemas import OwnerOut
 from app.auth.deps import DbSession, require_permission
 from app.auth.models import User
-from app.clients import health, service
+from app.clients import expansion, health, referrals, service
 from app.clients.health import ClientView
 from app.clients.models import ClientFeedback, Milestone, ProjectRisk
 from app.clients.service import NewMilestone, NewProject, ProjectView
-from app.core.enums import HealthColour, ProjectStatus, RiskSeverity, Sentiment
+from app.core.enums import HealthColour, ProjectStatus, ReferralStatus, RiskSeverity, Sentiment
 from app.core.errors import ValidationFailed
 from app.crm.schemas import TaskOut
 from app.crm.service import list_tasks_for_project
@@ -404,6 +405,7 @@ class ClientOut(BaseModel):
     open_projects: int
     latest_feedback: str | None
     latest_feedback_on: date | None
+    expansion: list[str]
 
     @classmethod
     def of(cls, v: ClientView) -> "ClientOut":
@@ -422,6 +424,7 @@ class ClientOut(BaseModel):
             open_projects=len(v.facts.projects),
             latest_feedback=fb.sentiment.value if fb else None,
             latest_feedback_on=fb.received_on if fb else None,
+            expansion=v.expansion,
         )
 
 
@@ -460,8 +463,11 @@ async def list_clients(
     db: DbSession,
     health_: Annotated[HealthColour | None, Query(alias="health")] = None,
     mine: bool = False,
+    expansion_: Annotated[bool, Query(alias="expansion")] = False,
 ) -> list[ClientOut]:
-    views = await health.list_clients(db, user=user, colour=health_, mine=mine)
+    views = await health.list_clients(
+        db, user=user, colour=health_, mine=mine, with_expansion=expansion_
+    )
     return [ClientOut.of(v) for v in views]
 
 
@@ -512,3 +518,199 @@ async def end_client(
 ) -> Response:
     await health.end_client(db, user=user, account_id=account_id, reason=body.reason)
     return Response(status_code=204)
+
+
+# --- expansion and referrals (slice 4.3) -------------------------------------------------------
+
+
+class EvidenceOut(BaseModel):
+    id: uuid.UUID
+    source_url: str
+    evidence_text: str
+    collected_at: datetime
+
+
+class ServiceRefOut(BaseModel):
+    id: uuid.UUID
+    name: str
+
+
+class SuggestionOut(BaseModel):
+    candidate_id: uuid.UUID
+    category_key: str
+    category_name: str
+    title: str
+    problem: str
+    confidence: float
+    found_at: datetime
+    services: list[ServiceRefOut]
+    evidence: list[EvidenceOut]
+    dismissed_before: bool
+
+    @classmethod
+    def of(cls, s: expansion.Suggestion) -> "SuggestionOut":
+        return cls(
+            candidate_id=s.candidate.id,
+            category_key=s.category.key,
+            category_name=s.category.name,
+            title=s.candidate.title,
+            problem=s.candidate.problem_statement,
+            confidence=float(s.candidate.confidence),
+            found_at=s.found_at,
+            services=[ServiceRefOut(id=x.id, name=x.name) for x in s.services],
+            evidence=[
+                EvidenceOut(
+                    id=e.id,
+                    source_url=e.source_url,
+                    evidence_text=e.evidence_text[:500],
+                    collected_at=e.collected_at,
+                )
+                for e in s.evidence[:5]
+            ],
+            dismissed_before=s.dismissed_before,
+        )
+
+
+class OpenSuggestionIn(BaseModel):
+    service_id: uuid.UUID | None = None
+
+
+class OpenedOut(BaseModel):
+    opportunity_id: uuid.UUID
+
+
+class DismissIn(BaseModel):
+    reason: str = Field(min_length=3, max_length=500)
+
+
+@router.get("/accounts/{account_id}/expansion")
+async def expansion_suggestions(
+    account_id: uuid.UUID, user: Member, db: DbSession
+) -> list[SuggestionOut]:
+    return [
+        SuggestionOut.of(s)
+        for s in await expansion.for_account(db, user=user, account_id=account_id)
+    ]
+
+
+@router.post("/accounts/{account_id}/expansion/{candidate_id}/open", status_code=201)
+async def open_suggestion(
+    account_id: uuid.UUID,
+    candidate_id: uuid.UUID,
+    body: OpenSuggestionIn,
+    user: Member,
+    db: DbSession,
+) -> OpenedOut:
+    opportunity = await expansion.open_suggestion(
+        db, user=user, account_id=account_id, candidate_id=candidate_id, service_id=body.service_id
+    )
+    return OpenedOut(opportunity_id=opportunity.id)
+
+
+@router.post("/accounts/{account_id}/expansion/{candidate_id}/dismiss", status_code=204)
+async def dismiss_suggestion(
+    account_id: uuid.UUID, candidate_id: uuid.UUID, body: DismissIn, user: Member, db: DbSession
+) -> Response:
+    await expansion.dismiss_suggestion(
+        db, user=user, account_id=account_id, candidate_id=candidate_id, reason=body.reason
+    )
+    return Response(status_code=204)
+
+
+class MoneyOut(BaseModel):
+    amount: float
+    currency: str
+
+
+class AccountRefOut(BaseModel):
+    id: uuid.UUID
+    name: str
+
+
+class ReferralOut(BaseModel):
+    id: uuid.UUID
+    referrer_name: str
+    referrer_account: AccountRefOut | None
+    relationship: str | None
+    referred_company: str
+    referred_domain: str | None
+    referred_account: AccountRefOut | None
+    status: str
+    converted: bool
+    won_deals: int
+    revenue: list[MoneyOut]
+    unknown_value_deals: int
+    notes: str | None
+    received_on: date
+    recorded_by: str | None
+
+    @classmethod
+    def of(cls, v: referrals.ReferralView) -> "ReferralOut":
+        r = v.referral
+        return cls(
+            id=r.id,
+            referrer_name=r.referrer_name,
+            referrer_account=AccountRefOut(id=v.referrer.id, name=v.referrer.name)
+            if v.referrer
+            else None,
+            relationship=r.relationship,
+            referred_company=r.referred_company,
+            referred_domain=r.referred_domain,
+            referred_account=AccountRefOut(id=v.referred.id, name=v.referred.name)
+            if v.referred
+            else None,
+            status=r.status.value,
+            converted=v.converted,
+            won_deals=v.won_deals,
+            revenue=[MoneyOut(amount=float(a), currency=c) for c, a in sorted(v.revenue.items())],
+            unknown_value_deals=v.unknown_value_deals,
+            notes=r.notes,
+            received_on=r.received_on,
+            recorded_by=v.recorded_by,
+        )
+
+
+class ReferralIn(BaseModel):
+    referred_company: str = Field(min_length=1, max_length=300)
+    referred_domain: str | None = Field(default=None, max_length=300)
+    referrer_account_id: uuid.UUID | None = None
+    referrer_contact_id: uuid.UUID | None = None
+    referrer_name: str | None = Field(default=None, max_length=200)
+    relationship: str | None = Field(default=None, max_length=120)
+    notes: str | None = Field(default=None, max_length=4000)
+    received_on: date | None = None
+
+
+class UpdateReferral(BaseModel):
+    status: ReferralStatus | None = None
+    notes: str | None = Field(default=None, max_length=4000)
+    relationship: str | None = Field(default=None, max_length=120)
+    referred_company: str | None = Field(default=None, min_length=1, max_length=300)
+    referred_domain: str | None = Field(default=None, max_length=300)
+
+
+@router.get("/referrals")
+async def list_referrals(
+    user: Member, db: DbSession, account_id: uuid.UUID | None = None
+) -> list[ReferralOut]:
+    views = await referrals.list_referrals(db, user=user, account_id=account_id)
+    return [ReferralOut.of(v) for v in views]
+
+
+@router.post("/referrals", status_code=201)
+async def create_referral(body: ReferralIn, user: Member, db: DbSession) -> ReferralOut:
+    referral = await referrals.create_referral(
+        db, user=user, data=referrals.NewReferral(**body.model_dump())
+    )
+    return ReferralOut.of(await referrals.get_referral(db, user=user, referral_id=referral.id))
+
+
+@router.patch("/referrals/{referral_id}")
+async def update_referral(
+    referral_id: uuid.UUID, body: UpdateReferral, user: Member, db: DbSession
+) -> ReferralOut:
+    changes = body.model_dump(exclude_unset=True)
+    if "status" in changes and changes["status"] is None:
+        raise ValidationFailed("A referral needs a status.")
+    await referrals.update_referral(db, user=user, referral_id=referral_id, changes=changes)
+    return ReferralOut.of(await referrals.get_referral(db, user=user, referral_id=referral_id))

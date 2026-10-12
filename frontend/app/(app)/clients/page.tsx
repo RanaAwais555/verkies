@@ -15,6 +15,7 @@ const FILTERS = [
   { key: "red", label: "Red" },
   { key: "yellow", label: "Yellow" },
   { key: "green", label: "Green" },
+  { key: "expansion", label: "Expansion potential" },
 ];
 
 export default function ClientsPage() {
@@ -23,18 +24,21 @@ export default function ClientsPage() {
   const pathname = usePathname();
   const { data: session } = useSession();
   const health = params.get("health") ?? "all";
+  const expansion = params.get("expansion") === "1";
   const mine = params.get("mine") === "1";
   const query = new URLSearchParams();
   if (health !== "all") query.set("health", health);
   if (mine) query.set("mine", "true");
+  if (expansion) query.set("expansion", "true");
   const { data, error } = useApi<ClientSummary[]>(`/clients${query.size ? `?${query}` : ""}`);
   const { busy, error: checkError, run } = useAction();
   const [checked, setChecked] = useState<string | null>(null);
 
-  function setParam(key: string, value: string | null) {
+  function setParam(key: string, value: string | null, clear?: string) {
     const next = new URLSearchParams(params);
     if (value === null) next.delete(key);
     else next.set(key, value);
+    if (clear) next.delete(clear);
     const q = next.toString();
     router.replace(q ? `${pathname}?${q}` : pathname, { scroll: false });
   }
@@ -64,7 +68,12 @@ export default function ClientsPage() {
       />
       {checked && <Success>{checked}</Success>}
       <ErrorNote error={checkError} />
-      <Tabs label="Filter by health" tabs={FILTERS} active={health} onChange={(key) => setParam("health", key === "all" ? null : key)} />
+      <Tabs
+        label="Filter by health"
+        tabs={FILTERS}
+        active={expansion ? "expansion" : health}
+        onChange={(key) => (key === "expansion" ? setParam("expansion", "1", "health") : setParam("health", key === "all" ? null : key, "expansion"))}
+      />
       <Panel
         title="Clients"
         description="Health is worked out on every visit. Each morning VROS records any change and gives the account manager a task when a client turns Red."

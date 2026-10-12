@@ -10,7 +10,9 @@ import { EmailComposer, EmailList } from "@/components/mail/email";
 import { EnrollmentLine, EnrollPanel } from "@/components/outreach/enroll";
 import { EditTask, isOpen, NewTaskForm, TaskRow } from "@/components/crm/tasks";
 import { Timeline } from "@/components/crm/timeline";
+import { ExpansionPanel } from "@/components/clients/expansion";
 import { ClientHealthPanel } from "@/components/clients/health";
+import { AccountReferrals } from "@/components/clients/referrals";
 import { AccountProjects } from "@/components/clients/projects";
 import { AccountDeals, OpenDealButton } from "@/components/deals/account-deals";
 import {
@@ -509,7 +511,9 @@ export default function AccountPage() {
       {tab === "client" && (
         <div className="space-y-4">
           <ClientHealthPanel account={account} onChange={() => mutate()} />
+          {account.account_type === "customer" && <ExpansionPanel accountId={account.id} onChange={() => mutate()} />}
           <AccountProjects account={account} />
+          <AccountReferrals account={account} />
         </div>
       )}
       {tab === "timeline" && (

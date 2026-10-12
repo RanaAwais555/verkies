@@ -1,15 +1,32 @@
 """Projects, their milestones and risks: lightweight delivery tracking after a deal is won
 (master context §6, §14; slice 4.1). VROS does not try to replace a project tool. Client feedback
-and the history of client health (slice 4.2)."""
+and the history of client health (slice 4.2). Expansion decisions and referrals (slice 4.3)."""
 
 import uuid
 from datetime import date, datetime
 
-from sqlalchemy import CheckConstraint, ForeignKey, Index, SmallInteger, String, Text, func, text
+from sqlalchemy import (
+    CheckConstraint,
+    ForeignKey,
+    Index,
+    SmallInteger,
+    String,
+    Text,
+    UniqueConstraint,
+    func,
+    text,
+)
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column
 
-from app.core.enums import HealthColour, ProjectStatus, RiskSeverity, Sentiment
+from app.core.enums import (
+    ExpansionDecision,
+    HealthColour,
+    ProjectStatus,
+    ReferralStatus,
+    RiskSeverity,
+    Sentiment,
+)
 from app.core.models import (
     Base,
     CreatedMixin,
@@ -101,3 +118,48 @@ class ClientHealthSnapshot(IdMixin, Base):
     colour: Mapped[HealthColour] = mapped_column(text_enum(HealthColour))
     reasons: Mapped[list[dict[str, str]]] = mapped_column(JSONB, default=list)
     assessed_at: Mapped[datetime] = mapped_column(server_default=func.now())
+
+
+class ExpansionOpportunity(IdMixin, CreatedMixin, Base):
+    """A person's decision on an expansion suggestion for a client (§11 land and expand, §14).
+
+    Suggestions themselves are computed from the evidence-backed problems research found on the
+    client; only what someone decided is stored. A dismissed suggestion comes back only when newer
+    research finds the problem again."""
+
+    __tablename__ = "expansion_opportunities"
+    __table_args__ = (UniqueConstraint("account_id", "category_id"),)
+
+    account_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("accounts.id"), index=True)
+    category_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("opportunity_categories.id"))
+    # The detected problem (with its evidence) the decision was made on.
+    candidate_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("opportunity_candidates.id"))
+    service_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("services.id"))
+    decision: Mapped[ExpansionDecision] = mapped_column(text_enum(ExpansionDecision))
+    opportunity_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("opportunities.id"))
+    reason: Mapped[str | None] = mapped_column(Text)
+    decided_by_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("users.id"))
+    decided_at: Mapped[datetime] = mapped_column(server_default=func.now())
+
+
+class Referral(IdMixin, TimestampMixin, Base):
+    """A company someone referred to Verkies (§14). Conversion and revenue are read from the deals
+    won on the referred company, matched by its website domain."""
+
+    __tablename__ = "referrals"
+
+    referrer_account_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("accounts.id"), index=True
+    )
+    referrer_contact_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("contacts.id"))
+    # Who referred them, as a person would say it; filled from the account when there is one.
+    referrer_name: Mapped[str] = mapped_column(String(200))
+    relationship: Mapped[str | None] = mapped_column(String(120))
+    referred_company: Mapped[str] = mapped_column(String(300))
+    referred_domain: Mapped[str | None] = mapped_column(String(253), index=True)
+    status: Mapped[ReferralStatus] = mapped_column(
+        text_enum(ReferralStatus), default=ReferralStatus.RECEIVED
+    )
+    notes: Mapped[str | None] = mapped_column(Text)
+    received_on: Mapped[date]
+    recorded_by_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("users.id"))

@@ -801,6 +801,8 @@ export type ClientSummary = {
   open_projects: number;
   latest_feedback: "positive" | "neutral" | "negative" | null;
   latest_feedback_on: string | null;
+  /** Problems research found that nobody has opened or dismissed yet (slice 4.3). */
+  expansion: string[];
 };
 
 export type ClientFeedback = {
@@ -817,4 +819,35 @@ export type AccountHealth = {
   current: ClientSummary | null;
   history: { colour: HealthColour; reasons: HealthReason[]; assessed_at: string }[];
   feedback: ClientFeedback[];
+};
+
+export type ExpansionSuggestion = {
+  candidate_id: string;
+  category_key: string;
+  category_name: string;
+  title: string;
+  problem: string;
+  confidence: number;
+  found_at: string;
+  services: { id: string; name: string }[];
+  evidence: { id: string; source_url: string; evidence_text: string; collected_at: string }[];
+  dismissed_before: boolean;
+};
+
+export type Referral = {
+  id: string;
+  referrer_name: string;
+  referrer_account: { id: string; name: string } | null;
+  relationship: string | null;
+  referred_company: string;
+  referred_domain: string | null;
+  referred_account: { id: string; name: string } | null;
+  status: "received" | "contacted" | "declined";
+  converted: boolean;
+  won_deals: number;
+  revenue: { amount: number; currency: string }[];
+  unknown_value_deals: number;
+  notes: string | null;
+  received_on: string;
+  recorded_by: string | null;
 };

@@ -142,6 +142,7 @@ def clean_db(engine: Engine) -> Iterator[None]:
         _seed_outreach(conn)
         # And the client views of migration 0020.
         _load_migration("0020_client_health.py").seed_client_views(conn)
+        _load_migration("0021_expansion_and_referrals.py").seed_expansion_views(conn)
 
 
 def make_user(

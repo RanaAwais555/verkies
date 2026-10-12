@@ -310,6 +310,7 @@ def test_saved_views(
         "Unassigned Leads",
         "Deals Closing This Month",
         "At-Risk Clients",
+        "Clients With Expansion Opportunities",
     ]
     assert team[0] == {**team[0], "path": "/leads", "query": "q=my+hot+leads", "shared": True}
     assert all(v["can_delete"] for v in team)  # an admin manages the team's views

@@ -23,7 +23,7 @@ from app.accounts import access
 from app.accounts.models import Account
 from app.auth.models import User
 from app.catalogue.models import Service
-from app.clients import health
+from app.clients import health, referrals
 from app.config import Settings
 from app.core.enums import (
     ActivityDirection,
@@ -1012,8 +1012,52 @@ async def management(db: AsyncSession, *, user: User, period: Period) -> Dashboa
             ],
         )
     )
+    expanding = [v for v in await health.list_clients(db, user=user) if v.expansion]
+    board.tables.append(
+        Table(
+            "clients_with_expansion",
+            "Clients with expansion potential",
+            "Right now: clients with problems research found on their own site that nobody has "
+            "opened or dismissed yet, each backed by evidence.",
+            ["Suggestions", "Problems found", "Account manager"],
+            [
+                Row(
+                    v.account.name,
+                    [len(v.expansion), ", ".join(v.expansion), v.manager_name or "Not set"],
+                    href=f"/accounts/{v.account.id}?tab=client",
+                )
+                for v in sorted(expanding, key=lambda v: (-len(v.expansion), v.account.name))
+            ],
+        )
+    )
+    board.tables.append(await _referrals(db, user))
     board.funnel = await funnel(db, user=user, start=start, end=end)
     return board
+
+
+async def _referrals(db: AsyncSession, user: User) -> Table:
+    """Who sends Verkies work, and whether it converts. All time, not the period."""
+    by_referrer: dict[str, list[Any]] = defaultdict(list)
+    for v in await referrals.list_referrals(db, user=user, limit=1000):
+        by_referrer[v.referral.referrer_name].append(v)
+    rows = []
+    for name, views in sorted(by_referrer.items(), key=lambda kv: (-len(kv[1]), kv[0])):
+        converted = sum(1 for v in views if v.converted)
+        revenue: list[tuple[Decimal | None, str]] = []
+        for v in views:
+            revenue += [(amount, currency) for currency, amount in v.revenue.items()]
+        rows.append(
+            Row(name, [len(views), converted, _pct(converted, len(views)), _money_cell(revenue)])
+        )
+    return Table(
+        "referral_sources",
+        "Referrals",
+        "Every referral recorded, by who made it. Converted: a deal on the referred company was "
+        "won after the referral. Revenue is those deals' values; deals without a value are "
+        "left out.",
+        ["Referrals", "Converted", "Conversion", "Revenue"],
+        rows,
+    )
 
 
 async def _user_names(db: AsyncSession, ids: set[uuid.UUID]) -> dict[uuid.UUID, str]:

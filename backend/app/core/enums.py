@@ -375,6 +375,21 @@ class Sentiment(StrEnum):
     NEGATIVE = "negative"
 
 
+class ExpansionDecision(StrEnum):
+    """What a person did with an expansion suggestion (slice 4.3)."""
+
+    OPENED = "opened"  # became an opportunity
+    DISMISSED = "dismissed"
+
+
+class ReferralStatus(StrEnum):
+    """Where a referral stands. Whether it converted is read from won deals, not set here."""
+
+    RECEIVED = "received"
+    CONTACTED = "contacted"
+    DECLINED = "declined"
+
+
 class RiskSeverity(StrEnum):
     LOW = "low"
     MEDIUM = "medium"
