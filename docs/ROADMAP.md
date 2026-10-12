@@ -61,7 +61,7 @@ Phases follow §20. Phase 1 must work reliably end to end before any later phase
 | Slice | Delivers | Exit criteria |
 | --- | --- | --- |
 | 6.1 Watchlists and signal monitoring ✅ | Watch an account; a daily check (and Check now) re-reads the sources its research found (the job boards and news feeds its own site links to, its Companies House record) and stores what it reads as a monitoring check, a run of kind monitor that is never reviewed; a signal not seen before becomes an alert and a timeline line; the Monitoring page lists alerts and watched accounts | Only new signals alert; failing sources reported, never read as no news; monitoring checks never listed or counted as research |
-| 6.2 Website changes | Re-read the pages research found on a watched account and record what changed: new or removed pages, services, pricing, technology, contact routes | A change only when the content differs, with before and after evidence |
+| 6.2 Website changes ✅ | The monitoring check re-reads the pages research read and compares each with the last copy kept: pages newly linked from or dropped from the homepage, pages now 404 or 410, changed text, and services, pricing, technology and contact routes added or removed; each is a website alert with the text before and now | A change only when the content differs, with before and after evidence; an unreachable page is an error, never a removal; reported once |
 | 6.3 Alert rules and auto-tasks | Rules from §15: a new signal or change can raise Opportunity Detected or Account Requires Review, or create a task for the owner; in-app notifications | Each rule tested; nothing contacts anyone |
 
 ## Later phases

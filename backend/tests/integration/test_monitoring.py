@@ -1,9 +1,12 @@
-"""Slice 6.1: watchlists, monitoring checks and alerts."""
+"""Slices 6.1 and 6.2: watchlists, monitoring checks, alerts and website changes."""
 
 import asyncio
+import hashlib
 import json
 import uuid
 from collections.abc import Callable
+from pathlib import Path
+from types import SimpleNamespace
 from typing import Any
 
 import pytest
@@ -14,9 +17,10 @@ from app.config import get_settings
 from app.monitoring import service as monitoring
 from app.monitoring.router import get_check_enqueuer
 from app.providers.errors import ProviderError
-from app.providers.fetch.types import FetchResult
+from app.providers.fetch.types import DEFAULT_CONTENT_TYPES, FetchResult
+from app.providers.storage import LocalStorage
 from app.registry.stage import Registries
-from app.research.crawler import Fetched
+from app.research.source import CachedPageSource
 from app.signals.jobs import JobBoards
 from tests.integration.conftest import ApiClient, make_user
 from tests.integration.test_leads import account
@@ -27,17 +31,18 @@ BOARD = "https://boards-api.greenhouse.io/v1/boards/acme/jobs"
 
 
 class FakeSource:
+    """Stands in for the web: what each URL answers. Anything else cannot be reached."""
+
+    budget = SimpleNamespace(content_types=DEFAULT_CONTENT_TYPES)
+
     def __init__(self, responses: dict[str, tuple[int, str, str]]) -> None:
         self.responses = responses
 
-    async def fetch(self, url: str, *, content_types: frozenset[str] | None = None) -> Fetched:
+    async def fetch(self, url: str, *, content_types: frozenset[str] | None = None) -> FetchResult:
         if url not in self.responses:
             raise ProviderError("unreachable", code="fetch_failed")
         status, ctype, body = self.responses[url]
-        return Fetched(FetchResult(url, url, status, {"content-type": ctype}, ctype, body.encode()))
-
-    async def render(self, url: str) -> Fetched | None:
-        return None
+        return FetchResult(url, url, status, {"content-type": ctype}, ctype, body.encode())
 
 
 def board(*titles: str) -> dict[str, tuple[int, str, str]]:
@@ -53,8 +58,16 @@ def board(*titles: str) -> dict[str, tuple[int, str, str]]:
     return {BOARD: (200, "application/json", json.dumps({"jobs": jobs}))}
 
 
-def researched(engine: Engine, owner: uuid.UUID, *, seen: str | None = None) -> uuid.UUID:
-    """An account whose completed research found a Greenhouse board (and, optionally, a posting)."""
+def researched(
+    engine: Engine,
+    owner: uuid.UUID,
+    *,
+    seen: str | None = None,
+    pages: dict[str, tuple[str, str]] | None = None,
+    storage: LocalStorage | None = None,
+) -> uuid.UUID:
+    """An account whose completed research found a Greenhouse board (and, optionally, a posting
+    and the pages it read: URL -> (category, HTML), the first being the homepage)."""
     acme = account(engine, "Acme Legal", domain="acme.test", owner=owner)
     run_id = uuid.uuid4()
     with engine.begin() as conn:
@@ -102,21 +115,68 @@ def researched(engine: Engine, owner: uuid.UUID, *, seen: str | None = None) -> 
                 ),
                 {"r": run_id, "area": area, "key": key, "v": json.dumps(value), "e": evidence_id},
             )
+        for i, (url, (category, html)) in enumerate((pages or {}).items()):
+            assert storage is not None
+            body = html.encode()
+            raw_id = uuid.uuid4()
+            conn.execute(
+                text(
+                    "INSERT INTO raw_responses (id, url, final_url, rendered, fetched_at,"
+                    " status_code, headers, body_ref, content_type, bytes, content_hash)"
+                    " VALUES (:id, :url, :url, false, now() - interval '7 days', 200, '{}', :ref,"
+                    " 'text/html', :n, :h)"
+                ),
+                {
+                    "id": raw_id,
+                    "url": url,
+                    "ref": storage.put(body),
+                    "n": len(body),
+                    "h": hashlib.sha256(body).hexdigest(),
+                },
+            )
+            conn.execute(
+                text(
+                    "INSERT INTO research_pages (id, research_run_id, kind, url, final_url,"
+                    " discovered_via, category, status_code, content_type, bytes,"
+                    " raw_response_id, from_cache, rendered)"
+                    " VALUES (gen_random_uuid(), :r, 'page', :url, :url, :via, :cat, 200,"
+                    " 'text/html', :n, :raw, false, false)"
+                ),
+                {
+                    "r": run_id,
+                    "url": url,
+                    "via": "start" if i == 0 else "link",
+                    "cat": category,
+                    "n": len(body),
+                    "raw": raw_id,
+                },
+            )
     return acme
 
 
-def check(account_id: uuid.UUID, source: FakeSource) -> monitoring.CheckResult:
+def check(
+    account_id: uuid.UUID, web: FakeSource, storage: LocalStorage | None = None
+) -> monitoring.CheckResult:
     async def run() -> monitoring.CheckResult:
         engine = create_async_engine(get_settings().database_url)
         try:
+            sessionmaker = async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
+            store = storage or LocalStorage(Path(get_settings().storage_dir) / "monitor-tests")
             deps = monitoring.MonitorDeps(
-                sessionmaker=async_sessionmaker(
-                    engine, class_=AsyncSession, expire_on_commit=False
+                sessionmaker=sessionmaker,
+                # As the worker builds it: always fresh, and every read kept for next time.
+                source=CachedPageSource(
+                    sessionmaker=sessionmaker,
+                    storage=store,
+                    fetcher=web,  # type: ignore[arg-type]
+                    renderer=None,
+                    cache_days=0,
+                    force_refresh=True,
                 ),
-                source=source,
                 fetcher=None,  # type: ignore[arg-type] - the registries are disabled
                 boards=JobBoards.default(),
                 registries=Registries.disabled(),
+                storage=store,
             )
             return await monitoring.check_account(account_id, deps)
         finally:
@@ -221,3 +281,118 @@ def test_check_now_and_who_sees_what(
     assert seller.get("/monitoring/alerts").json() == []  # Ada's account
     assert seller.send("PUT", f"/accounts/{acme}/watch").status_code == 404
     assert seller.send("POST", f"/accounts/{acme}/monitor/check").status_code == 404
+
+
+HOME = "https://acme.test/"
+SERVICES = "https://acme.test/services"
+ABOUT = "https://acme.test/about"
+
+
+def html(body: str, head: str = "") -> str:
+    return f"<html><head><title>Acme</title>{head}</head><body>{body}</body></html>"
+
+
+HOME_BEFORE = html(
+    '<a href="/services">Services</a> <a href="/about">About us</a>'
+    "<h1>Acme Legal</h1><p>Immigration solicitors in Manchester since 2009.</p>"
+)
+SERVICES_BEFORE = html(
+    "<h1>Services</h1><p>We help with spouse visas, skilled worker visas and appeals."
+    " Fixed fees are agreed before any work starts.</p>"
+)
+
+
+ABOUT_BEFORE = html("<h1>About us</h1><p>Founded by two solicitors.</p>")
+
+
+def site() -> dict[str, tuple[int, str, str]]:
+    """The site as research read it."""
+    return {
+        HOME: (200, "text/html", HOME_BEFORE),
+        SERVICES: (200, "text/html", SERVICES_BEFORE),
+        ABOUT: (200, "text/html", ABOUT_BEFORE),
+    }
+
+
+def watched_site(engine: Engine, admin: uuid.UUID, storage: LocalStorage) -> uuid.UUID:
+    pages = {
+        HOME: ("home", HOME_BEFORE),
+        SERVICES: ("services", SERVICES_BEFORE),
+        ABOUT: ("about", ABOUT_BEFORE),
+    }
+    return researched(engine, admin, pages=pages, storage=storage)
+
+
+def test_website_changes_are_reported_with_before_and_after(
+    engine: Engine, api: ApiClient, admin: uuid.UUID, tmp_path: Path
+) -> None:
+    storage = LocalStorage(tmp_path)
+    acme = watched_site(engine, admin, storage)
+    api.send("PUT", f"/accounts/{acme}/watch")
+
+    # Nothing changed: nothing to report.
+    same = check(acme, FakeSource(site()), storage)
+    assert same.checked and same.changes == 0
+    assert [a for a in api.get("/monitoring/alerts").json() if a["kind"] == "website"] == []
+
+    changed = site()
+    changed[HOME] = (
+        200,
+        "text/html",
+        html(
+            '<a href="/services">Services</a> <a href="/pricing">Pricing</a>'
+            "<h1>Acme Legal</h1><p>Immigration solicitors in Manchester since 2009.</p>",
+            '<script src="https://widget.intercom.io/widget/abc"></script>',
+        ),
+    )
+    changed[SERVICES] = (
+        200,
+        "text/html",
+        html(
+            "<h1>Services</h1><p>We help with spouse visas, skilled worker visas, appeals and"
+            " citizenship. Fixed fees are agreed before any work starts.</p>"
+        ),
+    )
+    result = check(acme, FakeSource(changed), storage)
+    assert result.checked and result.errors == ["greenhouse: unreachable"]  # no board here
+    alerts = {a["title"]: a for a in api.get("/monitoring/alerts").json() if a["kind"] == "website"}
+    assert set(alerts) == {
+        "New page linked from the homepage: Pricing",
+        "No longer linked from the homepage: About us",
+        "Homepage changed",
+        "Services page changed",
+        "Live chat added: Intercom",
+    }
+    services = alerts["Services page changed"]["detail"]
+    assert services["change"] == "page_changed" and services["topic"] == "services"
+    assert "appeals. Fixed fees" in services["before"]
+    assert "appeals and citizenship." in services["after"]
+    assert services["before_url"] == SERVICES and services["before_seen_at"]
+    pricing = alerts["New page linked from the homepage: Pricing"]
+    assert pricing["source_url"] == "https://acme.test/pricing"
+    assert pricing["detail"]["topic"] == "pricing"
+    chat = alerts["Live chat added: Intercom"]["detail"]
+    assert chat["topic"] == "contact" and "widget.intercom.io" in chat["after"]
+    events = [e["summary"] for e in api.get(f"/accounts/{acme}/timeline").json()]
+    assert any(e.startswith("Monitoring found 5 website changes:") for e in events)
+
+    # The changed pages are now what VROS last saw: reading them again reports nothing new.
+    again = check(acme, FakeSource(changed), storage)
+    assert again.changes == 0
+
+
+def test_a_missing_page_is_a_removal_but_an_unreachable_one_is_not(
+    engine: Engine, api: ApiClient, admin: uuid.UUID, tmp_path: Path
+) -> None:
+    storage = LocalStorage(tmp_path)
+    acme = watched_site(engine, admin, storage)
+    web = site()
+    web[SERVICES] = (404, "text/html", "")
+    del web[ABOUT]  # cannot be reached at all
+    result = check(acme, FakeSource(web), storage)
+    assert result.changes == 1
+    assert any(e.startswith(f"{ABOUT}: ") for e in result.errors)
+    (alert,) = [a for a in api.get("/monitoring/alerts").json() if a["kind"] == "website"]
+    assert alert["title"] == "Services page removed (now answers 404)"
+    assert alert["detail"]["topic"] == "services"
+    assert "spouse visas" in alert["detail"]["before"]

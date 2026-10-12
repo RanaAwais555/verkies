@@ -29,7 +29,7 @@ export default function MonitoringPage() {
       <PageHeader
         eyebrow="Monitoring"
         title="Monitoring"
-        description="Watched accounts are re-checked every morning from their own sources: the job boards and news feeds their site links to, and Companies House. Anything new shows here, with where it was found."
+        description="Watched accounts are re-checked every morning from their own sources: their website, the job boards and news feeds it links to, and Companies House. Anything new or changed shows here, with where it was found."
       />
       <Panel
         title="Alerts"

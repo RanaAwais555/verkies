@@ -965,11 +965,21 @@ export type WatchedAccount = {
   open_alerts: number;
 };
 
+/** A website change (slice 6.2): what changed, with the text before and after. */
+export type WebsiteChange = {
+  change: "page_added" | "page_removed" | "page_changed" | "added" | "removed";
+  topic: "services" | "pricing" | "technology" | "contact" | "pages";
+  before: string | null;
+  before_url: string | null;
+  before_seen_at: string | null;
+  after: string;
+};
+
 export type MonitorAlert = {
   id: string;
   account_id: string;
   account_name: string;
-  kind: "job_posting" | "news" | "registry" | string;
+  kind: "job_posting" | "news" | "registry" | "website" | string;
   signal: string | null;
   signal_label: string | null;
   title: string;
@@ -977,4 +987,5 @@ export type MonitorAlert = {
   happened_on: string | null;
   created_at: string;
   reviewed: boolean;
+  detail: WebsiteChange | null;
 };

@@ -138,12 +138,13 @@ async def monitoring_job(account_id: uuid.UUID | None, user_id: uuid.UUID | None
     engine = create_async_engine(settings.database_url, poolclass=NullPool)
     fetcher = build_fetcher(settings)
     sessionmaker = async_sessionmaker(engine, expire_on_commit=False)
+    storage = LocalStorage(settings.storage_dir)
     deps = monitoring.MonitorDeps(
         sessionmaker=sessionmaker,
         # Fresh copies every time: a cached feed would never show anything new.
         source=CachedPageSource(
             sessionmaker=sessionmaker,
-            storage=LocalStorage(settings.storage_dir),
+            storage=storage,
             fetcher=fetcher,
             renderer=None,
             cache_days=settings.crawl_cache_days,
@@ -152,6 +153,7 @@ async def monitoring_job(account_id: uuid.UUID | None, user_id: uuid.UUID | None
         fetcher=fetcher,
         boards=JobBoards.default(),
         registries=Registries.from_settings(settings),
+        storage=storage,
     )
     try:
         if account_id is None:
@@ -164,6 +166,7 @@ async def monitoring_job(account_id: uuid.UUID | None, user_id: uuid.UUID | None
                 "accounts": len(results),
                 "checked": sum(1 for r in results if r.checked),
                 "new_signals": sum(r.new for r in results),
+                "website_changes": sum(r.changes for r in results),
             },
         )
     finally:

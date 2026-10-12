@@ -153,6 +153,16 @@ Bulk discovery, external company registries, job-board and news signals, monitor
 - A signal VROS had not seen before for that account (the same posting, story or filing read again is recognised) becomes an **alert** with its source, and a line on the account's timeline. A source that fails is recorded on the check, never treated as "nothing new".
 - The **Monitoring** page lists alerts to review (or all), for the accounts you watch or everyone's, and the watched accounts with when each was last checked and how many alerts wait. The account page shows its alerts while you watch it.
 
+### Phase 6, slice 6.2: website changes (§15)
+
+- The same check reads again the pages the account's latest research read (at most the crawl's page limit; never the whole site) and compares each with the last copy VROS kept of it. Research may have rendered a page; the check compares plain HTML with plain HTML. Each read becomes the copy the next check compares with, so a change is reported once.
+- What counts as a change, each an alert of kind **website** with the text **before** (and when it was read) and **now**:
+  - a page now linked from the homepage that was not before, or a link that was dropped (only the kinds of page research reads: services, pricing, contact, about, team, careers and the like, not blog posts, which news monitoring covers);
+  - a page that now answers 404 or 410 (removed), with what it said;
+  - a page whose visible text differs (markup, scripts and spacing do not count), with the first changed passage;
+  - services, pricing, technology and contact routes: the same extractors run over the old and the new copies of the same pages, so an added or removed technology, phone number, email address, contact form, booking tool, live chat, pricing page, subscription pricing or payment provider is reported with its evidence.
+- A page that could not be fetched is recorded as an error on the check, never as a removal, and changes nothing. Each change is also an observation on the monitoring check with its evidence, and the account's timeline gets one line per check listing what changed.
+
 ## 4. Acceptance: Definition of Done (§20) mapped to tests
 
 | Requirement | Verified by |
