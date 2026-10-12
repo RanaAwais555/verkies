@@ -927,3 +927,27 @@ export type WinLoss = {
   lost_reasons: { reason: string; deals: number }[];
   feedback: WinLossGroup[];
 };
+
+export type ProposalChange = {
+  key: string;
+  label: string;
+  from: number | string;
+  to: number | string;
+  why: string;
+};
+
+export type LearnedProposal = {
+  id: string;
+  kind: "scoring" | "icp";
+  status: "proposed" | "activated" | "dismissed" | "superseded";
+  based_on_version: number;
+  changes: ProposalChange[];
+  basis: { outcomes: number; won: number; lost: number; config_version: number; digest: string };
+  proposed_config: Record<string, unknown>;
+  created_by: string | null;
+  created_at: string;
+  decided_by: string | null;
+  decided_at: string | null;
+  decision_note: string | null;
+  activated_version: number | null;
+};

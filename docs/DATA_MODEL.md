@@ -215,6 +215,12 @@ Endpoints: `POST /accounts/{id}/documents?filename=&kind=&title=&project_id=&dea
 
 Endpoints: `GET /sales-feedback/kinds`, `GET|POST /accounts/{id}/sales-feedback`, `GET /deals/{id}/outcome`, and (slice 5.2) `GET /learning/win-loss?months=&pipeline=`, computed from current `deal_outcomes` and `sales_feedback` with no table of its own.
 
+## 4k. Learned proposals (slice 5.3, migration `0024`)
+
+**learned_proposals**: `kind` (scoring, icp), `status` (proposed, activated, dismissed, superseded), `based_on_version`, `proposed_config` (the full config it would save), `changes` (JSON: each change and its evidence), `basis` (counts of outcomes, won and lost, the config version and a digest), `created_by_id`, `decided_by_id`, `decided_at`, `decision_note`, `activated_version`.
+
+Endpoints: `GET|POST /learning/proposals`, `POST /learning/proposals/{id}/activate` and `/dismiss` (`config.manage`; `reports.team` may read).
+
 ## 5. Tables added in later phases (names reserved)
 
 | Phase | Tables |
@@ -222,7 +228,7 @@ Endpoints: `GET /sales-feedback/kinds`, `GET|POST /accounts/{id}/sales-feedback`
 | 2 | `discovery_jobs` and `discovered_companies` exist since slice 2.1. Buying signals (slice 2.2) are observations in the `signals` area with dated evidence (migration `0009`), so they share evidence, attempts and append-only history with all other findings; no separate signal tables were needed |
 | 3 | `pipelines`, `pipeline_stages`, `deals` and `deal_stage_changes` exist since slice 3.1; logged meetings, calls and messages are `activities` (slice 3.2), and `meetings` stays reserved for scheduled meetings with calendar sync; `mailboxes` and `email_messages` (the §12B Message object for email) exist since slice 3.4; `outreach_templates`, `sequences`, `sequence_steps`, `enrollments` and `enrollment_steps` exist since slice 3.5; `documents` since slice 4.4 (a proposal is a document of kind proposal); `proposals` (structured proposals), `linkedin_imports` |
 | 4 | `projects`, `milestones` and `project_risks` exist since slice 4.1, `client_feedback` and `client_health_snapshots` since slice 4.2, `expansion_opportunities` and `referrals` since slice 4.3 |
-| 5 | `sales_feedback` and `deal_outcomes` exist since slice 5.1; `learned_weights` |
+| 5 | `sales_feedback` and `deal_outcomes` exist since slice 5.1, `learned_proposals` (reserved as `learned_weights`) since slice 5.3 |
 | 6 | `monitors`, `monitor_snapshots`, `monitor_events` |
 
 ## 6. Integrity rules enforced in the database

@@ -88,7 +88,13 @@ A prospect `qualifies` only if all hold (defaults, configurable):
 
 ## 7. Learning hook (Phase 5)
 
-`learned_weights` can propose a new `scoring_configs` version from win/loss data. A proposal is never activated automatically; a human activates it, and can always override (§15).
+Implemented in slice 5.3 (`backend/app/learning/proposals.py`, table `learned_proposals`). A proposal is never activated automatically; a human activates it, and can always override (§15).
+
+- **Data:** every current deal outcome (slice 5.1), team-wide, using the scores each lead had when first scored. Nothing is proposed until there are at least `VROS_LEARNING_MIN_SAMPLE` won and lost outcomes.
+- **Weights:** for each dimension, the point-biserial correlation r between its first score and winning, over deals where it was known. The weight is multiplied by 1 + r/2, held to 0.75–1.25, then all weights are renormalised to sum to 1 and rounded to two decimals by largest remainder (spare hundredths go to the weights rounding cut most, so no weight absorbs the error). A dimension known for fewer than the minimum won or lost deals keeps its weight before renormalising.
+- **ICP:** an industry with at least the minimum number of closed deals moves one tier up (other → B → A → S) when its win rate is 15 points or more above the overall rate, and one tier down when 15 points or more below.
+- **Reproducible:** the same outcomes and active config give the same proposal; each stores the config version it was made against and a digest of the outcomes.
+- **Activating** saves a new config version through the same validation and audit as the editor (`backend/app/scoring/versions.py`), and is refused if the active version changed since the proposal. A newer proposal of the same kind supersedes an open one; a proposal can be dismissed with a reason.
 
 ## 8. Tests
 
