@@ -242,7 +242,7 @@ Development: `docker compose up`. Production: `docker compose -f docker-compose.
 
 **Production configuration fails closed.** With `VROS_ENVIRONMENT=production` the API refuses to start unless `VROS_SECRET_KEY` is set (≥ 32 characters), `VROS_PUBLIC_URL` is `https://`, and the database password is not the development default. OpenAPI docs are off, and only the public hostname is accepted as `Host`.
 
-**Backups.** The `backup` service runs a nightly `pg_dump` into a volume and keeps 14 days. Off-site copies and restore drills are Phase 7.
+**Backups (slice 7.2).** The `backup` service (`ops/backup/`, built from the database image plus age and rclone) runs daily: `pg_dump` and a documents tarball into the `backups` volume (14 days), both encrypted with age to an offline key's public half and uploaded to an rclone remote named `offsite` (30 days; never uploaded unencrypted), and on Sundays a restore drill that restores the latest dump into a scratch database and checks its tables and migration against the live one. Each step is a row in `backup_runs`, shown under Settings → System and exported as metrics. `ops/backup/fetch-offsite.sh` fetches and decrypts the newest copy for a rebuild. RPO one day; RTO about an hour (`DEPLOY_HETZNER.md` §7).
 
 **Ollama** runs on the host or an optional Compose profile; the worker reaches it over the internal network.
 

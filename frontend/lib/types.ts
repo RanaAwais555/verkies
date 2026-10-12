@@ -436,6 +436,10 @@ export type ProviderStatus = { name: string; status: "ok" | "degraded" | "off"; 
 
 export type Readiness = { status: string; checks: Record<string, { status: string; error: string | null }> };
 
+/** Slice 7.2: how each step of the backup service last went. */
+export type BackupRun = { status: "ok" | "failed" | "skipped"; started_at: string; finished_at: string; bytes: number | null; detail: string | null };
+export type BackupStatus = { kind: "dump" | "documents" | "offsite" | "drill"; label: string; latest: BackupRun | null; last_ok: BackupRun | null };
+
 export const REJECTION_REASONS: Record<string, string> = {
   no_commercial_opportunity: "No commercial opportunity",
   wrong_icp: "Wrong ICP",

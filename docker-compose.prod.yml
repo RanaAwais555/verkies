@@ -73,22 +73,40 @@ services:
   grafana:
     restart: unless-stopped
 
+  # Nightly dump and documents archive, encrypted off-site copy, weekly restore test
+  # (ops/backup/backup.sh). Off-site copies need VROS_BACKUP_AGE_RECIPIENT and an rclone
+  # "offsite" remote: see docs/DEPLOY_HETZNER.md §7.
   backup:
-    image: pgvector/pgvector:pg16
+    build: ./ops/backup
     restart: unless-stopped
-    entrypoint: ["/bin/sh", "/ops/backup.sh"]
     environment:
       PGHOST: postgres
       PGUSER: vros
       PGDATABASE: vros
       PGPASSWORD: ${VROS_DB_PASSWORD:?set VROS_DB_PASSWORD}
       VROS_BACKUP_KEEP_DAYS: ${VROS_BACKUP_KEEP_DAYS:-14}
+      VROS_BACKUP_OFFSITE_KEEP_DAYS: ${VROS_BACKUP_OFFSITE_KEEP_DAYS:-30}
+      VROS_BACKUP_DRILL_WEEKDAY: ${VROS_BACKUP_DRILL_WEEKDAY:-7}
+      VROS_BACKUP_AGE_RECIPIENT: ${VROS_BACKUP_AGE_RECIPIENT:-}
+      VROS_BACKUP_REMOTE_PATH: ${VROS_BACKUP_REMOTE_PATH:-}
+      # The rclone remote named "offsite", e.g. a Hetzner Storage Box (sftp) or any S3 bucket.
+      RCLONE_CONFIG_OFFSITE_TYPE: ${RCLONE_CONFIG_OFFSITE_TYPE:-}
+      RCLONE_CONFIG_OFFSITE_HOST: ${RCLONE_CONFIG_OFFSITE_HOST:-}
+      RCLONE_CONFIG_OFFSITE_PORT: ${RCLONE_CONFIG_OFFSITE_PORT:-}
+      RCLONE_CONFIG_OFFSITE_USER: ${RCLONE_CONFIG_OFFSITE_USER:-}
+      RCLONE_CONFIG_OFFSITE_PASS: ${RCLONE_CONFIG_OFFSITE_PASS:-}
+      RCLONE_CONFIG_OFFSITE_PROVIDER: ${RCLONE_CONFIG_OFFSITE_PROVIDER:-}
+      RCLONE_CONFIG_OFFSITE_ENDPOINT: ${RCLONE_CONFIG_OFFSITE_ENDPOINT:-}
+      RCLONE_CONFIG_OFFSITE_REGION: ${RCLONE_CONFIG_OFFSITE_REGION:-}
+      RCLONE_CONFIG_OFFSITE_ACCESS_KEY_ID: ${RCLONE_CONFIG_OFFSITE_ACCESS_KEY_ID:-}
+      RCLONE_CONFIG_OFFSITE_SECRET_ACCESS_KEY: ${RCLONE_CONFIG_OFFSITE_SECRET_ACCESS_KEY:-}
     volumes:
-      - ./ops/backup.sh:/ops/backup.sh:ro
       - backups:/backups
       - storage:/data/storage:ro
     depends_on:
       postgres: { condition: service_healthy }
+      # backup_runs must exist before the first cycle records into it.
+      migrate: { condition: service_completed_successfully }
 
 volumes:
   backups:

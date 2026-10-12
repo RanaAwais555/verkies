@@ -105,22 +105,84 @@ docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build
 
 Database migrations run automatically (`migrate` service) before the API starts.
 
-## 7. Backups
+## 7. Backups and disaster recovery
 
-- **Nightly database dumps:** the `backup` service writes them to the `verkies_backups` Docker volume and keeps 14 days (`VROS_BACKUP_KEEP_DAYS`). Copy them off the server regularly (a backup on the same disk does not survive losing the disk), for example from your computer:
-  ```bash
-  scp 'root@<server-ip>:/var/lib/docker/volumes/verkies_backups/_data/*' ./vros-backups/
-  ```
-  (or allow the `vros` user to read that folder.)
-- **Server snapshots:** Hetzner Backups (step 1.7) keeps daily snapshots of the whole server.
-- **Restoring a dump** (files are `vros-<UTC time>.dump`, PostgreSQL custom format). Stop the app first, then:
-  ```bash
-  vc stop api worker frontend
-  docker compose -f docker-compose.yml -f docker-compose.prod.yml exec -T postgres \
-    pg_restore -U vros -d vros --clean --if-exists --no-owner < vros-2026-10-08T020000Z.dump
-  vc start api worker frontend
-  ```
-  Try a restore once on a spare server before you ever need it.
+The `backup` service (`ops/backup/`) runs once a day:
+
+1. **Database dump** (`pg_dump`, custom format) into the `verkies_backups` volume.
+2. **Uploaded documents** archived next to it.
+3. **Off-site copy:** both encrypted with [age](https://age-encryption.org) to *your* public key and uploaded with rclone. The server holds only the public key, so it cannot read its own off-site copies, and nothing is ever sent off the server unencrypted: without a key the upload is refused and recorded as failed.
+4. **Restore test:** every Sunday (and on the very first run) the latest dump is restored into a scratch database, checked against the live schema (same tables, same migration), and dropped.
+
+Local copies are kept 14 days (`VROS_BACKUP_KEEP_DAYS`) and off-site copies 30 days (`VROS_BACKUP_OFFSITE_KEEP_DAYS`). Each step's outcome shows under **Settings → System → Backups**, and with the observability profile (§7a) Prometheus alerts when no dump has succeeded for 26 hours, when a step fails, or when no restore test has passed for 8 days.
+
+**Recovery objectives.** At most one day of data can be lost (one dump a day). Rebuilding on a new server from the off-site copy takes about an hour for a small database: a fresh server (§1-4), then the restore below.
+
+### Setting up the off-site copy (once)
+
+1. **Make a key pair on your own computer, not the server**, and keep the private key safe (a password manager, plus a printed copy): whoever holds it can read every backup, and without it no backup can be restored. From your copy of the repository:
+   ```bash
+   docker build -t vros-backup ops/backup
+   docker run --rm -v "$PWD:/k" --entrypoint age-keygen vros-backup -o /k/vros-backup-key.txt
+   ```
+   It prints `Public key: age1...`. Only that public key goes to the server.
+2. **Choose where copies go.** Any rclone backend works; the remote is always named `offsite`. Add to `.env`:
+   - A **Hetzner Storage Box** (SFTP; enable SSH support on the box):
+     ```bash
+     VROS_BACKUP_AGE_RECIPIENT=age1...                 # the public key from step 1
+     VROS_BACKUP_REMOTE_PATH=vros-backups              # a folder on the box
+     RCLONE_CONFIG_OFFSITE_TYPE=sftp
+     RCLONE_CONFIG_OFFSITE_HOST=uXXXXXX.your-storagebox.de
+     RCLONE_CONFIG_OFFSITE_PORT=23
+     RCLONE_CONFIG_OFFSITE_USER=uXXXXXX
+     RCLONE_CONFIG_OFFSITE_PASS=...                    # obscured, see below
+     ```
+     rclone wants the password obscured: `docker run --rm --entrypoint rclone vros-backup obscure 'the-box-password'`.
+   - **S3-compatible storage** (Hetzner Object Storage, Backblaze B2, AWS):
+     ```bash
+     VROS_BACKUP_AGE_RECIPIENT=age1...
+     VROS_BACKUP_REMOTE_PATH=my-bucket/vros
+     RCLONE_CONFIG_OFFSITE_TYPE=s3
+     RCLONE_CONFIG_OFFSITE_PROVIDER=Other
+     RCLONE_CONFIG_OFFSITE_ENDPOINT=https://fsn1.your-objectstorage.com
+     RCLONE_CONFIG_OFFSITE_ACCESS_KEY_ID=...
+     RCLONE_CONFIG_OFFSITE_SECRET_ACCESS_KEY=...
+     ```
+3. Apply it: `vc up -d --build backup`. The first cycle runs at once; check **Settings → System → Backups** a minute later.
+
+### Restoring
+
+**On the same server** (a bad change, deleted data), from a local dump:
+```bash
+vc stop api worker frontend
+docker compose -f docker-compose.yml -f docker-compose.prod.yml exec -T postgres \
+  pg_restore -U vros -d vros --clean --if-exists --no-owner < vros-2026-10-08T020000Z.dump
+vc start api worker frontend
+```
+(The local dumps are in `/var/lib/docker/volumes/verkies_backups/_data/`.)
+
+**On a new server** (the old one is gone):
+1. Set up the server, `.env` and DNS as in §1-4, but before the first full `up`, build the images and start only the database: `vc build && vc up -d postgres`.
+2. Copy the private key to `~/verkies/restore/vros-backup-key.txt` on the server, then fetch and decrypt the newest copy. The backup image has rclone and age, and `.env` already describes the remote:
+   ```bash
+   vc run --rm --no-deps -v "$PWD/restore:/restore" --entrypoint /bin/sh backup \
+     /ops/fetch-offsite.sh /restore/vros-backup-key.txt /restore
+   ```
+   It writes `restore/restore.dump` and, if documents were backed up then, `restore/restore-documents.tar.gz`.
+3. Restore, then start everything (migrations run and find the schema current):
+   ```bash
+   docker compose -f docker-compose.yml -f docker-compose.prod.yml exec -T postgres \
+     pg_restore -U vros -d vros --no-owner < restore/restore.dump
+   vc up -d
+   ```
+4. Documents, if there were any:
+   ```bash
+   docker run --rm -v verkies_storage:/data -v "$PWD/restore:/restore" alpine:3.20 \
+     tar -xzf /restore/restore-documents.tar.gz -C /data
+   ```
+5. Delete the private key and the decrypted files from the server: `rm -rf restore`.
+
+**Server snapshots:** Hetzner Backups (step 1.7) also keeps daily snapshots of the whole server. A snapshot is the quickest way back from a broken server; the off-site copy is the way back from a lost one.
 
 ## 7a. Metrics and dashboards (optional)
 

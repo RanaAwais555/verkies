@@ -146,5 +146,11 @@ jobs:
           check config /etc/prometheus/prometheus.yml
       - name: Validate Grafana dashboard JSON
         run: python3 -m json.tool ops/grafana/dashboards/vros-overview.json > /dev/null
+      - name: Check backup scripts
+        run: >-
+          docker run --rm -v "$PWD/ops/backup:/s:ro" koalaman/shellcheck:v0.10.0
+          -s sh /s/backup.sh /s/restore-drill.sh /s/fetch-offsite.sh
+      - name: Build the backup image
+        run: docker build ops/backup
       - name: Build images
         run: docker compose build

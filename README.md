@@ -74,7 +74,7 @@ One small VPS (2 vCPU / 4 GB is enough for the team stack without local AI) with
      python -m app.cli create-admin --email you@verkies.co --name "Your Name"
    ```
 
-Production fails closed: the deploy stops if a required value is missing, and the API refuses to start with a short secret key, a non-HTTPS URL or the development database password. Only Caddy (80/443) is exposed; the database, Redis and API are reachable only inside the Docker network. Nightly database dumps go to the `backups` volume (14 days kept); copy them off the server.
+Production fails closed: the deploy stops if a required value is missing, and the API refuses to start with a short secret key, a non-HTTPS URL or the development database password. Only Caddy (80/443) is exposed; the database, Redis and API are reachable only inside the Docker network. Every night the database and uploaded documents are backed up, encrypted to your key and copied off the server, and once a week the latest dump is restored as a test (`docs/DEPLOY_HETZNER.md` §7).
 
 Team accounts are invite-only (no public sign-up). The admin invites teammates under **Settings → Team**, which shows a single-use link valid for 7 days to send to them. They choose their own password on that link. Database migrations run automatically on every deploy (`migrate` service).
 
