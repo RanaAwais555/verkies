@@ -1,4 +1,5 @@
-"""Similarity to Verkies' previous work (master context §11).
+"""Similarity to Verkies' previous work (master context §11): its reference projects and, since
+slice 5.4, the clients it actually won (built from what was true when each deal was won).
 
 Compares business problems, not just industries. A reference project is compared only when
 its profile is complete (an admin has filled in the fields the public site does not state);
@@ -6,6 +7,7 @@ otherwise the result is Unknown and the brief says so. Nothing is inferred about
 project that its profile does not record.
 """
 
+import uuid
 from dataclasses import dataclass
 
 from app.catalogue.matching import Match
@@ -24,6 +26,9 @@ class ReferenceProfile:
     problem: str | None
     service_keys: tuple[str, ...]
     profile_complete: bool
+    # "project" (a reference project) or "client" (a won client, slice 5.4), and its id.
+    kind: str = "project"
+    ref_id: uuid.UUID | None = None
 
 
 @dataclass(frozen=True)
@@ -31,6 +36,8 @@ class SimilarityResult:
     project: str
     score: float | None
     because: str
+    kind: str = "project"
+    ref_id: uuid.UUID | None = None
 
 
 def _words(text: str) -> set[str]:
@@ -49,7 +56,13 @@ def compare(
     matches: list[Match],
 ) -> SimilarityResult:
     if not profile.profile_complete:
-        return SimilarityResult(profile.name, None, "Reference profile incomplete: Unknown")
+        return SimilarityResult(
+            profile.name,
+            None,
+            "Reference profile incomplete: Unknown",
+            profile.kind,
+            profile.ref_id,
+        )
     reasons: list[str] = []
     score = 0.0
     industry = (profile.industry or "").lower()
@@ -69,7 +82,9 @@ def compare(
             score += WEIGHTS["problem"] * 100 * min(1.0, len(overlap) / max(4, len(reference) / 3))
             reasons.append(f"similar problem ({', '.join(sorted(overlap)[:4])})")
     because = "Similar because " + "; ".join(reasons) if reasons else "No meaningful overlap"
-    return SimilarityResult(profile.name, round(min(100.0, score), 2), because)
+    return SimilarityResult(
+        profile.name, round(min(100.0, score), 2), because, profile.kind, profile.ref_id
+    )
 
 
 def best(results: list[SimilarityResult]) -> SimilarityResult | None:

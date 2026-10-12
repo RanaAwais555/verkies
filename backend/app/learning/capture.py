@@ -126,6 +126,7 @@ async def capture(db: AsyncSession, deal: Deal, *, late: bool = False) -> DealOu
             .join(ResearchRun, ResearchRun.id == SimilarityResult.research_run_id)
             .where(
                 ResearchRun.account_id == account.id,
+                SimilarityResult.reference_project_id.is_not(None),
                 SimilarityResult.similarity_score.is_not(None),
             )
             .order_by(ResearchRun.created_at.desc(), SimilarityResult.similarity_score.desc())
