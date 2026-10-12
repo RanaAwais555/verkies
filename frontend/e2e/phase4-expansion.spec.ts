@@ -31,7 +31,10 @@ test("see expansion on a client and log a referral it gave", async ({ page }) =>
   const row = page.getByTestId("referral-row").filter({ hasText: "Northbridge Visas" });
   await expect(row).toContainText("Harbour Immigration Ltd");
   await expect(row).toContainText("Not yet");
+  // Wait for the change to be saved: reloading at once could cancel the request.
+  const saved = page.waitForResponse((r) => r.url().includes("/api/v1/referrals/") && r.request().method() === "PATCH");
   await row.getByLabel("Status of the referral of Northbridge Visas").selectOption("contacted");
+  expect((await saved).ok()).toBe(true);
   await page.reload();
   await expect(page.getByLabel("Status of the referral of Northbridge Visas")).toHaveValue("contacted");
 });
