@@ -1,12 +1,13 @@
 "use client";
 
-import { AlertTriangle, ArrowRight, Globe, ListChecks, Mail, NotebookPen, Pencil, Plus, UserPlus, UserRound } from "lucide-react";
+import { AlertTriangle, ArrowRight, Globe, ListChecks, ListOrdered, Mail, NotebookPen, Pencil, Plus, UserPlus, UserRound } from "lucide-react";
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
 import { ActivityList, LogActivityForm, RelationshipLine } from "@/components/crm/activities";
 import { ContactForm } from "@/components/crm/contact-form";
 import { EmailComposer, EmailList } from "@/components/mail/email";
+import { EnrollmentLine, EnrollPanel } from "@/components/outreach/enroll";
 import { EditTask, isOpen, NewTaskForm, TaskRow } from "@/components/crm/tasks";
 import { Timeline } from "@/components/crm/timeline";
 import { AccountDeals, OpenDealButton } from "@/components/deals/account-deals";
@@ -32,7 +33,7 @@ import {
 import { ApiError } from "@/lib/client";
 import { formatDate, initials, label, percent, relativeDate } from "@/lib/format";
 import { can, useApi, useSession, useTab } from "@/lib/hooks";
-import type { Account360, AuditEntry, Deal } from "@/lib/types";
+import type { Account360, AuditEntry, Deal, Enrollment } from "@/lib/types";
 
 function Facts({ account }: { account: Account360 }) {
   const rows: [string, React.ReactNode][] = [
@@ -61,6 +62,9 @@ function People({ account, refresh }: { account: Account360; refresh: () => void
   const [adding, setAdding] = useState(false);
   const [editing, setEditing] = useState<string | null>(null);
   const [emailing, setEmailing] = useState<string | null>(null);
+  const [enrolling, setEnrolling] = useState<string | null>(null);
+  const enrollments = useApi<Enrollment[]>(`/outreach/enrollments?account_id=${account.id}`);
+  const live = (contactId: string) => enrollments.data?.find((e) => e.contact_id === contactId && e.status === "active");
   return (
     <Panel
       title="People"
@@ -123,8 +127,14 @@ function People({ account, refresh }: { account: Account360; refresh: () => void
                       {c.linkedin_url && <SourceLink url={c.linkedin_url} />}
                     </div>
                     {c.relationship && <RelationshipLine relationship={c.relationship} />}
+                    {live(c.id) && <EnrollmentLine enrollment={live(c.id)!} onChange={() => enrollments.mutate()} />}
                     {c.notes && <p className="text-xs leading-relaxed text-fg-2">{c.notes}</p>}
                   </div>
+                  {!live(c.id) && (
+                    <IconButton label={`Enrol ${c.name} in a sequence`} onClick={() => setEnrolling(enrolling === c.id ? null : c.id)}>
+                      <ListOrdered className="h-3.5 w-3.5" />
+                    </IconButton>
+                  )}
                   <IconButton label={`Email ${c.name}`} onClick={() => setEmailing(emailing === c.id ? null : c.id)}>
                     <Mail className="h-3.5 w-3.5" />
                   </IconButton>
@@ -132,6 +142,19 @@ function People({ account, refresh }: { account: Account360; refresh: () => void
                     <Pencil className="h-3.5 w-3.5" />
                   </IconButton>
                 </div>
+                {enrolling === c.id && (
+                  <div className="mt-3 sm:ml-11">
+                    <EnrollPanel
+                      contact={c}
+                      onCancel={() => setEnrolling(null)}
+                      onDone={() => {
+                        setEnrolling(null);
+                        enrollments.mutate();
+                        refresh();
+                      }}
+                    />
+                  </div>
+                )}
                 {emailing === c.id && (
                   <div className="mt-3 sm:ml-11">
                     <EmailComposer

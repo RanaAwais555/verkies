@@ -79,6 +79,11 @@ class Settings(BaseSettings):
     email_postal_address: str | None = None
     email_timeout_seconds: float = Field(default=20.0, gt=0, le=120)
 
+    # Outreach (slice 3.5). LinkedIn notes are sent by hand in the person's own browser; VROS keeps
+    # each person under these limits so their account stays safe (§12A).
+    linkedin_daily_limit: int = Field(default=15, ge=1, le=100)
+    linkedin_weekly_limit: int = Field(default=80, ge=1, le=200)
+
     # Crawler (PROVIDER_SPEC.md §4). Identifies itself and how to reach Verkies.
     crawler_contact_url: str = "https://www.verkies.co"
     crawl_max_pages: int = Field(default=15, gt=0, le=100)

@@ -19,6 +19,7 @@ from app.discovery.models import DiscoveredCompany, DiscoveryJob
 from app.evidence.models import Claim, Evidence, Observation
 from app.mail.models import EmailMessage, Mailbox
 from app.opportunities.models import OpportunityCandidate, OpportunityCategory
+from app.outreach.models import Enrollment, EnrollmentStep, OutreachTemplate, Sequence, SequenceStep
 from app.qualification.models import IcpConfig, QualificationResult
 from app.reports.models import SavedView
 from app.research.models import RawResponse, ResearchPage, ResearchRun, ResearchStage
@@ -40,6 +41,8 @@ __all__ = [
     "DiscoveredCompany",
     "DiscoveryJob",
     "EmailMessage",
+    "Enrollment",
+    "EnrollmentStep",
     "Evidence",
     "IcpConfig",
     "Invite",
@@ -50,6 +53,7 @@ __all__ = [
     "Opportunity",
     "OpportunityCandidate",
     "OpportunityCategory",
+    "OutreachTemplate",
     "Permission",
     "Pipeline",
     "PipelineStage",
@@ -63,6 +67,8 @@ __all__ = [
     "SavedView",
     "ScoreSnapshot",
     "ScoringConfig",
+    "Sequence",
+    "SequenceStep",
     "Service",
     "ServiceMatch",
     "SimilarityResult",

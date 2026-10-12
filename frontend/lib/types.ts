@@ -668,3 +668,69 @@ export type Email = {
   classification: string | null;
   error: string | null;
 };
+
+// --- outreach (slice 3.5) ---
+
+export type OutreachChannel = "email" | "linkedin" | "call";
+
+export type OutreachTemplate = {
+  id: string;
+  name: string;
+  channel: OutreachChannel;
+  subject: string | null;
+  body: string;
+  service_id: string | null;
+  industry: string | null;
+  signal: string | null;
+  is_active: boolean;
+};
+
+export type SequenceStep = { id: string; position: number; channel: OutreachChannel; delay_days: number; template_id: string | null; instructions: string | null };
+
+export type OutreachSequence = { id: string; name: string; description: string | null; is_active: boolean; steps: SequenceStep[] };
+
+export type OutreachDraft = { channel: OutreachChannel; subject: string | null; body: string; missing: string[]; reply_to_id: string | null };
+
+export type SequencePreview = { sequence: string; steps: { position: number; channel: OutreachChannel; delay_days: number; due_at: string; draft: OutreachDraft }[] };
+
+export type Enrollment = {
+  id: string;
+  sequence_id: string;
+  sequence_name: string;
+  contact_id: string;
+  account_id: string;
+  owner_id: string;
+  status: "active" | "completed" | "stopped";
+  stop_reason: string | null;
+  next_position: number;
+  total_steps: number;
+  next_due_at: string | null;
+  approved_at: string | null;
+  created_at: string;
+  history: { position: number; channel: OutreachChannel; outcome: string; note: string | null; done_at: string }[];
+};
+
+export type OutreachQueueItem = {
+  enrollment_id: string;
+  sequence_name: string;
+  position: number;
+  total_steps: number;
+  channel: OutreachChannel;
+  due_at: string | null;
+  contact_id: string;
+  contact_name: string;
+  contact_title: string | null;
+  contact_email: string | null;
+  contact_phone: string | null;
+  account_id: string;
+  account_name: string;
+  priority_band: string | null;
+  draft: OutreachDraft;
+  linkedin_url: string | null;
+  linkedin_is_search: boolean;
+};
+
+export type OutreachQueue = {
+  items: OutreachQueueItem[];
+  linkedin: { today: number; this_week: number; daily_limit: number; weekly_limit: number; blocked: string | null };
+};
