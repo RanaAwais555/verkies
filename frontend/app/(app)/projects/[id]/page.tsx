@@ -7,6 +7,7 @@ import { useState, type FormEvent } from "react";
 
 import { Attention, PROJECT_STATUSES, ProjectStatusBadge } from "@/components/clients/projects";
 import { NewTaskForm, TaskRow } from "@/components/crm/tasks";
+import { DocumentsPanel } from "@/components/documents/documents";
 import { Badge, Button, Empty, ErrorNote, Field, IconButton, inputClass, PageHeader, Panel, Skeleton, type Tone } from "@/components/ui";
 import { cx } from "@/components/ui/cx";
 import { api } from "@/lib/client";
@@ -388,6 +389,11 @@ export default function ProjectPage() {
           <Milestones project={project} refresh={refresh} />
           <Tasks project={project} refresh={refresh} />
           <Risks project={project} refresh={refresh} />
+          <DocumentsPanel
+            accountId={project.account_id}
+            projectId={project.id}
+            description="Files for this project: requirements, designs, notes and sign-offs."
+          />
         </div>
         <aside className="min-w-0" aria-label="Project details">
           <Details project={project} refresh={refresh} />

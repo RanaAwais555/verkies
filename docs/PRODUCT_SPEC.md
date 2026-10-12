@@ -111,6 +111,12 @@ Bulk discovery, external company registries, job-board and news signals, monitor
 - The Clients page shows each client's waiting suggestions and filters to clients with expansion potential; the management dashboard has a **Clients with expansion potential** table and the team a **Clients With Expansion Opportunities** saved view.
 - **Referrals** record who referred a company (an account and one of its people, or just a name), how they know Verkies, the referred company and its website, the date, a status (received, contacted, declined) and notes. The referred company is matched to its account by website whenever it is read, so a referral logged before the company is in VROS links up later. **Converted** means a deal on the referred company was won on or after the referral date; **revenue** is those deals' values per currency, with deals without a value counted separately. Referrals show on both accounts, on a Referrals page, and in a **Referrals** table on the management dashboard. A referral given by an account is visible to whoever can see that account.
 
+### Phase 4, slice 4.4: documents (§14)
+
+- Proposals, requirements, briefs, contracts, statements of work, meeting notes, screenshots and project documents are uploaded to an account and, when they belong to one, linked to its deal, opportunity or project. They are listed on the account's **Documents** tab and on the project page, newest first, with what they are, their size, who added them and when.
+- Accepted files: PDF, Word, Excel, PowerPoint, PNG, JPEG, WebP, text, Markdown and CSV, up to 10 MB (`VROS_DOCUMENT_MAX_BYTES`). What a file is comes from its own bytes and must match its name; anything else is refused with the reason. Downloads only: VROS never opens a file in the page (`SECURITY.md` §4).
+- Uploads and removals are on the timeline and in the audit log. Documents follow the account's visibility and move with it when accounts merge. The files are part of the nightly backup.
+
 ## 4. Acceptance: Definition of Done (§20) mapped to tests
 
 | Requirement | Verified by |

@@ -132,8 +132,12 @@ class Settings(BaseSettings):
     ollama_num_ctx: int = Field(default=8192, ge=2048)
     ai_timeout_seconds: float = Field(default=120.0, gt=0)
 
-    # Where fetched bodies are stored (StorageProvider). Docker mounts a volume here.
+    # Where fetched bodies are stored (StorageProvider). Docker mounts a volume here. Uploaded
+    # documents live in its documents/ folder, which the nightly backup also archives.
     storage_dir: str = "./var/storage"
+    # Documents (slice 4.4): the largest file a person may upload. Caddy also limits request
+    # bodies (ops/Caddyfile, 10MB): raise both together.
+    document_max_bytes: int = Field(default=10 * 1024 * 1024, ge=1024, le=200 * 1024 * 1024)
 
     @field_validator(
         "cors_origins",

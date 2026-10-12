@@ -25,6 +25,7 @@ x-prod-backend-env: &prod-backend-env
   VROS_CLIENT_MILESTONE_RED_DAYS: ${VROS_CLIENT_MILESTONE_RED_DAYS:-14}
   VROS_CLIENT_FEEDBACK_DAYS: ${VROS_CLIENT_FEEDBACK_DAYS:-90}
   VROS_CLIENT_UNANSWERED_MESSAGES: ${VROS_CLIENT_UNANSWERED_MESSAGES:-3}
+  VROS_DOCUMENT_MAX_BYTES: ${VROS_DOCUMENT_MAX_BYTES:-10485760}
   VROS_COMPANIES_HOUSE_API_KEY: ${VROS_COMPANIES_HOUSE_API_KEY:-}
   VROS_WIKIDATA_ENABLED: ${VROS_WIKIDATA_ENABLED:-true}
   VROS_SEARCH_PROVIDER: ${VROS_SEARCH_PROVIDER:-none}
@@ -78,6 +79,7 @@ services:
     volumes:
       - ./ops/backup.sh:/ops/backup.sh:ro
       - backups:/backups
+      - storage:/data/storage:ro
     depends_on:
       postgres: { condition: service_healthy }
 

@@ -50,7 +50,9 @@ export function withQuery(path: string, params: Params = {}): string {
 export async function api<T>(path: string, options: Options = {}): Promise<T> {
   const method = options.method ?? "GET";
   const headers: Record<string, string> = { Accept: "application/json" };
-  if (options.body !== undefined) headers["Content-Type"] = "application/json";
+  // A file is sent as it is (document uploads); anything else as JSON.
+  const raw = typeof Blob !== "undefined" && options.body instanceof Blob;
+  if (options.body !== undefined) headers["Content-Type"] = raw ? "application/octet-stream" : "application/json";
   if (method !== "GET") headers["X-CSRF-Token"] = csrfToken();
 
   let response: Response;
@@ -60,7 +62,7 @@ export async function api<T>(path: string, options: Options = {}): Promise<T> {
       headers,
       credentials: "same-origin",
       cache: "no-store",
-      body: options.body === undefined ? undefined : JSON.stringify(options.body),
+      body: options.body === undefined ? undefined : raw ? (options.body as Blob) : JSON.stringify(options.body),
     });
   } catch {
     throw new ApiError(0, "network", "Cannot reach the server. Check your connection and try again.");

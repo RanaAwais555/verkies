@@ -201,12 +201,18 @@ Endpoints: `GET /clients` (`health`, `mine`), `POST /clients/health-check` (`rep
 
 Endpoints: `GET /accounts/{id}/expansion`, `POST /accounts/{id}/expansion/{candidate_id}/open` and `/dismiss`, `GET /clients?expansion=true`, `GET|POST /referrals` (`account_id` for either side), `PATCH /referrals/{id}`.
 
+## 4i. Documents (slice 4.4, migration `0022`)
+
+**documents**: `account_id`, `opportunity_id`, `deal_id`, `project_id` (each on the same account), `kind` (proposal, requirements, brief, contract, sow, meeting_notes, screenshot, project_document, other), `title`, `filename` (cleaned; names the download), `content_type` (from the bytes), `size_bytes`, `storage_key` (SHA-256; checked as 64 hex characters), `uploaded_by_id`, soft delete. The bytes live in `storage/documents`.
+
+Endpoints: `POST /accounts/{id}/documents?filename=&kind=&title=&project_id=&deal_id=&opportunity_id=` with the file as the request body, `GET /documents` (`account_id`, `project_id`, `deal_id`, `kind`), `PATCH /documents/{id}`, `DELETE /documents/{id}`, `GET /documents/{id}/download`.
+
 ## 5. Tables added in later phases (names reserved)
 
 | Phase | Tables |
 | --- | --- |
 | 2 | `discovery_jobs` and `discovered_companies` exist since slice 2.1. Buying signals (slice 2.2) are observations in the `signals` area with dated evidence (migration `0009`), so they share evidence, attempts and append-only history with all other findings; no separate signal tables were needed |
-| 3 | `pipelines`, `pipeline_stages`, `deals` and `deal_stage_changes` exist since slice 3.1; logged meetings, calls and messages are `activities` (slice 3.2), and `meetings` stays reserved for scheduled meetings with calendar sync; `mailboxes` and `email_messages` (the §12B Message object for email) exist since slice 3.4; `outreach_templates`, `sequences`, `sequence_steps`, `enrollments` and `enrollment_steps` exist since slice 3.5; `proposals`, `documents`, `linkedin_imports` |
+| 3 | `pipelines`, `pipeline_stages`, `deals` and `deal_stage_changes` exist since slice 3.1; logged meetings, calls and messages are `activities` (slice 3.2), and `meetings` stays reserved for scheduled meetings with calendar sync; `mailboxes` and `email_messages` (the §12B Message object for email) exist since slice 3.4; `outreach_templates`, `sequences`, `sequence_steps`, `enrollments` and `enrollment_steps` exist since slice 3.5; `documents` since slice 4.4 (a proposal is a document of kind proposal); `proposals` (structured proposals), `linkedin_imports` |
 | 4 | `projects`, `milestones` and `project_risks` exist since slice 4.1, `client_feedback` and `client_health_snapshots` since slice 4.2, `expansion_opportunities` and `referrals` since slice 4.3 |
 | 5 | `feedback`, `deal_outcomes`, `learned_weights` |
 | 6 | `monitors`, `monitor_snapshots`, `monitor_events` |
