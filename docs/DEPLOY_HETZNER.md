@@ -122,6 +122,22 @@ Database migrations run automatically (`migrate` service) before the API starts.
   ```
   Try a restore once on a spare server before you ever need it.
 
+## 7a. Metrics and dashboards (optional)
+
+Prometheus and Grafana run with the `observability` profile. Set `VROS_GRAFANA_PASSWORD` in `.env` (Grafana will not start without it), then:
+
+```bash
+docker compose -f docker-compose.yml -f docker-compose.prod.yml --profile observability up -d
+```
+
+Both listen on the server's 127.0.0.1 only. From your computer, open a tunnel and browse to http://localhost:3002 (user `admin`):
+
+```bash
+ssh -L 3002:127.0.0.1:3002 -L 9090:127.0.0.1:9090 vros@<server-ip>
+```
+
+The **VROS overview** dashboard shows whether the API is up, work in hand, request rate and response times, the slowest routes, worker failures and how long since each daily job last succeeded. Alerts (API down, a dependency down, errors over 5%, slow responses, a daily job late, repeated worker failures, a long queue) show on Prometheus's Alerts page (http://localhost:9090/alerts) and as a count on the dashboard; they are not emailed.
+
 ## 8. If something is wrong
 
 | Symptom | Check |

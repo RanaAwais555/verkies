@@ -99,6 +99,8 @@ Append-only `audit_log` records user, time, object, action, old value, new value
 
 Structured logs carry request and run IDs, not passwords, tokens or full page bodies. Evidence text is stored in the database, not logs.
 
+Metrics (slice 7.1) are counts only: labels are HTTP methods, route templates, status codes, task names and states, never names, emails, URLs or IDs. `/metrics` answers only internal hostnames (a request under the public hostname gets 404) and Caddy never forwards it. Prometheus and Grafana listen on 127.0.0.1 only; Grafana has sign-up and anonymous access off and will not start with its default password.
+
 ## 8. Review checklist (every PR touching these areas)
 
 New route has a permission check · new fetch path uses the safe `Fetcher` · new rendering of crawled text is escaped · new table has FK, indexes and audit where needed · new config is validated.

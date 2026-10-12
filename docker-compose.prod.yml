@@ -67,6 +67,12 @@ services:
       - "443:443"
       - "443:443/udp"
 
+  prometheus:
+    restart: unless-stopped
+
+  grafana:
+    restart: unless-stopped
+
   backup:
     image: pgvector/pgvector:pg16
     restart: unless-stopped

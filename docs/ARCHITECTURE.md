@@ -211,6 +211,7 @@ Next.js app router, TypeScript, Tailwind. Phase 1 screens: login; Home ("What sh
 
 - **Config:** `pydantic-settings`, environment only, no secrets in the repo.
 - **Logging:** structured JSON with request ID and run ID.
+- **Metrics (slice 7.1):** `GET /metrics` on the API (Prometheus text format), answered only for the internal hostnames `api`, `localhost` and `127.0.0.1`; Caddy forwards only `/api/*`, so it is never public. It carries requests and latency by route template (never raw paths or IDs), work in hand read at scrape time (research queued or running, review queue, open monitoring alerts, overdue tasks, Celery queue length, whether the database and Redis answered), and the worker's task outcomes and last success, which the worker records in Redis through Celery signals (`app/observability/worker.py`). Switch off with `VROS_METRICS_ENABLED=false`.
 - **Migrations:** Alembic, one migration per change, reviewed with the model.
 - **Soft delete:** `deleted_at` on user-facing entities; evidence and audit rows are append-only.
 - **Caching:** raw HTTP responses stored with fetch time and reused until stale (§18A: 30 days for company facts, daily for jobs and news; website crawl default 7 days, user can force refresh).
@@ -235,6 +236,7 @@ Internet ──443──▶ Caddy ──/api/*──▶ api:8000 ──▶ postg
 | --- | --- |
 | `docker-compose.yml` | Base services: `postgres` (pgvector), `redis`, `migrate` (applies Alembic migrations and exits; `api` and `worker` start only if it succeeds), `api`, `worker`, `frontend`, `caddy`. Development defaults; database and Redis ports published on localhost only |
 | `docker-compose.prod.yml` | Production overlay: adds `caddy` and `backup`; no database or Redis ports published; `restart: unless-stopped`; all secrets from `.env` |
+| profile `observability` | `prometheus` (scrapes `api:8000/metrics`, evaluates `ops/prometheus/alerts.yml`, keeps 30 days) and `grafana` (provisioned Prometheus data source and the `VROS overview` dashboard from `ops/grafana`; refuses to start without `VROS_GRAFANA_PASSWORD`). Both published on 127.0.0.1 only |
 
 Development: `docker compose up`. Production: `docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d` on one VPS with the domain's DNS `A` record pointing at it.
 
