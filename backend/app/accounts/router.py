@@ -9,6 +9,7 @@ from datetime import UTC, datetime
 from typing import Annotated, Literal
 
 from fastapi import APIRouter, Depends, Query, Response
+from sqlalchemy import select
 
 from app.accounts import service
 from app.accounts.schemas import (
@@ -29,6 +30,7 @@ from app.auth.models import User
 from app.core.enums import AccountType, AuditSource
 from app.crm.schemas import OpportunityOut, RelationshipOut, TaskOut
 from app.discovery.csv_import import csv_safe
+from app.monitoring.models import Watch
 
 router = APIRouter(prefix="/accounts", tags=["accounts"])
 
@@ -141,6 +143,9 @@ async def account_360(account_id: uuid.UUID, user: Member, db: DbSession) -> Acc
     account = await service.get_account(db, user=user, account_id=account_id)
     found = await service.account_360(db, account)
     names = found["owners"]
+    watcher_ids = set(
+        (await db.execute(select(Watch.user_id).where(Watch.account_id == account.id))).scalars()
+    )
     open_tasks = sum(1 for t in found["tasks"] if t.status.value in ("open", "in_progress"))
     return Account360Out(
         **AccountSummaryOut.of(account, names, open_tasks).model_dump(),
@@ -153,6 +158,8 @@ async def account_360(account_id: uuid.UUID, user: Member, db: DbSession) -> Acc
         linkedin_company_url=account.linkedin_company_url,
         account_manager=owner_of(account.account_manager_id, names),
         client_since=account.client_since,
+        watching=user.id in watcher_ids,
+        watchers=len(watcher_ids),
         domains=[d.domain for d in found["domains"]],
         scores={name: as_float(getattr(account, name)) for name in SCORES},
         leads=[

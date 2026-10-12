@@ -26,6 +26,10 @@ def create_celery() -> Celery:
                 "task": "vros.clients.health_sweep",
                 "schedule": crontab(hour=6, minute=0),
             },
+            "monitoring-daily": {
+                "task": "vros.monitoring.check_watched",
+                "schedule": crontab(hour=5, minute=0),
+            },
         },
     )
     celery.autodiscover_tasks(["app.workers"])

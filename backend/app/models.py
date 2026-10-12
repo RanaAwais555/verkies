@@ -29,6 +29,7 @@ from app.documents.models import Document
 from app.evidence.models import Claim, Evidence, Observation
 from app.learning.models import DealOutcome, LearnedProposal, SalesFeedback
 from app.mail.models import EmailMessage, Mailbox
+from app.monitoring.models import MonitorAlert, Watch
 from app.opportunities.models import OpportunityCandidate, OpportunityCategory
 from app.outreach.models import Enrollment, EnrollmentStep, OutreachTemplate, Sequence, SequenceStep
 from app.qualification.models import IcpConfig, QualificationResult
@@ -67,6 +68,7 @@ __all__ = [
     "LearnedProposal",
     "Mailbox",
     "Milestone",
+    "MonitorAlert",
     "Observation",
     "Opportunity",
     "OpportunityCandidate",
@@ -99,4 +101,5 @@ __all__ = [
     "TimelineEvent",
     "User",
     "UserSession",
+    "Watch",
 ]

@@ -30,6 +30,7 @@ from app.core.enums import (
     HealthColour,
     ObservationArea,
     ReviewStatus,
+    RunKind,
     StageOutcome,
     TaskStatus,
 )
@@ -249,6 +250,7 @@ async def funnel(
     """
     first_seen = (
         select(ResearchRun.normalised_domain, func.min(ResearchRun.created_at).label("first"))
+        .where(ResearchRun.kind == RunKind.RESEARCH)
         .group_by(ResearchRun.normalised_domain)
         .subquery()
     )
@@ -258,7 +260,7 @@ async def funnel(
                 ResearchRun.normalised_domain, ResearchRun.account_id, ResearchRun.requested_by_id
             )
             .join(first_seen, first_seen.c.normalised_domain == ResearchRun.normalised_domain)
-            .where(_between(first_seen.c.first, start, end))
+            .where(_between(first_seen.c.first, start, end), ResearchRun.kind == RunKind.RESEARCH)
         )
     ).all()
     accounts: dict[str, set[uuid.UUID]] = defaultdict(set)
@@ -578,7 +580,7 @@ async def lead_intelligence(db: AsyncSession, *, user: User, period: Period) -> 
     researched = await _count(
         db,
         select(ResearchRun.normalised_domain)
-        .where(_between(ResearchRun.created_at, start, end))
+        .where(_between(ResearchRun.created_at, start, end), ResearchRun.kind == RunKind.RESEARCH)
         .distinct(),
     )
     reviews = (

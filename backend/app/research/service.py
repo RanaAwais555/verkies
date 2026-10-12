@@ -13,7 +13,7 @@ from app.auth.models import User
 from app.briefs.models import LeadBrief
 from app.catalogue.models import ServiceMatch
 from app.config import Settings
-from app.core.enums import AuditSource, JobStatus, ReviewStatus
+from app.core.enums import AuditSource, JobStatus, ReviewStatus, RunKind
 from app.core.errors import Conflict, NotFound, PermissionDenied, ValidationFailed
 from app.core.search import contains_pattern
 from app.evidence.models import Evidence
@@ -137,7 +137,12 @@ async def list_runs(
     review_status: ReviewStatus | None = None,
     query: str | None = None,
 ) -> list[ResearchRun]:
-    stmt = select(ResearchRun).order_by(ResearchRun.created_at.desc()).limit(limit)
+    stmt = (
+        select(ResearchRun)
+        .where(ResearchRun.kind == RunKind.RESEARCH)
+        .order_by(ResearchRun.created_at.desc())
+        .limit(limit)
+    )
     if not _sees_all(user):
         stmt = stmt.where(ResearchRun.requested_by_id == user.id)
     if review_status is not None:

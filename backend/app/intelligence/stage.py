@@ -126,7 +126,7 @@ async def extract_run(
 
 def persist_observation(
     db: AsyncSession, run_id: uuid.UUID, attempt: int, item: Observation
-) -> None:
+) -> ObservationRow:
     now = datetime.now(UTC)
     evidence = Evidence(
         research_run_id=run_id,
@@ -140,15 +140,15 @@ def persist_observation(
         published_at=item.published_at,
     )
     db.add(evidence)
-    db.add(
-        ObservationRow(
-            research_run_id=run_id,
-            attempt=attempt,
-            area=item.area,
-            key=item.key,
-            value=item.value,
-            evidence=evidence,
-            seen_on=item.seen_on,
-            confidence=Decimal(str(round(item.confidence, 2))),
-        )
+    row = ObservationRow(
+        research_run_id=run_id,
+        attempt=attempt,
+        area=item.area,
+        key=item.key,
+        value=item.value,
+        evidence=evidence,
+        seen_on=item.seen_on,
+        confidence=Decimal(str(round(item.confidence, 2))),
     )
+    db.add(row)
+    return row

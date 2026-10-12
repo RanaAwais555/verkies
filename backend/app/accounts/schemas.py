@@ -154,6 +154,9 @@ class Account360Out(AccountSummaryOut):
     # Client lifecycle (slice 4.1): set once a won deal is converted.
     account_manager: OwnerOut | None = None
     client_since: date | None = None
+    # Monitoring (slice 6.1): whether the person viewing watches it, and how many do.
+    watching: bool = False
+    watchers: int = 0
     domains: list[str]
     # All ten dimensions; null means Unknown, never zero.
     scores: dict[str, float | None]

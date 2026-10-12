@@ -11,10 +11,14 @@ from sqlalchemy.pool import NullPool
 
 from app.clients import health
 from app.config import get_settings
+from app.monitoring import service as monitoring
 from app.providers.ai import build_ai_provider
 from app.providers.fetch import build_fetcher, build_renderer
 from app.providers.storage import LocalStorage
+from app.registry.stage import Registries
 from app.research.pipeline import INTERNAL_ERROR, PipelineDeps, fail_run, run_research
+from app.research.source import CachedPageSource
+from app.signals.jobs import JobBoards
 from app.workers.celery_app import celery_app
 
 logger = logging.getLogger(__name__)
@@ -127,3 +131,52 @@ async def client_health_job() -> None:
 def client_health_sweep() -> None:
     """The retention engine's daily run (slice 4.2), scheduled by the worker's beat."""
     asyncio.run(client_health_job())
+
+
+async def monitoring_job(account_id: uuid.UUID | None, user_id: uuid.UUID | None) -> None:
+    settings = get_settings()
+    engine = create_async_engine(settings.database_url, poolclass=NullPool)
+    fetcher = build_fetcher(settings)
+    sessionmaker = async_sessionmaker(engine, expire_on_commit=False)
+    deps = monitoring.MonitorDeps(
+        sessionmaker=sessionmaker,
+        # Fresh copies every time: a cached feed would never show anything new.
+        source=CachedPageSource(
+            sessionmaker=sessionmaker,
+            storage=LocalStorage(settings.storage_dir),
+            fetcher=fetcher,
+            renderer=None,
+            cache_days=settings.crawl_cache_days,
+            force_refresh=True,
+        ),
+        fetcher=fetcher,
+        boards=JobBoards.default(),
+        registries=Registries.from_settings(settings),
+    )
+    try:
+        if account_id is None:
+            results = await monitoring.check_all(deps)
+        else:
+            results = [await monitoring.check_account(account_id, deps, requested_by=user_id)]
+        logger.info(
+            "monitoring checked",
+            extra={
+                "accounts": len(results),
+                "checked": sum(1 for r in results if r.checked),
+                "new_signals": sum(r.new for r in results),
+            },
+        )
+    finally:
+        await fetcher.aclose()
+        await engine.dispose()
+
+
+@celery_app.task(name="vros.monitoring.check_watched", soft_time_limit=3600, time_limit=3660)
+def monitoring_check_watched() -> None:
+    """Every watched account, once a day (slice 6.1), scheduled by the worker's beat."""
+    asyncio.run(monitoring_job(None, None))
+
+
+@celery_app.task(name="vros.monitoring.check_account", soft_time_limit=600, time_limit=660)
+def monitoring_check_account(account_id: str, user_id: str) -> None:
+    asyncio.run(monitoring_job(uuid.UUID(account_id), uuid.UUID(user_id)))

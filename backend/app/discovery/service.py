@@ -18,6 +18,7 @@ from app.core.enums import (
     CandidateStatus,
     DiscoveryKind,
     DiscoveryStatus,
+    RunKind,
     SuppressionKind,
 )
 from app.core.errors import Conflict, NotFound, ValidationFailed
@@ -234,7 +235,10 @@ async def _lookups(db: AsyncSession, domains: set[str], names: set[str]) -> _Loo
         runs = (
             await db.execute(
                 select(ResearchRun)
-                .where(ResearchRun.normalised_domain.in_(domains))
+                .where(
+                    ResearchRun.normalised_domain.in_(domains),
+                    ResearchRun.kind == RunKind.RESEARCH,
+                )
                 .order_by(ResearchRun.created_at)
             )
         ).scalars()

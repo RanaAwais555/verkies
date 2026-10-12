@@ -26,6 +26,7 @@ from app.health.router import router as health_router
 from app.leads.router import router as leads_router
 from app.learning.router import router as learning_router
 from app.mail.router import router as mail_router
+from app.monitoring.router import router as monitoring_router
 from app.outreach.router import router as outreach_router
 from app.prospects.router import router as prospects_router
 from app.reports.router import router as reports_router
@@ -102,6 +103,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         clients_router,
         documents_router,
         learning_router,
+        monitoring_router,
         catalogue_router,
         discovery_router,
         search_router,

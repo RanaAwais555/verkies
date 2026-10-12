@@ -17,6 +17,7 @@ import { AccountProjects } from "@/components/clients/projects";
 import { AccountDeals, OpenDealButton } from "@/components/deals/account-deals";
 import { DocumentsPanel } from "@/components/documents/documents";
 import { SalesFeedbackPanel } from "@/components/learning/feedback";
+import { AccountAlerts, WatchButton } from "@/components/monitoring/monitoring";
 import {
   Badge,
   BandBadge,
@@ -273,6 +274,8 @@ function Overview({ account, refresh, showActivity }: { account: Account360; ref
 
         <SalesFeedbackPanel accountId={account.id} opportunities={account.opportunities} />
 
+        {account.watching && <AccountAlerts accountId={account.id} />}
+
         <Panel title="Recent activity" footer={<ShowAll onClick={showActivity}>Show all activity</ShowAll>}>
           <Timeline accountId={account.id} limit={4} testId="timeline-preview" />
         </Panel>
@@ -494,6 +497,7 @@ export default function AccountPage() {
                 Lead brief
               </LinkButton>
             )}
+            <WatchButton accountId={account.id} watching={account.watching} onChange={() => mutate()} />
             <Button onClick={() => setTab("activities")} icon={<NotebookPen className="h-4 w-4" />}>
               Log activity
             </Button>
