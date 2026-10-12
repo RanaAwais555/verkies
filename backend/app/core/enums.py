@@ -424,6 +424,15 @@ class FeedbackKind(StrEnum):
     OPPORTUNITY_INCORRECT = "opportunity_incorrect"
 
 
+class ProposalStatus(StrEnum):
+    """A learned proposal (slice 5.3). Only a person moves it to activated."""
+
+    PROPOSED = "proposed"
+    ACTIVATED = "activated"
+    DISMISSED = "dismissed"
+    SUPERSEDED = "superseded"  # a newer proposal of the same kind replaced it
+
+
 class RiskSeverity(StrEnum):
     LOW = "low"
     MEDIUM = "medium"

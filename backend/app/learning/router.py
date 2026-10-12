@@ -1,9 +1,10 @@
 """/accounts/{id}/sales-feedback and /deals/{id}/outcome: what the learning engine learns from
-(slice 5.1); /learning/win-loss: what won and lost deals have in common (slice 5.2)."""
+(slice 5.1); /learning/win-loss: what won and lost deals have in common (slice 5.2);
+/learning/proposals: scoring and ICP changes learned from outcomes, activated by a person (5.3)."""
 
 import uuid
 from datetime import datetime
-from typing import Annotated, Any
+from typing import Annotated, Any, Literal
 
 from fastapi import APIRouter, Depends, Query
 from pydantic import BaseModel, Field
@@ -20,9 +21,9 @@ from app.core.errors import NotFound, ValidationFailed
 from app.crm import timeline
 from app.crm.models import Lead, Opportunity
 from app.deals.service import LOST_REASON_LABELS, get_deal
-from app.learning import analysis
+from app.learning import analysis, proposals
 from app.learning.labels import FEEDBACK_LABELS
-from app.learning.models import DealOutcome, SalesFeedback
+from app.learning.models import DealOutcome, LearnedProposal, SalesFeedback
 from app.opportunities.models import OpportunityCategory
 
 router = APIRouter(tags=["learning"])
@@ -309,3 +310,94 @@ async def win_loss(
         lost_reasons=[ReasonCountOut(reason=r, deals=c) for r, c in found.lost_reasons],
         feedback=[GroupOut.of(g, n) for g in found.feedback],
     )
+
+
+# --- learned proposals (slice 5.3) -------------------------------------------------------------
+
+Configurer = Annotated[User, Depends(require_permission("config.manage"))]
+ProposalReader = Annotated[User, Depends(require_permission("config.manage", "reports.team"))]
+
+
+class ProposalOut(BaseModel):
+    id: uuid.UUID
+    kind: str
+    status: str
+    based_on_version: int
+    changes: list[dict[str, Any]]
+    basis: dict[str, Any]
+    proposed_config: dict[str, Any]
+    created_by: str | None
+    created_at: datetime
+    decided_by: str | None
+    decided_at: datetime | None
+    decision_note: str | None
+    activated_version: int | None
+
+
+class ProposeIn(BaseModel):
+    kind: Literal["scoring", "icp"]
+
+
+class ActivateIn(BaseModel):
+    note: str | None = Field(default=None, max_length=500)
+
+
+class DismissIn(BaseModel):
+    reason: str = Field(min_length=3, max_length=500)
+
+
+async def _proposal_out(db: DbSession, p: LearnedProposal) -> ProposalOut:
+    ids = {i for i in (p.created_by_id, p.decided_by_id) if i}
+    names = (
+        dict((await db.execute(select(User.id, User.name).where(User.id.in_(ids)))).all())
+        if ids
+        else {}
+    )
+    return ProposalOut(
+        id=p.id,
+        kind=p.kind,
+        status=p.status.value,
+        based_on_version=p.based_on_version,
+        changes=p.changes,
+        basis=p.basis,
+        proposed_config=p.proposed_config,
+        created_by=names.get(p.created_by_id) if p.created_by_id else None,
+        created_at=p.created_at,
+        decided_by=names.get(p.decided_by_id) if p.decided_by_id else None,
+        decided_at=p.decided_at,
+        decision_note=p.decision_note,
+        activated_version=p.activated_version,
+    )
+
+
+@router.get("/learning/proposals")
+async def list_proposals(user: ProposalReader, db: DbSession) -> list[ProposalOut]:
+    rows = (
+        await db.execute(
+            select(LearnedProposal).order_by(LearnedProposal.created_at.desc()).limit(50)
+        )
+    ).scalars()
+    return [await _proposal_out(db, p) for p in rows]
+
+
+@router.post("/learning/proposals", status_code=201)
+async def make_proposal(body: ProposeIn, user: Configurer, db: DbSession) -> ProposalOut:
+    """Work out a proposal from every deal outcome. It changes nothing until activated."""
+    proposal = await proposals.propose(db, user=user, kind=body.kind)
+    return await _proposal_out(db, proposal)
+
+
+@router.post("/learning/proposals/{proposal_id}/activate")
+async def activate_proposal(
+    proposal_id: uuid.UUID, body: ActivateIn, user: Configurer, db: DbSession
+) -> ProposalOut:
+    proposal = await proposals.activate(db, user=user, proposal_id=proposal_id, note=body.note)
+    return await _proposal_out(db, proposal)
+
+
+@router.post("/learning/proposals/{proposal_id}/dismiss")
+async def dismiss_proposal(
+    proposal_id: uuid.UUID, body: DismissIn, user: Configurer, db: DbSession
+) -> ProposalOut:
+    proposal = await proposals.dismiss(db, user=user, proposal_id=proposal_id, reason=body.reason)
+    return await _proposal_out(db, proposal)

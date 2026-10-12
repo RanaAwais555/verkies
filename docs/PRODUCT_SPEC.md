@@ -131,6 +131,13 @@ Bulk discovery, external company registries, job-board and news signals, monitor
 - Every figure shows the deals it rests on. A group with fewer than `VROS_LEARNING_MIN_SAMPLE` (default 5) closed deals gets no win rate and is marked too few to learn from. Unknown is its own group and is never merged into another. Outcomes recorded late (backfilled) are counted and flagged.
 - This is description, not prediction: nothing here changes a score. Proposing changes from it is slice 5.3, and a person activates them.
 
+### Phase 5, slice 5.3: learned proposals (§15; SCORING_SPEC.md §7)
+
+- On the Learning page, admins can ask VROS to **propose scoring weights** or **ICP industry tiers** from every won and lost deal. Each proposal lists every change with its evidence ("won deals first scored 87 on average against 32 for lost, 5 won, 5 lost"; "won 5 of 5 against 50% across all industries") and the config version it was made against.
+- Proposals are cautious by design: none from fewer than the minimum won and lost deals, no weight moves by more than a quarter of itself, an industry moves one tier at most (SCORING_SPEC.md §7 has the exact rules), and the same data always gives the same proposal.
+- **Nothing changes until an admin activates a proposal.** Activating saves a new config version (validated and audited exactly like an edit in Settings) and is refused if the configuration changed in the meantime. Proposals can be dismissed with a reason, and the new version can be edited in Settings at any time: human override is kept. Managers can see proposals; only admins make and activate them.
+- Existing scores are not recalculated by activating; new research uses the new version, and every score records the version it used.
+
 ## 4. Acceptance: Definition of Done (§20) mapped to tests
 
 | Requirement | Verified by |

@@ -1,4 +1,5 @@
-"""What the learning engine learns from (master context §13 won-deal data, §15; slice 5.1).
+"""What the learning engine learns from (master context §13 won-deal data, §15; slice 5.1), and
+what it proposes from that (slice 5.3).
 
 Salesperson feedback is what people said about a lead. Deal outcomes are what was true about an
 account and its deal at the moment the deal was won or lost, kept as written so later changes to
@@ -14,7 +15,7 @@ from sqlalchemy import ForeignKey, Index, Integer, Numeric, String, Text, func, 
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column
 
-from app.core.enums import FeedbackKind, LostReason, StageOutcome
+from app.core.enums import FeedbackKind, LostReason, ProposalStatus, StageOutcome
 from app.core.models import Base, CreatedMixin, IdMixin, text_enum
 
 
@@ -80,3 +81,27 @@ class DealOutcome(IdMixin, Base):
     reference_project_id: Mapped[uuid.UUID | None] = mapped_column(
         ForeignKey("reference_projects.id")
     )
+
+
+class LearnedProposal(IdMixin, CreatedMixin, Base):
+    """A change to the scoring or ICP configuration worked out from deal outcomes (SCORING_SPEC.md
+    §7). Never active by itself: a person activates it, which saves a new config version."""
+
+    __tablename__ = "learned_proposals"
+
+    kind: Mapped[str] = mapped_column(String(20))  # scoring | icp
+    status: Mapped[ProposalStatus] = mapped_column(
+        text_enum(ProposalStatus), default=ProposalStatus.PROPOSED, index=True
+    )
+    # The active config version it was computed against; activating is refused once it changes.
+    based_on_version: Mapped[int] = mapped_column(Integer)
+    proposed_config: Mapped[dict[str, Any]] = mapped_column(JSONB)
+    # Each change with the evidence for it: [{key, from, to, why, ...}].
+    changes: Mapped[list[dict[str, Any]]] = mapped_column(JSONB)
+    # The outcomes it rests on: counts and a digest, so it can be recomputed and compared.
+    basis: Mapped[dict[str, Any]] = mapped_column(JSONB)
+    created_by_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("users.id"))
+    decided_by_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("users.id"))
+    decided_at: Mapped[datetime | None]
+    decision_note: Mapped[str | None] = mapped_column(Text)
+    activated_version: Mapped[int | None] = mapped_column(Integer)
