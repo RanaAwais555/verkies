@@ -3,6 +3,7 @@
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 
 import { AlertList, WatchedTable } from "@/components/monitoring/monitoring";
+import { AlertRules } from "@/components/monitoring/rules";
 import { Checkbox, PageHeader, Panel, Tabs } from "@/components/ui";
 
 export default function MonitoringPage() {
@@ -21,7 +22,8 @@ export default function MonitoringPage() {
   }
 
   const query = new URLSearchParams();
-  if (show === "open") query.set("open", "true");
+  if (show === "open" || show === "flagged") query.set("open", "true");
+  if (show === "flagged") query.set("raised", "true");
   if (!everyone) query.set("mine", "true");
 
   return (
@@ -41,17 +43,19 @@ export default function MonitoringPage() {
             label="Which alerts"
             tabs={[
               { key: "open", label: "To review" },
+              { key: "flagged", label: "Flagged" },
               { key: "all", label: "All" },
             ]}
             active={show}
             onChange={(key) => setParam("show", key === "open" ? null : key)}
           />
-          <AlertList query={query.toString()} empty={show === "open" ? "Nothing new to review." : "No alerts yet."} />
+          <AlertList query={query.toString()} empty={show === "open" ? "Nothing new to review." : show === "flagged" ? "No alert rule has flagged anything to review." : "No alerts yet."} />
         </div>
       </Panel>
       <Panel title={everyone ? "Every watched account" : "Accounts you watch"} testId="watched-panel">
         <WatchedTable mine={!everyone} />
       </Panel>
+      <AlertRules />
     </div>
   );
 }

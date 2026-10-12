@@ -17,7 +17,7 @@ import { AccountProjects } from "@/components/clients/projects";
 import { AccountDeals, OpenDealButton } from "@/components/deals/account-deals";
 import { DocumentsPanel } from "@/components/documents/documents";
 import { SalesFeedbackPanel } from "@/components/learning/feedback";
-import { AccountAlerts, WatchButton } from "@/components/monitoring/monitoring";
+import { AccountAlerts, FlagBadge, WatchButton } from "@/components/monitoring/monitoring";
 import {
   Badge,
   BandBadge,
@@ -468,6 +468,7 @@ export default function AccountPage() {
           <>
             <Badge tone="purple">{label(account.account_type)}</Badge>
             <BandBadge band={account.priority_band} />
+            <FlagBadge flag={account.attention} title="Raised by an alert rule on a monitoring alert not yet reviewed" />
           </>
         }
         tagline={[account.industry, location].filter(Boolean).join(" · ") || "Industry and location unknown"}

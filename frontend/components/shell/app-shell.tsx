@@ -5,6 +5,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useCallback, useEffect, useState, type ReactNode } from "react";
 
+import { NotificationBell } from "@/components/notifications/bell";
 import { CommandPalette } from "@/components/shell/command-palette";
 import { useBack, useNavigationHistory } from "@/components/shell/history";
 import { VrosLogo } from "@/components/shell/mark";
@@ -144,6 +145,7 @@ function TopBar({ onMenu, onPalette }: { onMenu: () => void; onPalette: () => vo
         <kbd className="ml-auto hidden rounded border border-border-strong border-b-2 bg-surface px-1.5 font-mono text-[10.5px] text-fg-2 sm:inline">Ctrl K</kbd>
       </button>
       <span className="flex-1" />
+      <NotificationBell />
       <IconButton label={theme === "dark" ? "Switch to light theme" : "Switch to dark theme"} onClick={() => setTheme(theme === "dark" ? "light" : "dark")}>
         {theme === "dark" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
       </IconButton>

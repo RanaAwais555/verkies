@@ -1,4 +1,4 @@
-"""Watchlists and monitoring (master context §15 Monitoring; slices 6.1 and 6.2).
+"""Watchlists and monitoring (master context §15 Monitoring; slices 6.1 to 6.3).
 
 A watched account is re-checked from the sources its latest research found: the job boards and
 news feeds its own site links to, and its Companies House record (filings, officers). Every check
@@ -10,6 +10,8 @@ nothing to check, and a source that fails is reported, never treated as "no news
 
 The same check reads the account's own pages again and records what changed on its website
 (app.monitoring.website): each change is an alert of kind "website" with the text before and after.
+The alert rules (app.monitoring.rules) then flag the new alerts, create follow-up tasks and tell
+the account's watchers in the app.
 """
 
 import uuid
@@ -24,6 +26,7 @@ from app.accounts import access
 from app.accounts.models import Account
 from app.audit import service as audit
 from app.auth.models import User
+from app.config import get_settings
 from app.core.enums import (
     AuditSource,
     EvidenceType,
@@ -38,7 +41,7 @@ from app.evidence.models import Observation as ObservationRow
 from app.intelligence.stage import persist_observation
 from app.intelligence.types import Observation
 from app.leads.ranking import SIGNAL_LABELS
-from app.monitoring import website
+from app.monitoring import rules, website
 from app.monitoring.models import MonitorAlert, Watch
 from app.providers.fetch.safe_http import SafeHttpFetcher
 from app.providers.storage import Storage
@@ -123,6 +126,7 @@ class WatchView:
     watching: bool
     last_checked_at: datetime | None
     open_alerts: int
+    attention: str | None = None
 
 
 async def watched(db: AsyncSession, *, user: User, mine: bool = True) -> list[WatchView]:
@@ -174,9 +178,11 @@ async def watched(db: AsyncSession, *, user: User, mine: bool = True) -> list[Wa
             )
         ).all()
     )
+    flags = await attention(db, ids)
     return [
         WatchView(
             account=a,
+            attention=flags.get(a.id),
             watchers=watchers.get(a.id, 0),
             watching=a.id in mine_ids,
             last_checked_at=checked.get(a.id),
@@ -208,6 +214,8 @@ class CheckResult:
     read: int = 0
     new: int = 0
     changes: int = 0
+    flagged: int = 0
+    tasks: int = 0
     errors: list[str] = field(default_factory=list)
 
 
@@ -315,8 +323,9 @@ async def check_account(
             )
             changed.append((change, persist_observation(db, run.id, 0, observation)))
         await db.flush()
+        created: list[MonitorAlert] = []
         for change, row in changed:
-            db.add(
+            created.append(
                 MonitorAlert(
                     account_id=account_id,
                     research_run_id=run.id,
@@ -342,7 +351,7 @@ async def check_account(
             )
         for item, row in new:
             published = item.value.get("published")
-            db.add(
+            created.append(
                 MonitorAlert(
                     account_id=account_id,
                     research_run_id=run.id,
@@ -370,6 +379,11 @@ async def check_account(
                 ref_table="research_runs",
                 ref_id=run.id,
             )
+        db.add_all(created)
+        await db.flush()
+        account = await db.get(Account, account_id)
+        assert account is not None
+        applied = await rules.apply(db, account, created, run_id=run.id, settings=get_settings())
         await db.commit()
         return CheckResult(
             account_id,
@@ -379,6 +393,8 @@ async def check_account(
             read=len(found) + len(read.pages),
             new=len(new),
             changes=len(changed),
+            flagged=applied.flagged,
+            tasks=len(applied.tasks or []),
             errors=errors,
         )
 
@@ -412,6 +428,7 @@ async def alerts(
     account_id: uuid.UUID | None = None,
     open_only: bool = False,
     mine: bool = False,
+    raised: bool = False,
     limit: int = 200,
 ) -> list[tuple[MonitorAlert, Account]]:
     stmt = (
@@ -426,12 +443,34 @@ async def alerts(
         stmt = stmt.where(MonitorAlert.account_id == account_id)
     if open_only:
         stmt = stmt.where(MonitorAlert.reviewed_at.is_(None))
+    if raised:
+        stmt = stmt.where(MonitorAlert.raised.is_not(None))
     if mine:
         stmt = stmt.where(
             MonitorAlert.account_id.in_(select(Watch.account_id).where(Watch.user_id == user.id))
         )
     stmt = stmt.order_by(MonitorAlert.created_at.desc(), MonitorAlert.id).limit(limit)
     return [(a, acc) for a, acc in (await db.execute(stmt)).all()]
+
+
+async def attention(db: AsyncSession, account_ids: list[uuid.UUID]) -> dict[uuid.UUID, str]:
+    """Each account's flag: the strongest raised by its unreviewed alerts."""
+    if not account_ids:
+        return {}
+    found: dict[uuid.UUID, set[str]] = {}
+    for account_id, raised in (
+        await db.execute(
+            select(MonitorAlert.account_id, MonitorAlert.raised)
+            .where(
+                MonitorAlert.account_id.in_(account_ids),
+                MonitorAlert.reviewed_at.is_(None),
+                MonitorAlert.raised.is_not(None),
+            )
+            .distinct()
+        )
+    ).all():
+        found.setdefault(account_id, set()).add(str(raised))
+    return {a: flag for a, flags in found.items() if (flag := rules.strongest(flags))}
 
 
 async def review_alert(db: AsyncSession, *, user: User, alert_id: uuid.UUID) -> MonitorAlert:
