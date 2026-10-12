@@ -225,4 +225,4 @@ def test_who_sees_and_checks_client_health(
         }
     ]
     views = [v["name"] for v in api.get("/saved-views").json()]
-    assert views[-1] == "At-Risk Clients"
+    assert "At-Risk Clients" in views

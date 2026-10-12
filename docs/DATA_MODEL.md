@@ -193,13 +193,21 @@ Endpoints: `POST /deals/{id}/convert`, `PUT /accounts/{id}/account-manager`, `/p
 
 Endpoints: `GET /clients` (`health`, `mine`), `POST /clients/health-check` (`reports.team`), `GET /accounts/{id}/health`, `POST /accounts/{id}/feedback`, `POST /accounts/{id}/end-client`. The worker task `vros.clients.health_sweep` runs daily from the worker's embedded beat.
 
+## 4h. Expansion and referrals (slice 4.3, migration `0021`)
+
+**expansion_opportunities** stores decisions on expansion suggestions, one per client and category: `account_id`, `category_id`, `candidate_id` (the detected problem and, through it, its evidence), `service_id`, `decision` (opened, dismissed), `opportunity_id` (when opened), `reason`, `decided_by_id`, `decided_at`. Suggestions themselves are computed from `opportunity_candidates` of the client's completed research runs.
+
+**referrals**: `referrer_account_id`, `referrer_contact_id`, `referrer_name`, `relationship`, `referred_company`, `referred_domain` (normalised; matched to `account_domains` and `accounts.primary_domain` on read), `status` (received, contacted, declined), `notes`, `received_on`, `recorded_by_id`. Conversion and revenue are read from won deals, never stored. Migration 0021 also adds the "Clients With Expansion Opportunities" saved view.
+
+Endpoints: `GET /accounts/{id}/expansion`, `POST /accounts/{id}/expansion/{candidate_id}/open` and `/dismiss`, `GET /clients?expansion=true`, `GET|POST /referrals` (`account_id` for either side), `PATCH /referrals/{id}`.
+
 ## 5. Tables added in later phases (names reserved)
 
 | Phase | Tables |
 | --- | --- |
 | 2 | `discovery_jobs` and `discovered_companies` exist since slice 2.1. Buying signals (slice 2.2) are observations in the `signals` area with dated evidence (migration `0009`), so they share evidence, attempts and append-only history with all other findings; no separate signal tables were needed |
 | 3 | `pipelines`, `pipeline_stages`, `deals` and `deal_stage_changes` exist since slice 3.1; logged meetings, calls and messages are `activities` (slice 3.2), and `meetings` stays reserved for scheduled meetings with calendar sync; `mailboxes` and `email_messages` (the §12B Message object for email) exist since slice 3.4; `outreach_templates`, `sequences`, `sequence_steps`, `enrollments` and `enrollment_steps` exist since slice 3.5; `proposals`, `documents`, `linkedin_imports` |
-| 4 | `projects`, `milestones` and `project_risks` exist since slice 4.1, `client_feedback` and `client_health_snapshots` since slice 4.2; `expansion_opportunities`, `referrals` |
+| 4 | `projects`, `milestones` and `project_risks` exist since slice 4.1, `client_feedback` and `client_health_snapshots` since slice 4.2, `expansion_opportunities` and `referrals` since slice 4.3 |
 | 5 | `feedback`, `deal_outcomes`, `learned_weights` |
 | 6 | `monitors`, `monitor_snapshots`, `monitor_events` |
 

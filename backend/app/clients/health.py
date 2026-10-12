@@ -39,6 +39,7 @@ from app.accounts import access
 from app.accounts.models import Account
 from app.audit import service as audit
 from app.auth.models import User
+from app.clients import expansion
 from app.clients.models import (
     ClientFeedback,
     ClientHealthSnapshot,
@@ -262,11 +263,14 @@ class ClientView:
     reasons: list[Reason]
     facts: Facts
     manager_name: str | None = None
+    # Evidence-backed expansion suggestions waiting for a decision (slice 4.3).
+    expansion: list[str] = field(default_factory=list)
 
 
 async def _views(db: AsyncSession, accounts: list[Account], now: datetime) -> list[ClientView]:
     settings = get_settings()
     facts = await gather(db, accounts, now)
+    suggestions = await expansion.suggestions_for(db, [a.id for a in accounts], with_evidence=False)
     manager_ids = {a.account_manager_id for a in accounts if a.account_manager_id}
     names = (
         dict((await db.execute(select(User.id, User.name).where(User.id.in_(manager_ids)))).all())
@@ -282,6 +286,7 @@ async def _views(db: AsyncSession, accounts: list[Account], now: datetime) -> li
                 colour=colour,
                 reasons=reasons,
                 facts=facts[account.id],
+                expansion=[s.category.name for s in suggestions[account.id]],
                 manager_name=names.get(account.account_manager_id)
                 if account.account_manager_id
                 else None,
@@ -296,6 +301,7 @@ async def list_clients(
     user: User,
     colour: HealthColour | None = None,
     mine: bool = False,
+    with_expansion: bool = False,
     now: datetime | None = None,
 ) -> list[ClientView]:
     """Every current client, worst health first."""
@@ -311,6 +317,8 @@ async def list_clients(
     views = await _views(db, accounts, now or _now())
     if colour is not None:
         views = [v for v in views if v.colour is colour]
+    if with_expansion:
+        views = [v for v in views if v.expansion]
     return sorted(views, key=lambda v: (-ORDER[v.colour], -len(v.reasons), v.account.name))
 
 

@@ -61,6 +61,7 @@ export function ClientTable({ clients }: { clients: ClientSummary[] }) {
           <th>Account manager</th>
           <th>Last contact</th>
           <th>Projects</th>
+          <th>Expansion</th>
         </tr>
       </thead>
       <tbody>
@@ -83,6 +84,7 @@ export function ClientTable({ clients }: { clients: ClientSummary[] }) {
               {c.last_contact_at ? relativeDate(c.last_contact_at) : <span className="text-fg-3">Never logged</span>}
             </td>
             <td className="tabular text-fg-2">{c.open_projects}</td>
+            <td className="min-w-[9rem] text-xs text-fg-2">{c.expansion.length ? c.expansion.join(", ") : <span className="text-fg-3">None waiting</span>}</td>
           </tr>
         ))}
       </tbody>

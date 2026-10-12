@@ -11,7 +11,7 @@ from app.accounts.models import Account, AccountDomain, Contact
 from app.audit.models import AuditLog
 from app.auth.models import User
 from app.briefs.models import LeadBrief
-from app.clients.models import Project
+from app.clients.models import ClientFeedback, ExpansionOpportunity, Project
 from app.core.enums import AccountType
 from app.core.errors import NotFound
 from app.core.search import contains_pattern
@@ -181,7 +181,18 @@ async def timeline_of(db: AsyncSession, account_id: uuid.UUID, limit: int) -> li
 async def audit_of(db: AsyncSession, account: Account, limit: int) -> list[AuditLog]:
     """Audit entries for the account and everything hanging off it."""
     related: list[uuid.UUID] = await merge.family_ids(db, account.id)
-    for model in (Lead, Opportunity, Deal, Project, Task, Contact, Activity, ResearchRun):
+    for model in (
+        Lead,
+        Opportunity,
+        Deal,
+        Project,
+        Task,
+        Contact,
+        Activity,
+        ResearchRun,
+        ClientFeedback,
+        ExpansionOpportunity,
+    ):
         related += list(
             (await db.execute(select(model.id).where(model.account_id == account.id))).scalars()
         )

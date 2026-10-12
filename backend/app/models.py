@@ -15,9 +15,11 @@ from app.catalogue.models import ReferenceProject, Service, ServiceMatch
 from app.clients.models import (
     ClientFeedback,
     ClientHealthSnapshot,
+    ExpansionOpportunity,
     Milestone,
     Project,
     ProjectRisk,
+    Referral,
 )
 from app.core.models import Base
 from app.crm.models import Activity, Lead, Opportunity, Task, TimelineEvent
@@ -53,6 +55,7 @@ __all__ = [
     "Enrollment",
     "EnrollmentStep",
     "Evidence",
+    "ExpansionOpportunity",
     "IcpConfig",
     "Invite",
     "Lead",
@@ -72,6 +75,7 @@ __all__ = [
     "QualificationResult",
     "RawResponse",
     "ReferenceProject",
+    "Referral",
     "ResearchPage",
     "ResearchRun",
     "ResearchStage",
