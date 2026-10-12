@@ -97,7 +97,10 @@ function Sidebar({ session, collapsed, onToggle, onNavigate }: { session: Sessio
         </span>
         <div className={cx("min-w-0 flex-1 leading-tight", collapsed && "sr-only")}>
           <p className="truncate text-[13px] font-medium text-fg" data-testid="signed-in-as">{session.user.name}</p>
-          <p className="truncate text-[11px] text-fg-3">{session.user.roles.map(label).join(", ")}</p>
+          <p className="truncate text-[11px] text-fg-3">
+            {session.user.roles.map(label).join(", ")}
+            {viewOnly(session) && <span data-testid="view-only"> · View only</span>}
+          </p>
         </div>
         <IconButton label="Sign out" onClick={signOut}>
           <LogOut className="h-4 w-4" />
@@ -113,6 +116,12 @@ function Sidebar({ session, collapsed, onToggle, onNavigate }: { session: Sessio
       </button>
     </div>
   );
+}
+
+/** Can see records but not change them (slice 7.4): the API refuses their changes. */
+function viewOnly(session: Session) {
+  const p = session.user.permissions;
+  return (p.includes("accounts.read") || p.includes("accounts.read_own")) && !p.includes("records.write");
 }
 
 function TopBar({ onMenu, onPalette }: { onMenu: () => void; onPalette: () => void }) {
