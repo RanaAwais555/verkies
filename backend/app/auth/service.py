@@ -18,6 +18,7 @@ from app.auth.tokens import hash_token, new_token
 from app.config import Settings
 from app.core.enums import AuditSource
 from app.core.errors import Conflict, NotAuthenticated, NotFound, ValidationFailed
+from app.security.breached import check_not_breached
 
 ADMIN_ROLE = "admin"
 # Updating last_seen_at on every request would write on every call; this is precise enough.
@@ -111,6 +112,7 @@ async def create_admin(db: AsyncSession, *, email: str, name: str, password: str
     if await get_user_by_email(db, email) is not None:
         raise Conflict("A user with this email already exists.")
     check_password_policy(password, email=email)
+    await check_not_breached(password)
     user = User(email=email, name=name.strip(), password_hash=hash_password(password))
     user.roles = await roles_by_key(db, [ADMIN_ROLE])
     db.add(user)
@@ -287,6 +289,7 @@ async def change_password(
     if not verify_password(user.password_hash, current):
         raise ValidationFailed("Current password is incorrect.")
     check_password_policy(new, email=user.email)
+    await check_not_breached(new)
     user.password_hash = hash_password(new)
     # Anyone else holding a session for this account is signed out.
     await revoke_all_sessions(db, user.id, except_session_id=current_session.id)
@@ -398,6 +401,7 @@ async def accept_invite(
     if not name.strip():
         raise ValidationFailed("Enter your name.")
     check_password_policy(password, email=invite.email)
+    await check_not_breached(password)
     user = User(email=invite.email, name=name.strip(), password_hash=hash_password(password))
     user.roles = list(invite.roles)
     db.add(user)

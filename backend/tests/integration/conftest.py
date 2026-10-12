@@ -12,6 +12,7 @@ from dataclasses import dataclass
 from urllib.parse import urlencode
 
 import pytest
+import redis
 from alembic.config import Config
 from fastapi.testclient import TestClient
 from sqlalchemy import Connection, Engine, create_engine, text
@@ -20,6 +21,7 @@ from alembic import command
 from app.auth.passwords import hash_password
 from app.config import get_settings
 from app.main import create_app
+from app.security import ratelimit
 
 BACKEND_DIR = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
 PASSWORD = "correct horse battery staple"  # noqa: S105 - test fixture
@@ -111,6 +113,13 @@ def engine(database_url: str) -> Iterator[Engine]:
 @pytest.fixture(autouse=True)
 def clean_db(engine: Engine) -> Iterator[None]:
     yield
+    # Rate-limit counters (slice 7.3) live in Redis, not the database: reset them too. Settings
+    # are rebuilt first: a test may have pointed them somewhere else.
+    get_settings.cache_clear()
+    client = redis.Redis.from_url(get_settings().redis_url)
+    for key in client.scan_iter(f"{ratelimit.KEY_PREFIX}:*"):
+        client.delete(key)
+    client.close()
     with engine.begin() as conn:
         tables = conn.execute(
             text("SELECT tablename FROM pg_tables WHERE schemaname = 'public'")

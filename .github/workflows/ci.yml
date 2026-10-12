@@ -51,6 +51,10 @@ jobs:
       - run: uv run ruff format --check .
       - run: uv run mypy
       - run: uv run pytest -q
+      - name: Audit Python dependencies for known vulnerabilities
+        run: |
+          uv export --frozen --no-dev --no-hashes --no-emit-project -o /tmp/requirements.txt
+          uvx pip-audit==2.9.0 -r /tmp/requirements.txt --disable-pip --no-deps --progress-spinner off
 
   frontend:
     runs-on: ubuntu-latest
@@ -68,6 +72,10 @@ jobs:
       - run: npm run lint
       - run: npm run typecheck
       - run: npm run build
+      # Production dependencies only. The dev-only lint toolchain has a high-severity advisory in
+      # braces with no fixed release; it is never shipped or run on user input (SECURITY.md §9).
+      - name: Audit npm dependencies for known vulnerabilities
+        run: npm audit --omit=dev --audit-level=high
 
   e2e:
     # The Phase 1 definition of done in a real browser against the real stack.
@@ -92,6 +100,9 @@ jobs:
     env:
       VROS_DATABASE_URL: postgresql+psycopg://vros:vros@localhost:5432/vros
       VROS_REDIS_URL: redis://localhost:6379/0
+      # Every spec signs in from the same address; the limits are tested in the backend suite.
+      VROS_RATE_LIMIT_LOGIN_PER_IP: "1000"
+      VROS_BREACHED_PASSWORD_CHECK: "false"
     steps:
       - uses: actions/checkout@v4
       - uses: astral-sh/setup-uv@v6

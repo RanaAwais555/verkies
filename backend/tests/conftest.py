@@ -4,6 +4,8 @@ from collections.abc import Iterator
 import pytest
 
 os.environ.setdefault("VROS_ENVIRONMENT", "test")
+# No calls to the breached-password service from tests; tests that need it use a fake.
+os.environ.setdefault("VROS_BREACHED_PASSWORD_CHECK", "false")
 
 from app.config import get_settings
 from app.db import get_engine, get_sessionmaker
