@@ -28,6 +28,7 @@ class TaskOut(BaseModel):
     lead_id: uuid.UUID | None
     opportunity_id: uuid.UUID | None
     deal_id: uuid.UUID | None = None
+    project_id: uuid.UUID | None = None
     title: str
     description: str | None
     owner_id: uuid.UUID | None
@@ -49,6 +50,7 @@ class TaskOut(BaseModel):
             lead_id=t.lead_id,
             opportunity_id=t.opportunity_id,
             deal_id=t.deal_id,
+            project_id=t.project_id,
             title=t.title,
             description=t.description,
             owner_id=t.owner_id,
@@ -122,6 +124,7 @@ class CreateTask(BaseModel):
     due_at: datetime | None = None
     opportunity_id: uuid.UUID | None = None
     deal_id: uuid.UUID | None = None
+    project_id: uuid.UUID | None = None
     description: str | None = Field(default=None, max_length=4000)
 
 

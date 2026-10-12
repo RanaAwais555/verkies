@@ -10,6 +10,7 @@ import { EmailComposer, EmailList } from "@/components/mail/email";
 import { EnrollmentLine, EnrollPanel } from "@/components/outreach/enroll";
 import { EditTask, isOpen, NewTaskForm, TaskRow } from "@/components/crm/tasks";
 import { Timeline } from "@/components/crm/timeline";
+import { AccountProjects } from "@/components/clients/projects";
 import { AccountDeals, OpenDealButton } from "@/components/deals/account-deals";
 import {
   Badge,
@@ -263,7 +264,7 @@ function Overview({ account, refresh, showActivity }: { account: Account360; ref
 
         <People account={account} refresh={refresh} />
 
-        {deals.data && <AccountDeals deals={deals.data} />}
+        {deals.data && <AccountDeals deals={deals.data} onChange={refresh} />}
 
         <Panel title="Recent activity" footer={<ShowAll onClick={showActivity}>Show all activity</ShowAll>}>
           <Timeline accountId={account.id} limit={4} testId="timeline-preview" />
@@ -441,6 +442,7 @@ export default function AccountPage() {
     { key: "activities", label: "Activities" },
     { key: "emails", label: "Emails" },
     { key: "tasks", label: `Tasks (${account.open_tasks} open)` },
+    { key: "projects", label: "Projects" },
     { key: "timeline", label: "Timeline" },
     ...(can(session, "audit.read") ? [{ key: "audit", label: "Audit" }] : []),
   ];
@@ -465,6 +467,12 @@ export default function AccountPage() {
               {account.primary_domain ?? "No website"}
             </span>
             <span>Owner: {account.owner?.name ?? "unassigned"}</span>
+            {(account.account_manager || account.client_since) && (
+              <span>
+                Account manager: {account.account_manager?.name ?? "not set"}
+                {account.client_since && ` · client since ${formatDate(account.client_since)}`}
+              </span>
+            )}
             <span>
               Last contact: {account.relationship.latest_interaction_at ? relativeDate(account.relationship.latest_interaction_at).toLowerCase() : "never"}
             </span>
@@ -497,6 +505,7 @@ export default function AccountPage() {
         </Panel>
       )}
       {tab === "tasks" && <Tasks account={account} refresh={() => mutate()} />}
+      {tab === "projects" && <AccountProjects account={account} />}
       {tab === "timeline" && (
         <Panel title="Timeline" description="Newest first. Includes what VROS did on its own, such as research and evidence updates.">
           <Timeline accountId={id} />

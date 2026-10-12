@@ -69,6 +69,7 @@ export function NewTaskForm({
   accountId,
   opportunityId,
   dealId,
+  projectId,
   submitLabel = "Add task",
   onCreated,
   onCancel,
@@ -77,6 +78,8 @@ export function NewTaskForm({
   opportunityId?: string;
   /** The task becomes the deal's next task (and its opportunity's next action). */
   dealId?: string;
+  /** The task is part of a project's work. */
+  projectId?: string;
   submitLabel?: string;
   onCreated: () => void;
   onCancel?: () => void;
@@ -96,6 +99,7 @@ export function NewTaskForm({
           account_id: accountId,
           opportunity_id: opportunityId ?? null,
           deal_id: dealId ?? null,
+          project_id: projectId ?? null,
           title: String(data.get("title") ?? "").trim(),
           owner_id: data.get("owner") || null,
           due_at: endOfWorkingDay(String(data.get("due") ?? "")),

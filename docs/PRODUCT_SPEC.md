@@ -49,7 +49,7 @@ Bulk discovery, external company registries, job-board and news signals, monitor
 
 - Pipelines and their stages are config (`pipelines`, `pipeline_stages`), seeded with the three §12 defaults. Each stage has an order, a default probability and an outcome: open, won, lost, nurture or inactive. Partnership stages carry no probability: a partnership has no revenue to weight, so it is left out of the weighted forecast rather than counted as zero.
 - A deal belongs to an account and usually to the opportunity it was opened from. Its value, currency and expected close date are entered by a person; VROS never estimates a deal value. A deal without a value shows **Unknown** and is counted separately in the forecast.
-- Moving a deal records the change (stage history, timeline, audit). Losing one requires a §13 lost reason. Winning one closes it. It does not yet convert the account to a client; that is Phase 4's client conversion.
+- Moving a deal records the change (stage history, timeline, audit). Losing one requires a §13 lost reason. Winning one closes it; converting the account to a client is a separate, deliberate step (slice 4.1).
 - An open deal without an open next task, an owner or an expected close date is flagged on its card, in the spirit of §12's next-action engine.
 - The forecast shows total pipeline, weighted pipeline, expected value by close month, and won and lost value, each from the deals themselves.
 
@@ -86,6 +86,14 @@ Bulk discovery, external company registries, job-board and news signals, monitor
 - **Per-step human action.** Nothing is sent automatically, ever: §12B.4's "approve once, then send on schedule" option is not built. Each due step waits in the enrolling person's **Outreach** queue (best prospects first): an email goes through the same pre-send checks as any email and is sent by their click; a LinkedIn note is copied, sent in their own browser, and recorded (sent, already connected, wrong person); a call is logged with its outcome. Any step can be skipped. LinkedIn notes are capped per person (`VROS_LINKEDIN_DAILY_LIMIT`, default 15; `VROS_LINKEDIN_WEEKLY_LIMIT`, default 80).
 - **Auto-stop** (§12B.4), read from the records every time a sequence is looked at: a reply or a connected call, a logged meeting, a deal opened on the account, the contact suppressed (an opt-out reply, a hard bounce, a do-not-contact entry), or the contact removed. "Wrong person" ends it too. Automatic replies (out of office) are recorded but are not replies, so they stop nothing.
 - Deferred: AI-drafted messages and AI reply classification (beyond opt-out, bounce and out of office), warm paths from LinkedIn connection exports, and send windows by recipient time zone.
+
+### Phase 4, slice 4.1: client conversion and projects (§6, §14)
+
+- **Convert to client** is offered on a won deal (the deal panel on the board, and the deal on the account). It keeps the same Account and everything on it: people, deals, opportunities, emails, activities, evidence and history are not copied or moved. The account becomes a Customer, gets a client-since date (the first conversion; a former client who comes back keeps it) and an account manager, and gets an owner if it had none. Competitor and suppressed accounts cannot become clients, and only a won deal converts.
+- Converting may start a **project** for the work: its name (the deal's by default), service (the opportunity's by default), project owner (the account manager by default), start and target dates, planned milestones, and a kick-off task for the owner on the start date. One project per won deal; an existing client can start more projects from its Projects tab.
+- **Projects** are light by design (VROS does not replace a project tool): the §6 statuses (Not Started, Planning, Active, At Risk, On Hold, Completed, Cancelled, set by a person), milestones that are reached or not, risks raised with a severity and resolved with a note, tasks (the ordinary task list, linked to the project), and notes. Marking a project completed records the date.
+- An open project lists the plain facts someone should look at: no project owner, past its target date, overdue milestones, open high risks and overdue tasks. None is a judgement; how a client is doing overall (Green, Yellow, Red) is slice 4.2.
+- Conversion, new projects, status changes, milestones reached and risks raised or resolved are on the account's timeline and in the audit log. Projects follow the account's visibility and move with it when accounts are merged.
 
 ## 4. Acceptance: Definition of Done (§20) mapped to tests
 

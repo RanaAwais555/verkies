@@ -28,6 +28,7 @@ from app.accounts.models import (
 from app.audit import service as audit
 from app.auth.models import User
 from app.briefs.models import LeadBrief
+from app.clients.models import Project
 from app.core.enums import AuditSource
 from app.core.errors import AppError, Conflict, NotFound
 from app.crm import timeline
@@ -62,6 +63,7 @@ MOVABLE: tuple[tuple[Any, Any], ...] = (
     (Task, Task.account_id),
     (Activity, Activity.account_id),
     (Deal, Deal.account_id),
+    (Project, Project.account_id),
     (ResearchRun, ResearchRun.account_id),
     (LeadBrief, LeadBrief.account_id),
     (DiscoveredCompany, DiscoveredCompany.matched_account_id),

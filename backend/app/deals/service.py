@@ -19,6 +19,7 @@ from app.accounts import access
 from app.accounts.models import Account
 from app.audit import service as audit
 from app.auth.models import User
+from app.clients.models import Project
 from app.config import get_settings
 from app.core.enums import (
     AccountType,
@@ -164,6 +165,7 @@ class DealView:
     next_task_owner_name: str | None = None
     last_activity_at: datetime | None = None
     attention: list[str] = field(default_factory=list)
+    project_id: uuid.UUID | None = None  # set once the won deal is converted (slice 4.1)
 
 
 def _visible(stmt: Select[Any], user: User) -> Select[Any]:
@@ -222,6 +224,20 @@ async def _views(db: AsyncSession, rows: list[Any]) -> list[DealView]:
         if owner_ids
         else {}
     )
+    won = [d.id for d in deals if d.outcome is StageOutcome.WON]
+    projects = (
+        dict(
+            (
+                await db.execute(
+                    select(Project.deal_id, Project.id).where(
+                        Project.deal_id.in_(won), Project.deleted_at.is_(None)
+                    )
+                )
+            ).all()
+        )
+        if won
+        else {}
+    )
     views = []
     for deal, account, stage, pipeline in rows:
         task = next_tasks.get(deal.id)
@@ -241,6 +257,7 @@ async def _views(db: AsyncSession, rows: list[Any]) -> list[DealView]:
                 attention=attention_reasons(
                     deal, task, touched.get(deal.id), inactive_days=inactive_days
                 ),
+                project_id=projects.get(deal.id),
             )
         )
     return views

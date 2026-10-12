@@ -95,7 +95,7 @@ Rejection reason enum (§3): no_commercial_opportunity, wrong_icp, inactive_comp
 **leads**: `account_id`, `research_run_id`, `source`, `owner_id`, `status` (new, qualified, researching, contacted, engaged, rejected, nurture, converted), `score_snapshot_id` (all ten scores), `priority_score` and `priority_band` (copied for sorting the queue), `qualified_at`, `rejection_reason`, `rejection_note`. `campaign_id` arrives with campaigns.
 **opportunities**: `account_id`, `lead_id`, `name`, `problem`, `category_id`, `service_id`, `estimated_value` null, `currency`, `probability` null, `expected_close` null, `stage`, `owner_id`, `next_action_task_id`.
 **contacts**: `account_id`, `name`, `title`, `department`, `email` null, `phone` null, `profile_url` null, `source`, `source_url`, `collected_at`, `confidence`, `decision_maker_role` enum (§6), `verification_status` (unverified, verified), `linkedin_url`, `linkedin_connection_status`. Phase 1 stores contacts found on team pages; email is stored only if published on the page.
-**tasks**: `account_id` (required), optional `contact_id`, `lead_id`, `opportunity_id`; `title`, `description`, `owner_id`, `due_at`, `priority`, `status`, `recurrence`, `completed_at`. `deal_id` and `project_id` are added with deals (Phase 3) and projects (Phase 4).
+**tasks**: `account_id` (required), optional `contact_id`, `lead_id`, `opportunity_id`; `title`, `description`, `owner_id`, `due_at`, `priority`, `status`, `recurrence`, `completed_at`. `deal_id` and `project_id` were added with deals (slice 3.1) and projects (slice 4.1).
 **activities**: `account_id`, optional links as for tasks plus `deal_id` (slice 3.2), `channel`, `direction` (outbound, inbound, conversation, internal; slice 3.2), `activity_type` (call, meeting, note, message), `occurred_at`, `actor_id`, `summary`, `payload jsonb` (a call's `call_outcome`). See §4b.
 **timeline_events**: append-only read model: `account_id`, `occurred_at`, `event_type`, `ref_table`, `ref_id`, `summary`. Written by services at the moment of the event (company discovered, website analysed, lead qualified, task created, …).
 
@@ -179,13 +179,21 @@ Reports have no tables: every dashboard figure is a query over the records above
 
 Migration 0018 seeds the default sequence and its four templates and the `outreach.manage` permission. Endpoints under `/outreach`: `variables`, `templates`, `sequences` (and `/{id}/preview?contact_id=`), `enrollments` (create, list, `/{id}/steps`, `/{id}/stop`) and `queue`. `email_messages.classification` also takes `out_of_office` for automatic replies, which are logged as internal activities.
 
+## 4f. Clients and projects (slice 4.1, migration `0019`)
+
+**accounts** gains `account_manager_id` and `client_since` (the first conversion to a client; kept if the client leaves and returns). **tasks** gains `project_id`.
+
+**projects**: `account_id`, `deal_id` (the won deal it delivers; at most one live project per deal), `name`, `service_id`, `owner_id` (project owner), `status` (not_started, planning, active, at_risk, on_hold, completed, cancelled), `start_date`, `target_date` (not before the start), `completed_on`, `notes`, soft delete. **milestones**: `project_id`, `name`, `due_date`, `position`, `completed_at`, `completed_by_id`. **project_risks**: `project_id`, `description`, `severity` (low, medium, high), `raised_by_id`, `resolved_at`, `resolved_by_id`, `resolution`.
+
+Endpoints: `POST /deals/{id}/convert`, `PUT /accounts/{id}/account-manager`, `/projects` (list with `status`, `account_id`, `mine`; create; read; update), `/projects/{id}/milestones`, `/milestones/{id}`, `/projects/{id}/risks` and `/risks/{id}`. Deals report the `project_id` of their project once converted.
+
 ## 5. Tables added in later phases (names reserved)
 
 | Phase | Tables |
 | --- | --- |
 | 2 | `discovery_jobs` and `discovered_companies` exist since slice 2.1. Buying signals (slice 2.2) are observations in the `signals` area with dated evidence (migration `0009`), so they share evidence, attempts and append-only history with all other findings; no separate signal tables were needed |
 | 3 | `pipelines`, `pipeline_stages`, `deals` and `deal_stage_changes` exist since slice 3.1; logged meetings, calls and messages are `activities` (slice 3.2), and `meetings` stays reserved for scheduled meetings with calendar sync; `mailboxes` and `email_messages` (the §12B Message object for email) exist since slice 3.4; `outreach_templates`, `sequences`, `sequence_steps`, `enrollments` and `enrollment_steps` exist since slice 3.5; `proposals`, `documents`, `linkedin_imports` |
-| 4 | `projects`, `milestones`, `project_risks`, `client_health_snapshots`, `expansion_opportunities`, `referrals` |
+| 4 | `projects`, `milestones` and `project_risks` exist since slice 4.1; `client_health_snapshots`, `expansion_opportunities`, `referrals` |
 | 5 | `feedback`, `deal_outcomes`, `learned_weights` |
 | 6 | `monitors`, `monitor_snapshots`, `monitor_events` |
 
