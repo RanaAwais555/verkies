@@ -35,6 +35,7 @@ from app.crm.activities import latest_touch
 from app.crm.follow_ups import is_quiet, last_touch
 from app.crm.models import Opportunity, Task
 from app.deals.models import Deal, DealStageChange, Pipeline, PipelineStage
+from app.learning import capture as outcomes
 
 CLOSED = (StageOutcome.WON, StageOutcome.LOST, StageOutcome.INACTIVE)
 OPEN_TASK = (TaskStatus.OPEN, TaskStatus.IN_PROGRESS)
@@ -543,6 +544,11 @@ async def move_deal(
             deal_id=deal.id, from_stage_id=old_stage.id, to_stage_id=stage.id, changed_by_id=user.id
         )
     )
+    # What was true when it closed, for the learning engine (slice 5.1).
+    if stage.outcome in (StageOutcome.WON, StageOutcome.LOST):
+        await outcomes.capture(db, deal)
+    elif old_stage.outcome in (StageOutcome.WON, StageOutcome.LOST):
+        await outcomes.supersede(db, deal.id, now)
 
     why = f" Reason: {LOST_REASON_LABELS[lost_reason]}." if deal.lost_reason and lost_reason else ""
     timeline.add(

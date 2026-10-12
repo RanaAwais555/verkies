@@ -870,3 +870,37 @@ export type VrosDocument = {
   uploaded_by: string | null;
   created_at: string;
 };
+
+export type SalesFeedback = {
+  id: string;
+  kind: string;
+  label: string;
+  note: string | null;
+  lead_id: string | null;
+  opportunity_id: string | null;
+  given_by: string | null;
+  created_at: string;
+};
+
+export type DealOutcome = {
+  outcome: "won" | "lost";
+  lost_reason: string | null;
+  closed_at: string;
+  captured_late: boolean;
+  pipeline_key: string;
+  value: number | null;
+  currency: string;
+  service: string | null;
+  opportunity_type: string | null;
+  industry: string | null;
+  company_size_band: string | null;
+  hq_country: string | null;
+  source: string | null;
+  buyer_role: string | null;
+  deal_days: number;
+  lead_days: number | null;
+  signals: { signal: string; at: string; evidence_id: string }[];
+  first_scores: Record<string, number | null> | null;
+  close_scores: Record<string, number | null> | null;
+  reference_project: string | null;
+};

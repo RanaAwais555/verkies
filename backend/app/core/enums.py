@@ -404,6 +404,26 @@ class DocumentKind(StrEnum):
     OTHER = "other"
 
 
+class FeedbackKind(StrEnum):
+    """§15 salesperson feedback, stored for the learning engine."""
+
+    GOOD_LEAD = "good_lead"
+    BAD_LEAD = "bad_lead"
+    CONTACTED = "contacted"
+    MEETING_BOOKED = "meeting_booked"
+    PROPOSAL_SENT = "proposal_sent"
+    WON = "won"
+    LOST = "lost"
+    WRONG_BUYER = "wrong_buyer"
+    WRONG_SERVICE = "wrong_service"
+    NOT_NOW = "not_now"
+    NOT_ICP = "not_icp"
+    DUPLICATE = "duplicate"
+    COMPETITOR = "competitor"
+    OPPORTUNITY_CONFIRMED = "opportunity_confirmed"
+    OPPORTUNITY_INCORRECT = "opportunity_incorrect"
+
+
 class RiskSeverity(StrEnum):
     LOW = "low"
     MEDIUM = "medium"

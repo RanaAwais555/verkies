@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useState, type FormEvent } from "react";
 
 import { ConvertForm } from "@/components/clients/convert";
+import { DealOutcomeSummary } from "@/components/learning/feedback";
 import { ActivityList, LogActivityForm } from "@/components/crm/activities";
 import { NewTaskForm } from "@/components/crm/tasks";
 import { Badge, Button, ErrorNote, Field, IconButton, inputClass } from "@/components/ui";
@@ -221,6 +222,8 @@ export function DealPanel({ deal, onClose, onChange }: { deal: Deal; onClose: ()
           <Button onClick={() => setAdding(true)}>Add next task</Button>
         )}
       </div>
+
+      {(deal.outcome === "won" || deal.outcome === "lost") && <DealOutcomeSummary dealId={deal.id} />}
 
       <div className="space-y-3 border-t border-grid pt-4">
         <div className="flex items-center justify-between gap-2">

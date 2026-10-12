@@ -16,6 +16,7 @@ import { AccountReferrals } from "@/components/clients/referrals";
 import { AccountProjects } from "@/components/clients/projects";
 import { AccountDeals, OpenDealButton } from "@/components/deals/account-deals";
 import { DocumentsPanel } from "@/components/documents/documents";
+import { SalesFeedbackPanel } from "@/components/learning/feedback";
 import {
   Badge,
   BandBadge,
@@ -269,6 +270,8 @@ function Overview({ account, refresh, showActivity }: { account: Account360; ref
         <People account={account} refresh={refresh} />
 
         {deals.data && <AccountDeals deals={deals.data} onChange={refresh} />}
+
+        <SalesFeedbackPanel accountId={account.id} opportunities={account.opportunities} />
 
         <Panel title="Recent activity" footer={<ShowAll onClick={showActivity}>Show all activity</ShowAll>}>
           <Timeline accountId={account.id} limit={4} testId="timeline-preview" />

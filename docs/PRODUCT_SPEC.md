@@ -117,6 +117,12 @@ Bulk discovery, external company registries, job-board and news signals, monitor
 - Accepted files: PDF, Word, Excel, PowerPoint, PNG, JPEG, WebP, text, Markdown and CSV, up to 10 MB (`VROS_DOCUMENT_MAX_BYTES`). What a file is comes from its own bytes and must match its name; anything else is refused with the reason. Downloads only: VROS never opens a file in the page (`SECURITY.md` §4).
 - Uploads and removals are on the timeline and in the audit log. Documents follow the account's visibility and move with it when accounts merge. The files are part of the nightly backup.
 
+### Phase 5, slice 5.1: feedback and outcomes (§13, §15)
+
+- **Salesperson feedback:** Good Lead, Bad Lead, Contacted, Meeting Booked, Proposal Sent, Won, Lost, Wrong Buyer, Wrong Service, Not Now, Not ICP, Duplicate, Competitor, Opportunity Confirmed, Opportunity Incorrect. Given on the account (optionally about one of its opportunities) with a reason, kept with who gave it and when, and on the timeline. It is stored for the learning engine and changes nothing by itself.
+- **Deal outcomes:** when a deal is won or lost, VROS records, in the same transaction, what was true at that moment (§13 won-deal data): the service and opportunity type, industry, company size, country, lead source, the buyer role of the person the deal was worked with most, the sales cycle (days as a deal and from qualification), the value, the dated buying signals of the six months before, the scores when the lead was first scored and at the close, and the most similar Verkies reference project. Facts VROS does not have are stored as Unknown. Reopening the deal marks the record superseded; closing it again writes a new one, so history is never rewritten. The deal panel shows the record under "When it was won/lost".
+- Deals that closed before this slice get their record from `python -m app.cli backfill-outcomes`, marked as captured late (the facts are as of the backfill).
+
 ## 4. Acceptance: Definition of Done (§20) mapped to tests
 
 | Requirement | Verified by |
