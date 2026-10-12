@@ -123,6 +123,14 @@ Bulk discovery, external company registries, job-board and news signals, monitor
 - **Deal outcomes:** when a deal is won or lost, VROS records, in the same transaction, what was true at that moment (§13 won-deal data): the service and opportunity type, industry, company size, country, lead source, the buyer role of the person the deal was worked with most, the sales cycle (days as a deal and from qualification), the value, the dated buying signals of the six months before, the scores when the lead was first scored and at the close, and the most similar Verkies reference project. Facts VROS does not have are stored as Unknown. Reopening the deal marks the record superseded; closing it again writes a new one, so history is never rewritten. The deal panel shows the record under "When it was won/lost".
 - Deals that closed before this slice get their record from `python -m app.cli backfill-outcomes`, marked as captured late (the facts are as of the backfill).
 
+### Phase 5, slice 5.2: win/loss analysis (§13, §15)
+
+- A **Learning** page reads the recorded deal outcomes (slice 5.1) for the accounts the person can see, over the last 6, 12 or 24 months or all time: the overall win rate, value won and days to win, then the same by service, opportunity type, industry, company size, country, lead source, buyer role and priority when first scored.
+- **Buying signals**: for each signal seen in the six months before a close, the win rate of deals with it against deals without it.
+- **Why deals were lost** (the §13 reasons), and how deals did on accounts that had each kind of salesperson feedback **before** the close (feedback given after says nothing about how the lead looked).
+- Every figure shows the deals it rests on. A group with fewer than `VROS_LEARNING_MIN_SAMPLE` (default 5) closed deals gets no win rate and is marked too few to learn from. Unknown is its own group and is never merged into another. Outcomes recorded late (backfilled) are counted and flagged.
+- This is description, not prediction: nothing here changes a score. Proposing changes from it is slice 5.3, and a person activates them.
+
 ## 4. Acceptance: Definition of Done (§20) mapped to tests
 
 | Requirement | Verified by |

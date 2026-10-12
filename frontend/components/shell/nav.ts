@@ -8,6 +8,7 @@ import {
   FolderKanban,
   HeartPulse,
   GitMerge,
+  GraduationCap,
   Handshake,
   LayoutDashboard,
   Send,
@@ -41,6 +42,7 @@ export const NAV: NavGroup[] = [
       { href: "/pipeline", label: "Pipeline", icon: Columns3, needs: ACCOUNTS },
       { href: "/outreach", label: "Outreach", icon: Send, needs: ACCOUNTS },
       { href: "/reports", label: "Reports", icon: BarChart3, needs: [...ACCOUNTS, "prospects.review", "reports.team"] },
+      { href: "/learning", label: "Learning", icon: GraduationCap, needs: ACCOUNTS },
     ],
   },
   {

@@ -1,11 +1,11 @@
 """/accounts/{id}/sales-feedback and /deals/{id}/outcome: what the learning engine learns from
-(slice 5.1)."""
+(slice 5.1); /learning/win-loss: what won and lost deals have in common (slice 5.2)."""
 
 import uuid
 from datetime import datetime
 from typing import Annotated, Any
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Query
 from pydantic import BaseModel, Field
 from sqlalchemy import select
 
@@ -20,30 +20,14 @@ from app.core.errors import NotFound, ValidationFailed
 from app.crm import timeline
 from app.crm.models import Lead, Opportunity
 from app.deals.service import LOST_REASON_LABELS, get_deal
+from app.learning import analysis
+from app.learning.labels import FEEDBACK_LABELS
 from app.learning.models import DealOutcome, SalesFeedback
 from app.opportunities.models import OpportunityCategory
 
 router = APIRouter(tags=["learning"])
 
 Member = Annotated[User, Depends(require_permission("accounts.read", "accounts.read_own"))]
-
-FEEDBACK_LABELS = {
-    FeedbackKind.GOOD_LEAD: "Good lead",
-    FeedbackKind.BAD_LEAD: "Bad lead",
-    FeedbackKind.CONTACTED: "Contacted",
-    FeedbackKind.MEETING_BOOKED: "Meeting booked",
-    FeedbackKind.PROPOSAL_SENT: "Proposal sent",
-    FeedbackKind.WON: "Won",
-    FeedbackKind.LOST: "Lost",
-    FeedbackKind.WRONG_BUYER: "Wrong buyer",
-    FeedbackKind.WRONG_SERVICE: "Wrong service",
-    FeedbackKind.NOT_NOW: "Not now",
-    FeedbackKind.NOT_ICP: "Not ICP",
-    FeedbackKind.DUPLICATE: "Duplicate",
-    FeedbackKind.COMPETITOR: "Competitor",
-    FeedbackKind.OPPORTUNITY_CONFIRMED: "Opportunity confirmed",
-    FeedbackKind.OPPORTUNITY_INCORRECT: "Opportunity incorrect",
-}
 
 
 class KindOut(BaseModel):
@@ -226,4 +210,102 @@ async def deal_outcome(deal_id: uuid.UUID, user: Member, db: DbSession) -> Outco
         first_scores=o.first_scores,
         close_scores=o.close_scores,
         reference_project=reference.name if reference else None,
+    )
+
+
+# --- win/loss analysis (slice 5.2) -------------------------------------------------------------
+
+
+class MoneyOut(BaseModel):
+    amount: float
+    currency: str
+
+
+class GroupOut(BaseModel):
+    label: str
+    won: int
+    lost: int
+    total: int
+    # None when there are fewer closed deals than the minimum sample: too few to learn from.
+    win_rate: float | None
+    won_value: list[MoneyOut]
+    won_unknown_value: int
+    avg_days_to_win: float | None
+
+    @classmethod
+    def of(cls, g: analysis.Group, min_sample: int) -> "GroupOut":
+        return cls(
+            label=g.label,
+            won=g.won,
+            lost=g.lost,
+            total=g.total,
+            win_rate=analysis.win_rate(g.won, g.total, min_sample),
+            won_value=[
+                MoneyOut(amount=float(v), currency=c) for c, v in sorted(g.won_value.items())
+            ],
+            won_unknown_value=g.won_unknown_value,
+            avg_days_to_win=sum(g.won_days) / len(g.won_days) if g.won_days else None,
+        )
+
+
+class DimensionOut(BaseModel):
+    key: str
+    label: str
+    groups: list[GroupOut]
+
+
+class SignalOut(BaseModel):
+    signal: str
+    label: str
+    with_signal: GroupOut
+    without_signal: GroupOut
+
+
+class ReasonCountOut(BaseModel):
+    reason: str
+    deals: int
+
+
+class WinLossOut(BaseModel):
+    since: datetime | None
+    min_sample: int
+    overall: GroupOut
+    captured_late: int
+    dimensions: list[DimensionOut]
+    signals: list[SignalOut]
+    lost_reasons: list[ReasonCountOut]
+    feedback: list[GroupOut]
+
+
+@router.get("/learning/win-loss")
+async def win_loss(
+    user: Member,
+    db: DbSession,
+    months: Annotated[int, Query(ge=0, le=120)] = 12,
+    pipeline: Annotated[str | None, Query(max_length=60)] = None,
+) -> WinLossOut:
+    """What the deals won and lost (on accounts you can see) have in common, over the last
+    `months` (0 for all time)."""
+    found = await analysis.analyse(db, user=user, months=months or None, pipeline=pipeline)
+    n = found.min_sample
+    return WinLossOut(
+        since=found.since,
+        min_sample=n,
+        overall=GroupOut.of(found.overall, n),
+        captured_late=found.late,
+        dimensions=[
+            DimensionOut(key=d.key, label=d.label, groups=[GroupOut.of(g, n) for g in d.groups])
+            for d in found.dimensions
+        ],
+        signals=[
+            SignalOut(
+                signal=s.signal,
+                label=s.label,
+                with_signal=GroupOut.of(s.with_signal, n),
+                without_signal=GroupOut.of(s.without_signal, n),
+            )
+            for s in found.signals
+        ],
+        lost_reasons=[ReasonCountOut(reason=r, deals=c) for r, c in found.lost_reasons],
+        feedback=[GroupOut.of(g, n) for g in found.feedback],
     )

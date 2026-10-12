@@ -213,7 +213,7 @@ Endpoints: `POST /accounts/{id}/documents?filename=&kind=&title=&project_id=&dea
 
 **deal_outcomes**: one row per close of a deal (at most one current per deal; reopening sets `superseded_at`): `deal_id`, `account_id`, `outcome` (won, lost), `lost_reason`, `closed_at`, `captured_late`, `recorded_at`, `superseded_at`, `pipeline_key`, `value`, `currency`, `service_id`, `category_id`, `industry`, `company_size_band`, `hq_country`, `source`, `buyer_role`, `deal_days`, `lead_days`, `signals` (JSON: signal, date, evidence id), `first_scores`, `close_scores` (JSON; null is Unknown), `reference_project_id`.
 
-Endpoints: `GET /sales-feedback/kinds`, `GET|POST /accounts/{id}/sales-feedback`, `GET /deals/{id}/outcome`.
+Endpoints: `GET /sales-feedback/kinds`, `GET|POST /accounts/{id}/sales-feedback`, `GET /deals/{id}/outcome`, and (slice 5.2) `GET /learning/win-loss?months=&pipeline=`, computed from current `deal_outcomes` and `sales_feedback` with no table of its own.
 
 ## 5. Tables added in later phases (names reserved)
 
