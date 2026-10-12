@@ -139,5 +139,12 @@ jobs:
           docker run --rm -e VROS_SITE_ADDRESS=vros.example.com
           -v "$PWD/ops/Caddyfile:/etc/caddy/Caddyfile:ro" caddy:2-alpine
           caddy validate --config /etc/caddy/Caddyfile --adapter caddyfile
+      - name: Validate Prometheus config and alert rules
+        run: >-
+          docker run --rm -v "$PWD/ops/prometheus:/etc/prometheus:ro"
+          --entrypoint promtool prom/prometheus:v3.5.0
+          check config /etc/prometheus/prometheus.yml
+      - name: Validate Grafana dashboard JSON
+        run: python3 -m json.tool ops/grafana/dashboards/vros-overview.json > /dev/null
       - name: Build images
         run: docker compose build

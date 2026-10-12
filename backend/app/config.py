@@ -50,6 +50,8 @@ class Settings(BaseSettings):
 
     # Seconds each readiness dependency check may take before it counts as down.
     health_check_timeout: float = Field(default=2.0, gt=0)
+    # GET /metrics for Prometheus, answered only on internal hostnames (slice 7.1).
+    metrics_enabled: bool = True
 
     # Team sessions (SECURITY.md §1). A session ends after this much inactivity, or at the
     # absolute limit, whichever comes first.

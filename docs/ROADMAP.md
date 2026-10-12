@@ -64,6 +64,16 @@ Phases follow §20. Phase 1 must work reliably end to end before any later phase
 | 6.2 Website changes ✅ | The monitoring check re-reads the pages research read and compares each with the last copy kept: pages newly linked from or dropped from the homepage, pages now 404 or 410, changed text, and services, pricing, technology and contact routes added or removed; each is a website alert with the text before and now | A change only when the content differs, with before and after evidence; an unreachable page is an error, never a removal; reported once |
 | 6.3 Alert rules and auto-tasks ✅ | Rules from §15 (five seeded, admin-editable) match new alerts by kind, signal and website topic, and raise Opportunity Detected or Account Requires Review (until the alerts are reviewed) or create one follow-up task for the account's manager or owner; in-app notifications with a bell, per-person kinds | Each rule tested; nothing contacts anyone |
 
+## Phase 7: Hardening
+
+| Slice | Delivers | Exit criteria |
+| --- | --- | --- |
+| 7.1 Observability ✅ | Prometheus metrics on the API's internal port (requests and latency by route template, work in hand, worker task outcomes and last success), an `observability` Compose profile with Prometheus, alert rules and a provisioned Grafana dashboard | /metrics never answered on the public hostname and carries no personal data; rules load; dashboard shows live data |
+| 7.2 Backups and disaster recovery | Off-site encrypted backup copies, an automated restore drill that proves the latest dump restores, documented recovery time and point objectives | A restore from the off-site copy is tested end to end |
+| 7.3 Security review | Dependency audits in CI, breached-password check, rate limits and headers reviewed, session and upload hardening, SECURITY.md checklist re-run | Each finding fixed or recorded with its reason |
+| 7.4 Access control refinement | Permission review per role, record-level access tests for every router, a read-only role | Every endpoint covered by an access test |
+| 7.5 Performance and scale | Indexes for hot queries, pagination limits, a load-test baseline, worker concurrency settings | Baseline recorded; no list endpoint unbounded |
+
 ## Later phases
 
 | Phase | Theme | Headline deliverables |

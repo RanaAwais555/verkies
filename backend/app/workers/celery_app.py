@@ -3,7 +3,8 @@
 from celery import Celery
 from celery.schedules import crontab
 
-import app.models  # noqa: F401 - the worker must know every table (foreign keys span modules)
+import app.models
+import app.observability.worker  # noqa: F401 - records task outcomes for /metrics (slice 7.1)
 from app.config import get_settings
 
 

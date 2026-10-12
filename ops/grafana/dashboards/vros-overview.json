@@ -1,0 +1,603 @@
+{
+  "uid": "vros-overview",
+  "title": "VROS overview",
+  "tags": [
+    "vros"
+  ],
+  "timezone": "utc",
+  "schemaVersion": 41,
+  "version": 1,
+  "refresh": "1m",
+  "time": {
+    "from": "now-24h",
+    "to": "now"
+  },
+  "panels": [
+    {
+      "id": 1,
+      "title": "API up",
+      "type": "stat",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "vros-prometheus"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 0,
+        "w": 4,
+        "h": 4
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "vros-prometheus"
+          },
+          "expr": "up{job=\"vros-api\"}",
+          "legendFormat": ""
+        }
+      ],
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ]
+        },
+        "colorMode": "value",
+        "graphMode": "none"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "mappings": [
+            {
+              "type": "value",
+              "options": {
+                "0": {
+                  "text": "Down",
+                  "color": "red"
+                },
+                "1": {
+                  "text": "Up",
+                  "color": "green"
+                }
+              }
+            }
+          ]
+        },
+        "overrides": []
+      }
+    },
+    {
+      "id": 2,
+      "title": "Research queued or running",
+      "type": "stat",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "vros-prometheus"
+      },
+      "gridPos": {
+        "x": 4,
+        "y": 0,
+        "w": 5,
+        "h": 4
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "vros-prometheus"
+          },
+          "expr": "sum(vros_research_runs)",
+          "legendFormat": ""
+        }
+      ],
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ]
+        },
+        "colorMode": "value",
+        "graphMode": "none"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          }
+        },
+        "overrides": []
+      }
+    },
+    {
+      "id": 3,
+      "title": "Waiting for review",
+      "type": "stat",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "vros-prometheus"
+      },
+      "gridPos": {
+        "x": 9,
+        "y": 0,
+        "w": 5,
+        "h": 4
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "vros-prometheus"
+          },
+          "expr": "vros_review_queue",
+          "legendFormat": ""
+        }
+      ],
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ]
+        },
+        "colorMode": "value",
+        "graphMode": "none"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          }
+        },
+        "overrides": []
+      }
+    },
+    {
+      "id": 4,
+      "title": "Open monitoring alerts",
+      "type": "stat",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "vros-prometheus"
+      },
+      "gridPos": {
+        "x": 14,
+        "y": 0,
+        "w": 5,
+        "h": 4
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "vros-prometheus"
+          },
+          "expr": "vros_monitor_alerts_open",
+          "legendFormat": ""
+        }
+      ],
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ]
+        },
+        "colorMode": "value",
+        "graphMode": "none"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          }
+        },
+        "overrides": []
+      }
+    },
+    {
+      "id": 5,
+      "title": "Overdue tasks",
+      "type": "stat",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "vros-prometheus"
+      },
+      "gridPos": {
+        "x": 19,
+        "y": 0,
+        "w": 5,
+        "h": 4
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "vros-prometheus"
+          },
+          "expr": "vros_tasks_overdue",
+          "legendFormat": ""
+        }
+      ],
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ]
+        },
+        "colorMode": "value",
+        "graphMode": "none"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          }
+        },
+        "overrides": []
+      }
+    },
+    {
+      "id": 6,
+      "title": "Requests per second by status",
+      "type": "timeseries",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "vros-prometheus"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 4,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "vros-prometheus"
+          },
+          "expr": "sum by (status) (rate(vros_http_requests_total[5m]))",
+          "legendFormat": "{{status}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "reqps"
+        },
+        "overrides": []
+      }
+    },
+    {
+      "id": 7,
+      "title": "Response time (95th percentile)",
+      "type": "timeseries",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "vros-prometheus"
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 4,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "vros-prometheus"
+          },
+          "expr": "histogram_quantile(0.95, sum by (le) (rate(vros_http_request_duration_seconds_bucket[5m])))",
+          "legendFormat": "p95"
+        },
+        {
+          "refId": "B",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "vros-prometheus"
+          },
+          "expr": "histogram_quantile(0.5, sum by (le) (rate(vros_http_request_duration_seconds_bucket[5m])))",
+          "legendFormat": "median"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s"
+        },
+        "overrides": []
+      }
+    },
+    {
+      "id": 8,
+      "title": "Slowest routes (95th percentile, 1h)",
+      "type": "table",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "vros-prometheus"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 12,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "vros-prometheus"
+          },
+          "expr": "topk(10, histogram_quantile(0.95, sum by (le, route) (rate(vros_http_request_duration_seconds_bucket[1h]))) > 0)",
+          "legendFormat": "{{route}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s"
+        },
+        "overrides": []
+      },
+      "options": {
+        "showHeader": true
+      },
+      "transformations": [
+        {
+          "id": "reduce",
+          "options": {
+            "reducers": [
+              "lastNotNull"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": 9,
+      "title": "Worker task failures (1h)",
+      "type": "timeseries",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "vros-prometheus"
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 12,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "vros-prometheus"
+          },
+          "expr": "delta(vros_worker_tasks{state=\"failure\"}[1h])",
+          "legendFormat": "{{task}}"
+        }
+      ]
+    },
+    {
+      "id": 10,
+      "title": "Hours since each worker task last succeeded",
+      "type": "bargauge",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "vros-prometheus"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 20,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "vros-prometheus"
+          },
+          "expr": "(time() - vros_worker_task_last_success_timestamp_seconds) / 3600",
+          "legendFormat": "{{task}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "h",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 26
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "displayMode": "basic",
+        "orientation": "horizontal"
+      }
+    },
+    {
+      "id": 11,
+      "title": "Jobs waiting for a worker",
+      "type": "timeseries",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "vros-prometheus"
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 20,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "vros-prometheus"
+          },
+          "expr": "vros_celery_queue_length",
+          "legendFormat": "queue"
+        },
+        {
+          "refId": "B",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "vros-prometheus"
+          },
+          "expr": "sum by (status) (vros_research_runs)",
+          "legendFormat": "research {{status}}"
+        }
+      ]
+    },
+    {
+      "id": 12,
+      "title": "Dependencies the API can read",
+      "type": "stat",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "vros-prometheus"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 28,
+        "w": 18,
+        "h": 4
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "vros-prometheus"
+          },
+          "expr": "vros_dependency_up",
+          "legendFormat": "{{dependency}}"
+        }
+      ],
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ]
+        },
+        "colorMode": "value",
+        "graphMode": "none"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "mappings": [
+            {
+              "type": "value",
+              "options": {
+                "0": {
+                  "text": "Down",
+                  "color": "red"
+                },
+                "1": {
+                  "text": "OK",
+                  "color": "green"
+                }
+              }
+            }
+          ]
+        },
+        "overrides": []
+      }
+    },
+    {
+      "id": 13,
+      "title": "Alerts firing (see Prometheus → Alerts)",
+      "type": "stat",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "vros-prometheus"
+      },
+      "gridPos": {
+        "x": 18,
+        "y": 28,
+        "w": 6,
+        "h": 4
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "vros-prometheus"
+          },
+          "expr": "count(ALERTS{alertstate=\"firing\"}) or vector(0)"
+        }
+      ],
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ]
+        },
+        "colorMode": "value",
+        "graphMode": "none"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 1
+              }
+            ]
+          }
+        },
+        "overrides": []
+      }
+    }
+  ]
+}

@@ -1,0 +1,66 @@
+# What should make someone look at VROS (slice 7.1). Each alert says what is wrong and where
+# to look. They show on the Prometheus Alerts page and as a count on the Grafana dashboard;
+# nothing is sent anywhere.
+groups:
+  - name: vros
+    rules:
+      - alert: VrosApiDown
+        expr: up{job="vros-api"} == 0
+        for: 5m
+        labels: { severity: critical }
+        annotations:
+          summary: The VROS API is not answering /metrics.
+          description: Check `docker compose ps api` and `docker compose logs api`.
+
+      - alert: VrosDependencyDown
+        expr: vros_dependency_up == 0
+        for: 5m
+        labels: { severity: critical }
+        annotations:
+          summary: "The API cannot read {{ $labels.dependency }}."
+          description: Check the postgres and redis containers and /api/v1/health/ready.
+
+      - alert: VrosHighErrorRate
+        expr: |
+          sum(rate(vros_http_requests_total{status=~"5.."}[10m]))
+            / clamp_min(sum(rate(vros_http_requests_total[10m])), 0.001) > 0.05
+        for: 10m
+        labels: { severity: warning }
+        annotations:
+          summary: More than 5% of API requests are failing with a server error.
+          description: The API logs carry each failure with its request ID.
+
+      - alert: VrosSlowRequests
+        expr: |
+          histogram_quantile(0.95, sum by (le) (rate(vros_http_request_duration_seconds_bucket[10m]))) > 2
+        for: 15m
+        labels: { severity: warning }
+        annotations:
+          summary: The slowest 5% of API requests take more than 2 seconds.
+          description: The Grafana dashboard shows which routes are slow.
+
+      - alert: VrosDailyJobLate
+        expr: |
+          time() - vros_worker_task_last_success_timestamp_seconds{task=~"vros.monitoring.check_watched|vros.clients.health_sweep"}
+            > 26 * 3600
+        for: 30m
+        labels: { severity: warning }
+        annotations:
+          summary: "The daily job {{ $labels.task }} has not succeeded for over 26 hours."
+          description: The worker runs its scheduler (--beat); check `docker compose logs worker`.
+
+      - alert: VrosWorkerFailures
+        expr: delta(vros_worker_tasks{state="failure"}[1h]) > 3
+        for: 5m
+        labels: { severity: warning }
+        annotations:
+          summary: "{{ $labels.task }} failed more than 3 times in the last hour."
+          description: Failed research runs show their error in the app; the worker logs have the rest.
+
+      - alert: VrosQueueBacklog
+        expr: vros_celery_queue_length > 50
+        for: 30m
+        labels: { severity: warning }
+        annotations:
+          summary: More than 50 jobs have waited for a worker for 30 minutes.
+          description: Research is queued faster than one worker can run it.

@@ -28,6 +28,7 @@ from app.learning.router import router as learning_router
 from app.mail.router import router as mail_router
 from app.monitoring.router import router as monitoring_router
 from app.notifications.router import router as notifications_router
+from app.observability.metrics import install_metrics
 from app.outreach.router import router as outreach_router
 from app.prospects.router import router as prospects_router
 from app.reports.router import router as reports_router
@@ -85,6 +86,9 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         return response
 
     install_error_handlers(app)
+    if settings.metrics_enabled:
+        # Prometheus scrapes it on the Docker network; the public hostname gets a 404.
+        install_metrics(app, settings, (*INTERNAL_HOSTS, "127.0.0.1"))
     for router in (
         health_router,
         auth_router,

@@ -154,6 +154,47 @@ services:
     volumes:
       - ./ops/searxng/settings.yml:/etc/searxng/settings.yml:ro
 
+  # Optional metrics and dashboards (slice 7.1): docker compose --profile observability up -d,
+  # with VROS_GRAFANA_PASSWORD set. Prometheus scrapes the API on the Docker network; both UIs
+  # are published on 127.0.0.1 only (on a server, reach them through an SSH tunnel).
+  prometheus:
+    image: prom/prometheus:v3.5.0
+    profiles: ["observability"]
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.path=/prometheus
+      - --storage.tsdb.retention.time=${VROS_METRICS_RETENTION:-30d}
+    volumes:
+      - ./ops/prometheus:/etc/prometheus:ro
+      - prometheus:/prometheus
+    ports:
+      - "127.0.0.1:${VROS_PROMETHEUS_PORT:-9090}:9090"
+    depends_on:
+      api: { condition: service_healthy }
+
+  grafana:
+    image: grafana/grafana:12.1.0
+    profiles: ["observability"]
+    # Refuse to start with Grafana's default admin password.
+    entrypoint: ["/bin/sh", "-c", "test -n \"$$GF_SECURITY_ADMIN_PASSWORD\" || { echo 'Set VROS_GRAFANA_PASSWORD.' >&2; exit 1; }; exec /run.sh"]
+    environment:
+      GF_SECURITY_ADMIN_USER: admin
+      GF_SECURITY_ADMIN_PASSWORD: ${VROS_GRAFANA_PASSWORD:-}
+      GF_USERS_ALLOW_SIGN_UP: "false"
+      GF_AUTH_ANONYMOUS_ENABLED: "false"
+      GF_ANALYTICS_REPORTING_ENABLED: "false"
+      GF_ANALYTICS_CHECK_FOR_UPDATES: "false"
+      GF_ANALYTICS_CHECK_FOR_PLUGIN_UPDATES: "false"
+      GF_DASHBOARDS_DEFAULT_HOME_DASHBOARD_PATH: /var/lib/grafana/dashboards/vros-overview.json
+    volumes:
+      - ./ops/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./ops/grafana/dashboards:/var/lib/grafana/dashboards:ro
+      - grafana:/var/lib/grafana
+    ports:
+      - "127.0.0.1:${VROS_GRAFANA_PORT:-3002}:3000"
+    depends_on:
+      - prometheus
+
 volumes:
   pgdata:
   storage:
@@ -161,3 +202,5 @@ volumes:
   redisdata:
   caddydata:
   caddyconfig:
+  prometheus:
+  grafana:
