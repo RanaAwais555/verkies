@@ -16,6 +16,7 @@ from app.accounts.models import Account
 from app.audit import service as audit
 from app.auth.models import User
 from app.catalogue.models import Service
+from app.clients.models import Project
 from app.core.enums import AuditSource, StageOutcome, TaskStatus
 from app.core.errors import Conflict, NotFound, ValidationFailed
 from app.crm import timeline
@@ -82,6 +83,23 @@ async def list_tasks(
     return [(t, a) for t, a in (await db.execute(stmt)).all()]
 
 
+async def list_tasks_for_project(
+    db: AsyncSession, project_id: uuid.UUID
+) -> list[tuple[Task, str | None]]:
+    """A project's tasks with their owner's name: open ones first by due date, then done."""
+    rows = await db.execute(
+        select(Task, User.name)
+        .outerjoin(User, User.id == Task.owner_id)
+        .where(Task.project_id == project_id, Task.deleted_at.is_(None))
+        .order_by(
+            Task.completed_at.desc().nulls_first(),
+            Task.due_at.asc().nulls_last(),
+            Task.created_at,
+        )
+    )
+    return [(t, n) for t, n in rows.all()]
+
+
 async def get_task(db: AsyncSession, *, user: User, task_id: uuid.UUID) -> tuple[Task, Account]:
     found = (
         await db.execute(
@@ -143,10 +161,12 @@ async def create_task(
     description: str | None,
     deal_id: uuid.UUID | None = None,
     contact_id: uuid.UUID | None = None,
+    project_id: uuid.UUID | None = None,
 ) -> Task:
     """A new task on an account. With an opportunity, it becomes that opportunity's next
     action, which clears "requires attention" once it has an owner and a due date. With a deal,
-    it is the deal's next task, and also its opportunity's next action."""
+    it is the deal's next task, and also its opportunity's next action. With a project, it is
+    part of that project's work."""
     account = await db.get(Account, account_id)
     if (
         account is None
@@ -162,6 +182,10 @@ async def create_task(
         if deal is None or deal.deleted_at is not None or deal.account_id != account.id:
             raise ValidationFailed("That deal is not on this account.")
         opportunity_id = opportunity_id or deal.opportunity_id
+    if project_id is not None:
+        project = await db.get(Project, project_id)
+        if project is None or project.deleted_at is not None or project.account_id != account.id:
+            raise ValidationFailed("That project is not on this account.")
     opportunity = None
     if opportunity_id is not None:
         opportunity = await db.get(Opportunity, opportunity_id)
@@ -172,6 +196,7 @@ async def create_task(
         contact_id=contact_id,
         opportunity_id=opportunity_id,
         deal_id=deal_id,
+        project_id=project_id,
         lead_id=opportunity.lead_id if opportunity else None,
         title=title.strip()[:200],
         description=description,
@@ -207,6 +232,7 @@ async def create_task(
             "due_at": due_at.isoformat() if due_at else None,
             "opportunity_id": str(opportunity_id) if opportunity_id else None,
             "deal_id": str(deal_id) if deal_id else None,
+            "project_id": str(project_id) if project_id else None,
         },
     )
     return task

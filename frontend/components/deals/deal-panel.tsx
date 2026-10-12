@@ -1,9 +1,10 @@
 "use client";
 
-import { ExternalLink, NotebookPen, Save, X } from "lucide-react";
+import { ExternalLink, FolderKanban, NotebookPen, Save, UserCheck, X } from "lucide-react";
 import Link from "next/link";
 import { useState, type FormEvent } from "react";
 
+import { ConvertForm } from "@/components/clients/convert";
 import { ActivityList, LogActivityForm } from "@/components/crm/activities";
 import { NewTaskForm } from "@/components/crm/tasks";
 import { Badge, Button, ErrorNote, Field, IconButton, inputClass } from "@/components/ui";
@@ -79,6 +80,7 @@ export function DealPanel({ deal, onClose, onChange }: { deal: Deal; onClose: ()
   const { busy, error, run } = useAction();
   const [adding, setAdding] = useState(false);
   const [logging, setLogging] = useState(false);
+  const [converting, setConverting] = useState(false);
 
   async function save(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -122,6 +124,29 @@ export function DealPanel({ deal, onClose, onChange }: { deal: Deal; onClose: ()
           {deal.lost_note ? ` · ${deal.lost_note}` : ""}
         </Badge>
       )}
+      {deal.outcome === "won" &&
+        (deal.project_id ? (
+          <Link href={`/projects/${deal.project_id}`} className="inline-flex items-center gap-1.5 text-[13px] font-medium text-accent-text hover:underline">
+            <FolderKanban aria-hidden className="h-4 w-4" />
+            Open the project
+          </Link>
+        ) : converting ? (
+          <ConvertForm
+            deal={deal}
+            onCancel={() => setConverting(false)}
+            onDone={() => {
+              setConverting(false);
+              onChange();
+            }}
+          />
+        ) : (
+          <div className="space-y-2 rounded-xl border border-ok/30 bg-ok-soft p-3.5">
+            <p className="text-[13px] text-fg">Won. Make {deal.account_name} a client and start the project.</p>
+            <Button variant="primary" icon={<UserCheck className="h-4 w-4" />} onClick={() => setConverting(true)}>
+              Convert to client
+            </Button>
+          </div>
+        ))}
 
       <form key={deal.id + deal.stage_id} onSubmit={save} className="space-y-3">
         <Field label="Deal name">

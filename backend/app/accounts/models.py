@@ -1,7 +1,7 @@
 """The Account (permanent central entity, §6), its domains, identifiers, contacts, suppressions."""
 
 import uuid
-from datetime import datetime
+from datetime import date, datetime
 from decimal import Decimal
 
 from sqlalchemy import (
@@ -82,6 +82,10 @@ class Account(IdMixin, TimestampMixin, SoftDeleteMixin, Base):
     agency_class: Mapped[AgencyClass | None] = mapped_column(text_enum(AgencyClass))
     owner_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("users.id"), index=True)
     source: Mapped[str | None] = mapped_column(String(80))
+    # Client lifecycle (§14, slice 4.1): set when a won deal is converted. client_since is the
+    # first conversion and is kept if the client leaves and comes back.
+    account_manager_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("users.id"))
+    client_since: Mapped[date | None]
 
     # Cached copies of the latest score snapshot; score_snapshots is the source of truth.
     icp_score: Score = score()

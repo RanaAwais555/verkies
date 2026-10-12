@@ -110,6 +110,7 @@ class Task(IdMixin, TimestampMixin, SoftDeleteMixin, Base):
     lead_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("leads.id"))
     opportunity_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("opportunities.id"))
     deal_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("deals.id"), index=True)
+    project_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("projects.id"), index=True)
     title: Mapped[str] = mapped_column(String(200))
     description: Mapped[str | None] = mapped_column(Text)
     owner_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("users.id"))

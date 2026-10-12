@@ -1,7 +1,10 @@
 "use client";
 
-import { Columns3, Plus } from "lucide-react";
+import { Columns3, FolderKanban, Plus, UserCheck } from "lucide-react";
 import Link from "next/link";
+import { useState } from "react";
+
+import { ConvertForm } from "@/components/clients/convert";
 
 import { Badge, Button, Empty, ErrorNote, Panel, ShowAll } from "@/components/ui";
 import { api } from "@/lib/client";
@@ -32,7 +35,8 @@ export function OpenDealButton({ opportunityId, onOpened }: { opportunityId: str
 }
 
 /** The account's deals, open and closed, each with its stage, value and close date. */
-export function AccountDeals({ deals }: { deals: Deal[] }) {
+export function AccountDeals({ deals, onChange }: { deals: Deal[]; onChange: () => void }) {
+  const [converting, setConverting] = useState<string | null>(null);
   return (
     <Panel
       title="Deals"
@@ -59,6 +63,29 @@ export function AccountDeals({ deals }: { deals: Deal[] }) {
               <Link href={`/pipeline?tab=${d.pipeline_key}`} className="sr-only">
                 {d.name} on the pipeline board
               </Link>
+              {d.outcome === "won" && (
+                <span className="basis-full">
+                  {d.project_id ? (
+                    <Link href={`/projects/${d.project_id}`} className="inline-flex items-center gap-1.5 text-xs font-medium text-accent-text hover:underline">
+                      <FolderKanban aria-hidden className="h-3.5 w-3.5" />
+                      Open the project
+                    </Link>
+                  ) : converting === d.id ? (
+                    <ConvertForm
+                      deal={d}
+                      onCancel={() => setConverting(null)}
+                      onDone={() => {
+                        setConverting(null);
+                        onChange();
+                      }}
+                    />
+                  ) : (
+                    <Button className="h-7 px-2.5 text-xs" icon={<UserCheck className="h-3.5 w-3.5" />} onClick={() => setConverting(d.id)}>
+                      Convert to client
+                    </Button>
+                  )}
+                </span>
+              )}
             </li>
           ))}
         </ul>

@@ -1,7 +1,7 @@
 """Account list and Account 360 API models."""
 
 import uuid
-from datetime import datetime
+from datetime import date, datetime
 from typing import Any
 
 from pydantic import BaseModel
@@ -151,6 +151,9 @@ class Account360Out(AccountSummaryOut):
     company_size_band: str | None
     source: str | None
     linkedin_company_url: str | None
+    # Client lifecycle (slice 4.1): set once a won deal is converted.
+    account_manager: OwnerOut | None = None
+    client_since: date | None = None
     domains: list[str]
     # All ten dimensions; null means Unknown, never zero.
     scores: dict[str, float | None]

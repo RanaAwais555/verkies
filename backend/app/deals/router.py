@@ -90,6 +90,7 @@ class DealOut(BaseModel):
     lost_reason: str | None
     lost_note: str | None
     requires_attention: list[str]
+    project_id: uuid.UUID | None = None
     created_at: datetime
 
     @classmethod
@@ -134,6 +135,7 @@ class DealOut(BaseModel):
             lost_reason=d.lost_reason.value if d.lost_reason else None,
             lost_note=d.lost_note,
             requires_attention=v.attention,
+            project_id=v.project_id,
             created_at=d.created_at,
         )
 

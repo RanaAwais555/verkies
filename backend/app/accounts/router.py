@@ -151,6 +151,8 @@ async def account_360(account_id: uuid.UUID, user: Member, db: DbSession) -> Acc
         company_size_band=account.company_size_band,
         source=account.source,
         linkedin_company_url=account.linkedin_company_url,
+        account_manager=owner_of(account.account_manager_id, names),
+        client_since=account.client_since,
         domains=[d.domain for d in found["domains"]],
         scores={name: as_float(getattr(account, name)) for name in SCORES},
         leads=[

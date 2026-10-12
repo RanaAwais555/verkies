@@ -38,6 +38,15 @@ Phases follow §20. Phase 1 must work reliably end to end before any later phase
 | 3.4 Communication ✅ | Mailbox connection behind a provider interface (IMAP/SMTP first), SPF/DKIM/DMARC checks, emails linked to account, contact, opportunity and deal | Provider tests with fakes; nothing sent without explicit configuration |
 | 3.5 Outreach ✅ | Templates, sequences with per-step human approval, enrollments, the LinkedIn assisted queue, suppression and compliance controls | Nothing sent automatically; suppression always honoured |
 
+## Phase 4: Client lifecycle
+
+| Slice | Delivers | Exit criteria |
+| --- | --- | --- |
+| 4.1 Client conversion and projects ✅ | §14 Convert Opportunity → Client from a won deal: the same account becomes a customer with a client-since date and an account manager, and may start a project (owner, service, dates, milestones, kick-off task); lightweight projects with the §6 statuses, milestones, risks, tasks and notes, and the plain facts that need attention (overdue milestones and tasks, high risks, past target, no owner) | Integration tests for conversion (only won deals, never competitors, history kept, first client date kept), project work and access rules; browser test of convert and work a project |
+| 4.2 Client health and retention | Green, Yellow or Red per client from project status, overdue work, communication, open issues and milestones; the retention engine raising "Client Risk Detected" with a follow-up task; former customers; the at-risk clients report | Health computed from data with each colour explained; boundary tests for every rule |
+| 4.3 Expansion and referrals | Evidence-based expansion opportunities on clients (land and expand, §11), referral tracking (source, referred company, status, conversion, revenue), the expansion report | No recommendation without evidence; referral conversion traced to deals |
+| 4.4 Documents | Proposals, contracts, SOWs, briefs and project files stored and linked to their account, deal or project | Upload limits and types enforced; files only visible to people who can see the record |
+
 ## Later phases
 
 | Phase | Theme | Headline deliverables |

@@ -194,6 +194,7 @@ export type Task = {
   account_name: string | null;
   lead_id: string | null;
   opportunity_id: string | null;
+  project_id?: string | null;
   title: string;
   description: string | null;
   owner_id: string | null;
@@ -341,6 +342,8 @@ export type Account360 = AccountSummary & {
   company_size_band: string | null;
   source: string | null;
   linkedin_company_url: string | null;
+  account_manager: Owner | null;
+  client_since: string | null;
   domains: string[];
   scores: Record<string, number | null>;
   leads: Lead[];
@@ -550,6 +553,8 @@ export type Deal = {
   lost_reason: string | null;
   lost_note: string | null;
   requires_attention: string[];
+  /** Set once the won deal is converted to a client with a project (slice 4.1). */
+  project_id: string | null;
   created_at: string;
 };
 
@@ -734,3 +739,49 @@ export type OutreachQueue = {
   items: OutreachQueueItem[];
   linkedin: { today: number; this_week: number; daily_limit: number; weekly_limit: number; blocked: string | null };
 };
+
+export type ProjectStatus = "not_started" | "planning" | "active" | "at_risk" | "on_hold" | "completed" | "cancelled";
+
+export type Milestone = {
+  id: string;
+  name: string;
+  due_date: string | null;
+  done: boolean;
+  completed_at: string | null;
+  overdue: boolean;
+};
+
+export type ProjectRisk = {
+  id: string;
+  description: string;
+  severity: "low" | "medium" | "high";
+  resolved: boolean;
+  resolved_at: string | null;
+  resolution: string | null;
+  created_at: string;
+};
+
+export type Project = {
+  id: string;
+  name: string;
+  account_id: string;
+  account_name: string;
+  deal: { id: string; name: string; value: number | null; currency: string; closed_at: string | null } | null;
+  service_id: string | null;
+  service_name: string | null;
+  owner: Owner | null;
+  status: ProjectStatus;
+  start_date: string | null;
+  target_date: string | null;
+  completed_on: string | null;
+  notes: string | null;
+  milestones: Milestone[];
+  milestones_done: number;
+  open_risks: number;
+  open_tasks: number;
+  overdue_tasks: number;
+  requires_attention: string[];
+  created_at: string;
+};
+
+export type ProjectDetail = Project & { risks: ProjectRisk[]; tasks: Task[] };

@@ -345,3 +345,21 @@ class StepOutcome(StrEnum):
     SKIPPED = "skipped"
     WRONG_PERSON = "wrong_person"
     ALREADY_CONNECTED = "already_connected"
+
+
+class ProjectStatus(StrEnum):
+    """§6 project statuses."""
+
+    NOT_STARTED = "not_started"
+    PLANNING = "planning"
+    ACTIVE = "active"
+    AT_RISK = "at_risk"
+    ON_HOLD = "on_hold"
+    COMPLETED = "completed"
+    CANCELLED = "cancelled"
+
+
+class RiskSeverity(StrEnum):
+    LOW = "low"
+    MEDIUM = "medium"
+    HIGH = "high"
