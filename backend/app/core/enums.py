@@ -16,6 +16,12 @@ class ReviewStatus(StrEnum):
     PENDING = "pending"
     APPROVED = "approved"
     REJECTED = "rejected"
+    NOT_REQUIRED = "not_required"  # a monitoring check on an existing account (slice 6.1)
+
+
+class RunKind(StrEnum):
+    RESEARCH = "research"  # a full research run, reviewed before it becomes an account
+    MONITOR = "monitor"  # a monitoring check: fresh signals for a watched account (slice 6.1)
 
 
 class ResearchStageName(StrEnum):

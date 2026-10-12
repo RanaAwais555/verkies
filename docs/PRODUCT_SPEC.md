@@ -145,6 +145,14 @@ Bulk discovery, external company registries, job-board and news signals, monitor
 - The brief names a matching client as a client ("Acme Legal (a Verkies client): similar because same industry"), never as a portfolio case study. With no complete project or client profile, similarity stays **Unknown**.
 - Similarity results record which reference they were against: a reference project or a client account, exactly one.
 
+### Phase 6, slice 6.1: watchlists and signal monitoring (§15)
+
+- Anyone who can see an account can **watch** it (Watch on the account page). Watched accounts are re-checked every morning at 05:00 UTC by the worker's scheduler, and **Check now** queues a check at once.
+- A check re-reads the sources the account's latest research found: the job boards and news feeds its own website links to (fresh copies, never the crawl cache) and its Companies House record and filings. It never crawls the whole site, never contacts anyone, and an account with no completed research has nothing to check.
+- What a check reads is stored as a **monitoring check**: a research run of kind `monitor` on the account, with review not required. It is never listed with research, never in the review queue and never counted in the research reports, but its signals count like any others for ranking, timing, outcomes and the learning engine.
+- A signal VROS had not seen before for that account (the same posting, story or filing read again is recognised) becomes an **alert** with its source, and a line on the account's timeline. A source that fails is recorded on the check, never treated as "nothing new".
+- The **Monitoring** page lists alerts to review (or all), for the accounts you watch or everyone's, and the watched accounts with when each was last checked and how many alerts wait. The account page shows its alerts while you watch it.
+
 ## 4. Acceptance: Definition of Done (§20) mapped to tests
 
 | Requirement | Verified by |

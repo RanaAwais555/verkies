@@ -344,6 +344,8 @@ export type Account360 = AccountSummary & {
   linkedin_company_url: string | null;
   account_manager: Owner | null;
   client_since: string | null;
+  watching: boolean;
+  watchers: number;
   domains: string[];
   scores: Record<string, number | null>;
   leads: Lead[];
@@ -950,4 +952,29 @@ export type LearnedProposal = {
   decided_at: string | null;
   decision_note: string | null;
   activated_version: number | null;
+};
+
+export type WatchedAccount = {
+  account_id: string;
+  name: string;
+  primary_domain: string | null;
+  account_type: string;
+  watchers: number;
+  watching: boolean;
+  last_checked_at: string | null;
+  open_alerts: number;
+};
+
+export type MonitorAlert = {
+  id: string;
+  account_id: string;
+  account_name: string;
+  kind: "job_posting" | "news" | "registry" | string;
+  signal: string | null;
+  signal_label: string | null;
+  title: string;
+  source_url: string;
+  happened_on: string | null;
+  created_at: string;
+  reviewed: boolean;
 };

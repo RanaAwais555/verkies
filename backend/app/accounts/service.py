@@ -12,7 +12,7 @@ from app.audit.models import AuditLog
 from app.auth.models import User
 from app.briefs.models import LeadBrief
 from app.clients.models import ClientFeedback, ExpansionOpportunity, Project
-from app.core.enums import AccountType
+from app.core.enums import AccountType, RunKind
 from app.core.errors import NotFound
 from app.core.search import contains_pattern
 from app.crm import activities
@@ -108,7 +108,7 @@ async def account_360(db: AsyncSession, account: Account) -> dict[str, Any]:
     )
     runs = await rows(
         select(ResearchRun)
-        .where(ResearchRun.account_id == account.id)
+        .where(ResearchRun.account_id == account.id, ResearchRun.kind == RunKind.RESEARCH)
         .order_by(ResearchRun.created_at.desc())
     )
     brief_run = (

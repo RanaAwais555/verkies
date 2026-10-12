@@ -24,6 +24,7 @@ from app.core.enums import (
     RejectionReason,
     ResearchStageName,
     ReviewStatus,
+    RunKind,
 )
 from app.core.models import Base, CreatedMixin, IdMixin, TimestampMixin, text_enum
 
@@ -36,6 +37,14 @@ class ResearchRun(IdMixin, TimestampMixin, Base):
     normalised_domain: Mapped[str] = mapped_column(String(253), index=True)
     account_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("accounts.id"), index=True)
     requested_by_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id"))
+    # A monitoring check holds only the signals found when re-checking a watched account; it is
+    # never reviewed and never listed with research (slice 6.1).
+    kind: Mapped[RunKind] = mapped_column(
+        text_enum(RunKind),
+        default=RunKind.RESEARCH,
+        server_default=RunKind.RESEARCH.value,
+        index=True,
+    )
     status: Mapped[JobStatus] = mapped_column(
         text_enum(JobStatus), default=JobStatus.QUEUED, index=True
     )

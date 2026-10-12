@@ -56,6 +56,14 @@ Phases follow §20. Phase 1 must work reliably end to end before any later phase
 | 5.3 Learned proposals ✅ | Proposed changes to scoring weights and ICP from outcomes, each with the evidence behind it, never active until a person activates it (SCORING_SPEC.md §7) | Proposals reproducible from the same data; activation creates a new versioned config and is audited; human override kept |
 | 5.4 Similarity learning ✅ | Won clients become similarity references alongside Verkies' reference projects, so client similarity reflects who actually buys | Similarity still Unknown without complete profiles; tests for the new references |
 
+## Phase 6: Monitoring
+
+| Slice | Delivers | Exit criteria |
+| --- | --- | --- |
+| 6.1 Watchlists and signal monitoring ✅ | Watch an account; a daily check (and Check now) re-reads the sources its research found (the job boards and news feeds its own site links to, its Companies House record) and stores what it reads as a monitoring check, a run of kind monitor that is never reviewed; a signal not seen before becomes an alert and a timeline line; the Monitoring page lists alerts and watched accounts | Only new signals alert; failing sources reported, never read as no news; monitoring checks never listed or counted as research |
+| 6.2 Website changes | Re-read the pages research found on a watched account and record what changed: new or removed pages, services, pricing, technology, contact routes | A change only when the content differs, with before and after evidence |
+| 6.3 Alert rules and auto-tasks | Rules from §15: a new signal or change can raise Opportunity Detected or Account Requires Review, or create a task for the owner; in-app notifications | Each rule tested; nothing contacts anyone |
+
 ## Later phases
 
 | Phase | Theme | Headline deliverables |
