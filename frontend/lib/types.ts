@@ -904,3 +904,26 @@ export type DealOutcome = {
   close_scores: Record<string, number | null> | null;
   reference_project: string | null;
 };
+
+export type WinLossGroup = {
+  label: string;
+  won: number;
+  lost: number;
+  total: number;
+  /** null when there are too few closed deals to learn from. */
+  win_rate: number | null;
+  won_value: { amount: number; currency: string }[];
+  won_unknown_value: number;
+  avg_days_to_win: number | null;
+};
+
+export type WinLoss = {
+  since: string | null;
+  min_sample: number;
+  overall: WinLossGroup;
+  captured_late: number;
+  dimensions: { key: string; label: string; groups: WinLossGroup[] }[];
+  signals: { signal: string; label: string; with_signal: WinLossGroup; without_signal: WinLossGroup }[];
+  lost_reasons: { reason: string; deals: number }[];
+  feedback: WinLossGroup[];
+};

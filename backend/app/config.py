@@ -135,6 +135,8 @@ class Settings(BaseSettings):
     # Where fetched bodies are stored (StorageProvider). Docker mounts a volume here. Uploaded
     # documents live in its documents/ folder, which the nightly backup also archives.
     storage_dir: str = "./var/storage"
+    # Learning (slice 5.2): a group needs this many closed deals before a win rate is shown.
+    learning_min_sample: int = Field(default=5, ge=1, le=100)
     # Documents (slice 4.4): the largest file a person may upload. Caddy also limits request
     # bodies (ops/Caddyfile, 10MB): raise both together.
     document_max_bytes: int = Field(default=10 * 1024 * 1024, ge=1024, le=200 * 1024 * 1024)
