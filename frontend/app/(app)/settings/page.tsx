@@ -1,6 +1,6 @@
 "use client";
 
-import { Check, Copy, KeyRound, Link2, Pencil, UserPlus, X } from "lucide-react";
+import { Check, Copy, KeyRound, Link2, Pencil, RefreshCw, UserPlus, X } from "lucide-react";
 import { useState, type FormEvent } from "react";
 
 import { Badge, Button, Checkbox, Empty, ErrorNote, Field, inputClass, PageHeader, Panel, ProfileCard, Skeleton, SourceLink, Success, Tabs } from "@/components/ui";
@@ -9,7 +9,7 @@ import { cx } from "@/components/ui/cx";
 import { api } from "@/lib/client";
 import { fileSize, formatDate, initials, label, relativeDate } from "@/lib/format";
 import { can, useAction, useApi, useSession, useTab } from "@/lib/hooks";
-import type { BackupStatus, ConfigVersion, Invite, ProviderStatus, Readiness, ReferenceProject, Role, Service, User } from "@/lib/types";
+import type { BackupStatus, ConfigVersion, Invite, ProviderStatus, Readiness, ReferenceProject, RegisterSource, Role, Service, User } from "@/lib/types";
 
 function Profile({ user }: { user: User }) {
   const { busy, error, run } = useAction();
@@ -530,6 +530,76 @@ function Backups() {
   );
 }
 
+const REGISTER_TONE: Record<string, "green" | "red" | "amber" | "neutral"> = { ok: "green", unchanged: "green", failed: "red", unconfigured: "amber" };
+const REGISTER_STATUS: Record<string, string> = { ok: "Updated", unchanged: "Up to date", failed: "Failed", unconfigured: "Needs a key" };
+
+/** Slice 8.1: the regulators' registers VROS keeps, how each last refreshed, and Refresh now. */
+function Registers({ admin }: { admin: boolean }) {
+  const { data, error, mutate } = useApi<RegisterSource[]>("/registers/sources");
+  const { busy, error: refreshError, run } = useAction();
+  const [queued, setQueued] = useState<string | null>(null);
+  if (error) return <ErrorNote error={error} />;
+
+  async function refresh(key: string) {
+    const done = await run(() => api(`/registers/sources/${key}/refresh`, { method: "POST" }));
+    if (done) {
+      setQueued(key);
+      await mutate();
+    }
+  }
+
+  return (
+    <Panel
+      title="Registers"
+      description="Regulators' registers kept in VROS. The worker checks each one every hour and downloads it again when its schedule comes round; an unchanged register is not applied twice."
+      testId="registers"
+    >
+      {!data ? (
+        <Skeleton rows={2} />
+      ) : (
+        <ul className="divide-y divide-grid">
+          {data.map((s) => (
+            <li key={s.key} className="flex flex-wrap items-start gap-x-3 gap-y-1 py-3 first:pt-0 last:pb-0" data-testid="register-row">
+              <span className="min-w-[12rem] font-medium text-fg">{s.name}</span>
+              <span className="min-w-0 flex-1 space-y-0.5 text-[13px]">
+                <span className="flex flex-wrap items-center gap-2">
+                  {s.last_status ? <Badge tone={REGISTER_TONE[s.last_status]}>{REGISTER_STATUS[s.last_status]}</Badge> : <Badge>Not loaded</Badge>}
+                  {s.last_checked_at && (
+                    <span className="text-fg-2" title={formatDate(s.last_checked_at, true)}>
+                      checked {relativeDate(s.last_checked_at)}
+                    </span>
+                  )}
+                  {s.record_count > 0 && (
+                    <span className="text-fg-3">
+                      {s.active_count.toLocaleString()} authorised of {s.record_count.toLocaleString()} listed
+                    </span>
+                  )}
+                </span>
+                {s.last_changed_at && (
+                  <span className="block text-xs text-fg-3">
+                    Last change {formatDate(s.last_changed_at, true)}: {(s.detail.new ?? 0).toLocaleString()} new, {(s.detail.updated ?? 0).toLocaleString()}{" "}
+                    changed, {(s.detail.removed ?? 0).toLocaleString()} removed
+                  </span>
+                )}
+                {s.last_error && <span className="block break-words text-xs text-bad">{s.last_error}</span>}
+                {!s.configured && <span className="block text-xs text-fg-3">Set VROS_SRA_API_KEY on the server to use it.</span>}
+                {queued === s.key && <span className="block text-xs text-fg-2">Refresh queued; it runs in the background in a minute or two.</span>}
+                <span className="block text-xs text-fg-3">{s.attribution}</span>
+              </span>
+              {admin && (
+                <Button busy={busy} disabled={!s.configured} icon={<RefreshCw className="h-3.5 w-3.5" />} onClick={() => refresh(s.key)}>
+                  Refresh now
+                </Button>
+              )}
+            </li>
+          ))}
+        </ul>
+      )}
+      <ErrorNote error={refreshError} />
+    </Panel>
+  );
+}
+
 export default function SettingsPage() {
   const { data: session } = useSession();
   const [tab, setTab] = useTab("profile");
@@ -561,6 +631,7 @@ export default function SettingsPage() {
         <div className="space-y-5">
           <SystemStatus />
           {can(session, "config.manage", "users.manage") && <Backups />}
+          {can(session, "config.manage", "research.run") && <Registers admin={configAdmin} />}
           <Providers />
         </div>
       )}

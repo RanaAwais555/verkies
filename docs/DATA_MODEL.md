@@ -257,3 +257,9 @@ Implemented in migration `0002_integrity_rules` and covered by `tests/integratio
 ## 4n. Operations (slice 7.2, migration `0029`)
 
 **backup_runs**: one row per backup step, written by `ops/backup/backup.sh` with psql (the id defaults in the database): `kind` (dump, documents, offsite, drill), `status` (ok, failed, skipped), `started_at`, `finished_at`, `bytes`, `detail` (the file, the remote, or what went wrong).
+
+## 4o. Registers (slice 8.1, migration `0031`)
+
+**register_sources**: one row per register (`key`, e.g. `sra`), created on its first refresh: `last_checked_at`, `last_changed_at` (the last applied download), `last_status` (ok, unchanged, failed, unconfigured), `last_error`, `content_hash` (SHA-256 of the last applied content, its entries in a fixed order, since registers do not return byte-identical downloads; the same content is not applied again), `record_count`, `active_count`, `detail` (new, updated and removed in the last applied refresh).
+
+**register_records**: VROS's copy of one organisation as a register lists it, unique by (`source`, `source_id`): `name`, `active` (authorised now, by the register's own status), `status`, `legal_form`, `company_number`, `website`, `phone`, `email`, head-office `postcode` and `town`, `postcode_areas` (of every office, for location filters), `areas` (the register's categories, e.g. the SRA's areas of work), `office_count`, `authorised_on`, `first_seen_at`, `last_seen_at`, `removed_at` (set when the register stops listing it; the row is kept), `data` (trading names, offices). A register record is neither an Account nor a discovery candidate: searching a register creates a discovery job (kind `register`) whose rows are checked like any other.

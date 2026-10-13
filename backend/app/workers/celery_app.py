@@ -31,6 +31,11 @@ def create_celery() -> Celery:
                 "task": "vros.monitoring.check_watched",
                 "schedule": crontab(hour=5, minute=0),
             },
+            # Hourly, so each register refreshes as soon as its own cadence comes round.
+            "registers-hourly": {
+                "task": "vros.registers.refresh_due",
+                "schedule": crontab(minute=20),
+            },
         },
     )
     celery.autodiscover_tasks(["app.workers"])

@@ -24,6 +24,7 @@ from app.core.enums import (
 from app.core.errors import Conflict, NotFound, ValidationFailed
 from app.discovery import csv_import
 from app.discovery.models import DiscoveredCompany, DiscoveryJob
+from app.registers.models import RegisterRecord
 from app.registry.companies_house import RegistryCompany
 from app.research import service as research
 from app.research.models import ResearchRun
@@ -168,6 +169,75 @@ async def create_registry_search(
         source=AuditSource.API,
         new_value={"search": job.name, "results": len(companies)},
     )
+    return job
+
+
+REGISTER_COLUMNS = [
+    "name",
+    "register",
+    "register_id",
+    "number",
+    "website",
+    "town",
+    "postcode",
+    "offices",
+    "areas",
+    "authorised",
+    "notes",
+]
+REGISTER_MAPPING = {"name": "name", "website": "website", "notes": "notes"}
+
+
+async def create_register_search(
+    db: AsyncSession, *, user: User, label: str, records: list[RegisterRecord], total: int
+) -> DiscoveryJob:
+    """A discovery job from a register VROS keeps (slice 8.1), checked like an import. The
+    register gives the website and the Companies House number, so research needs no guessing
+    and an organisation that is already an account is recognised by either."""
+    if not records:
+        raise ValidationFailed("No organisations on the register match that search.")
+    job = DiscoveryJob(
+        kind=DiscoveryKind.REGISTER,
+        name=label[:200],
+        created_by_id=user.id,
+        status=DiscoveryStatus.UPLOADED,
+        columns=REGISTER_COLUMNS,
+        mapping=REGISTER_MAPPING,
+        row_count=len(records),
+        stats={},
+    )
+    db.add(job)
+    await db.flush()
+    for i, record in enumerate(records, start=1):
+        authorised = record.authorised_on.isoformat() if record.authorised_on else ""
+        areas = ", ".join(record.areas)
+        raw = {
+            "name": record.name,
+            "register": record.source,
+            "register_id": record.source_id,
+            "number": record.company_number or "",
+            "website": record.website or "",
+            "town": record.town or "",
+            "postcode": record.postcode or "",
+            "offices": str(record.office_count or ""),
+            "areas": areas,
+            "authorised": authorised,
+            "notes": f"{record.source.upper()} {record.source_id}; {areas or 'no areas listed'}"
+            + (f"; {record.office_count} offices" if record.office_count else "")
+            + (f"; authorised {authorised}" if authorised else ""),
+        }
+        db.add(DiscoveredCompany(discovery_job_id=job.id, row_number=i, raw=raw))
+    await db.flush()
+    audit.record(
+        db,
+        action="discovery.register_searched",
+        object_table="discovery_jobs",
+        object_id=job.id,
+        user_id=user.id,
+        source=AuditSource.API,
+        new_value={"search": job.name, "results": len(records), "matching": total},
+    )
+    await check(db, user=user, job=job, mapping=REGISTER_MAPPING)
     return job
 
 

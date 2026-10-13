@@ -241,6 +241,7 @@ class DiscoveryKind(StrEnum):
     CSV_IMPORT = "csv_import"
     SEARCH = "search"  # web search through the configured SearchProvider (slice 2.4)
     REGISTRY = "registry"  # Companies House advanced search (slice 2.5)
+    REGISTER = "register"  # a regulator's register kept by VROS, e.g. the SRA (slice 8.1)
 
 
 class DiscoveryStatus(StrEnum):
@@ -443,3 +444,12 @@ class RiskSeverity(StrEnum):
     LOW = "low"
     MEDIUM = "medium"
     HIGH = "high"
+
+
+class RegisterRefreshStatus(StrEnum):
+    """How the last refresh of a register source went (slice 8.1)."""
+
+    OK = "ok"  # downloaded and applied
+    UNCHANGED = "unchanged"  # downloaded, identical to the copy kept: nothing to apply
+    FAILED = "failed"  # download or parsing failed; the copy kept is untouched
+    UNCONFIGURED = "unconfigured"  # the source needs a key the server does not have

@@ -34,6 +34,7 @@ from app.notifications.models import Notification
 from app.opportunities.models import OpportunityCandidate, OpportunityCategory
 from app.outreach.models import Enrollment, EnrollmentStep, OutreachTemplate, Sequence, SequenceStep
 from app.qualification.models import IcpConfig, QualificationResult
+from app.registers.models import RegisterRecord, RegisterSource
 from app.reports.models import SavedView
 from app.research.models import RawResponse, ResearchPage, ResearchRun, ResearchStage
 from app.scoring.models import ScoreSnapshot, ScoringConfig
@@ -88,6 +89,8 @@ __all__ = [
     "RawResponse",
     "ReferenceProject",
     "Referral",
+    "RegisterRecord",
+    "RegisterSource",
     "ResearchPage",
     "ResearchRun",
     "ResearchStage",

@@ -53,6 +53,7 @@ Order of use: official API or structured feed first, crawling second.
 | `ssl`, `dnspython` (MX, SPF, DMARC) | `DnsChecker` | 1 | | 1 day |
 | CSV import | `SearchProvider` | 2 | | n/a |
 | Companies House API | `CompaniesHouse` (`app/registry/`) | 2 ✅ | Free key (`VROS_COMPANIES_HOUSE_API_KEY`), Basic auth, 600 req / 5 min. Lookup by registered number only (from the site or Wikidata): profile, officers, filing history and PSC (4 requests per run). Discovery uses `/advanced-search/companies` (active companies by SIC code, location and incorporation date). Bulk data and streaming arrive with monitoring (Phase 6) | 30 days |
+| SRA Data Share API | `SraRegister` (`app/registers/`) | 8 ✅ | Free subscription key (`VROS_SRA_API_KEY`) in the `Ocp-Apim-Subscription-Key` header, kept confidential under the SRA's terms; one `organisation/GetAll` call returns every organisation (about 25,000, 25MB), refreshed daily by the SRA; attribution shown with the data. Downloaded through the safe fetcher with the register budget (`VROS_REGISTER_MAX_BYTES`, `VROS_REGISTER_TIMEOUT_SECONDS`) | kept in `register_records`, refreshed daily |
 | SEC EDGAR (Form D) | `CompanyDataProvider` | 2 | Descriptive User-Agent required | 30 days |
 | Wikidata SPARQL | `Wikidata` (`app/registry/`) | 2 ✅ | Keyless; matched by official website (P856), used only when exactly one item claims the domain; `VROS_WIKIDATA_ENABLED` | 30 days |
 | Greenhouse, Lever, Ashby, Workable public job APIs | `JobBoards` (`app/signals/`) | 2 ✅ | Keyless JSON; only the board the company's site links to | 1 day |

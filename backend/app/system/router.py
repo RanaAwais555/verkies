@@ -28,6 +28,7 @@ class ProviderStatus(BaseModel):
 async def providers(_: CurrentUser, settings: AppSettings) -> list[ProviderStatus]:
     key = settings.companies_house_api_key
     has_key = bool(key and key.get_secret_value())
+    has_sra_key = bool(settings.sra_api_key and settings.sra_api_key.get_secret_value())
     return [
         ProviderStatus(
             name="JavaScript rendering",
@@ -61,6 +62,13 @@ async def providers(_: CurrentUser, settings: AppSettings) -> list[ProviderStatu
             detail="SearXNG (self-hosted) finds candidate company websites"
             if settings.search_provider != "none"
             else "Off: Discover offers CSV import only (start Compose with --profile search)",
+        ),
+        ProviderStatus(
+            name="SRA register",
+            status="ok" if has_sra_key else "off",
+            detail="Every SRA-regulated law firm, kept in VROS and refreshed daily"
+            if has_sra_key
+            else "Off: Discover cannot search law firms (set VROS_SRA_API_KEY)",
         ),
         ProviderStatus(
             name="Wikidata",
