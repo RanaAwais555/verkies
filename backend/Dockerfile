@@ -49,6 +49,7 @@ USER vros
 # --beat runs the daily schedules inside this worker; keep one worker container and raise
 # VROS_WORKER_CONCURRENCY (research runs at once) instead.
 ENV VROS_WORKER_CONCURRENCY=2
-# The worker serves no /metrics (it records outcomes in Redis instead).
-ENV PROMETHEUS_MULTIPROC_DIR=
-CMD ["/bin/sh", "-c", "exec celery -A app.workers.celery_app:celery_app worker --beat --schedule=/tmp/celerybeat-schedule --loglevel=INFO --concurrency=\"$VROS_WORKER_CONCURRENCY\""]
+# The worker serves no /metrics (it records outcomes in Redis instead). prometheus_client
+# switches to multi-process files whenever PROMETHEUS_MULTIPROC_DIR exists, even empty, so the
+# variable is removed rather than blanked.
+CMD ["/bin/sh", "-c", "unset PROMETHEUS_MULTIPROC_DIR && exec celery-A app.workers.celery_app:celery_app worker --beat --schedule=/tmp/celerybeat-schedule --loglevel=INFO --concurrency=\"$VROS_WORKER_CONCURRENCY\""]
