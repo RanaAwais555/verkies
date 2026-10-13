@@ -9,7 +9,7 @@ import { Badge, Button, Checkbox, controlClass, Empty, ErrorNote, Field, inputCl
 import { api } from "@/lib/client";
 import { formatDate } from "@/lib/format";
 import { useAction, useApi } from "@/lib/hooks";
-import type { ImportDetail, ImportJob, ProviderStatus, RegisterOptions } from "@/lib/types";
+import type { ImportDetail, ImportJob, ProviderStatus, RegisterOptions, RegisterSource } from "@/lib/types";
 
 const MAX_BYTES = 2_000_000;
 
@@ -21,9 +21,6 @@ const KIND: Record<string, { label: string; tone: "blue" | "purple" | "neutral" 
   registry: { label: "Companies House", tone: "purple" },
   register: { label: "Register", tone: "purple" },
 };
-
-// Specialists list few areas of work; generalists list many.
-const SPECIALIST_MAX_AREAS = 3;
 
 /** A source's heading: an icon tile, a title and one plain sentence on what it does. */
 function SourceHead({ icon, title, children }: { icon: ReactNode; title: string; children: ReactNode }) {
@@ -161,14 +158,21 @@ function RegistrySearch({ provider }: { provider: ProviderStatus }) {
   );
 }
 
-/** Slice 8.1: search a regulator's register VROS keeps (the SRA's law firms), by area of work,
- * location, size and how specialised a firm is. Every result has the regulator's own website and
- * company number, so nothing is guessed. */
-function RegisterSearch({ provider }: { provider: ProviderStatus }) {
+// Income bands for registers that state an annual income (charities), in pounds.
+const INCOME_BANDS: { label: string; min: number | null; max: number | null }[] = [
+  { label: "Any income", min: null, max: null },
+  { label: "Under £100k", min: null, max: 100_000 },
+  { label: "£100k to £250k", min: 100_000, max: 250_000 },
+  { label: "£250k to £1m", min: 250_000, max: 1_000_000 },
+  { label: "£1m to £10m", min: 1_000_000, max: 10_000_000 },
+  { label: "Over £10m", min: 10_000_000, max: null },
+];
+
+/** The form for one register: only the filters that mean something for it. */
+function RegisterForm({ options }: { options: RegisterOptions }) {
   const router = useRouter();
   const { busy, error, run } = useAction();
-  const { data: options, error: optionsError } = useApi<RegisterOptions>(provider.status === "ok" ? "/registers/sra/options" : null);
-  const [where, setWhere] = useState("london");
+  const [where, setWhere] = useState(options.has_location ? "london" : "anywhere");
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -179,16 +183,19 @@ function RegisterSearch({ provider }: { provider: ProviderStatus }) {
       .split(/[\s,]+/)
       .filter(Boolean);
     const number = (name: string) => (data.get(name) ? Number(data.get(name)) : null);
+    const income = INCOME_BANDS[Number(data.get("income") ?? 0)] ?? INCOME_BANDS[0];
     const job = await run(() =>
       api<ImportDetail>("/discovery/register-searches", {
         method: "POST",
         body: {
-          source: "sra",
+          source: options.key,
           areas: area ? [area] : [],
-          postcode_areas: where === "london" ? (options?.london_postcode_areas ?? []) : where === "custom" ? custom : [],
+          postcode_areas: where === "london" ? options.london_postcode_areas : where === "custom" ? custom : [],
           offices_min: number("offices_min"),
           offices_max: number("offices_max"),
-          max_areas: data.get("specialists") ? SPECIALIST_MAX_AREAS : null,
+          max_areas: data.get("specialists") ? options.specialist_areas : null,
+          income_min: income.min,
+          income_max: income.max,
           authorised_since: String(data.get("since") ?? "") || null,
           limit: Number(data.get("limit") ?? 100),
         },
@@ -197,77 +204,124 @@ function RegisterSearch({ provider }: { provider: ProviderStatus }) {
     if (job) router.push(`/discover/${job.id}`);
   }
 
+  if (!options.loaded) {
+    return (
+      <p className="rounded-lg border border-dashed border-border-strong px-3 py-2.5 text-[13px] text-fg-3">
+        This register has not been loaded yet. It loads with the worker&apos;s next hourly run, or an admin can refresh it now under Settings, System.
+      </p>
+    );
+  }
+  return (
+    <form onSubmit={submit} className="grid gap-3 sm:grid-cols-2 2xl:grid-cols-4">
+      <Field label={options.area_label}>
+        <select name="area" defaultValue={options.areas.some((a) => a.area === "Immigration") ? "Immigration" : ""} className={inputClass}>
+          <option value="">Any</option>
+          {options.areas.map((a) => (
+            <option key={a.area} value={a.area}>
+              {a.area} ({a.organisations.toLocaleString()})
+            </option>
+          ))}
+        </select>
+      </Field>
+      {options.has_location && (
+        <Field label="Location">
+          <select value={where} onChange={(e) => setWhere(e.target.value)} className={inputClass} aria-label="Location">
+            <option value="london">London</option>
+            <option value="anywhere">Anywhere</option>
+            <option value="custom">Postcode areas…</option>
+          </select>
+        </Field>
+      )}
+      {where === "custom" && (
+        <Field label="Postcode areas" hint="Letters before the first digit, e.g. M, LS, B">
+          <input name="postcodes" required placeholder="M, LS, B" className={inputClass} />
+        </Field>
+      )}
+      {options.has_offices && (
+        <Field label="Offices">
+          <span className="flex items-center gap-2">
+            <input name="offices_min" type="number" min={1} max={1000} placeholder="Min" aria-label="Fewest offices" className={inputClass} />
+            <input name="offices_max" type="number" min={1} max={1000} placeholder="Max" aria-label="Most offices" className={inputClass} />
+          </span>
+        </Field>
+      )}
+      {options.has_income && (
+        <Field label="Annual income">
+          <select name="income" defaultValue="0" className={inputClass}>
+            {INCOME_BANDS.map((band, i) => (
+              <option key={band.label} value={i}>
+                {band.label}
+              </option>
+            ))}
+          </select>
+        </Field>
+      )}
+      <Field label="Registered since (optional)">
+        <input name="since" type="date" className={inputClass} />
+      </Field>
+      <Field label="How many">
+        <select name="limit" defaultValue="100" className={inputClass}>
+          {[50, 100, 250, 500].map((n) => (
+            <option key={n} value={n}>
+              {n}
+            </option>
+          ))}
+        </select>
+      </Field>
+      {options.specialist_areas !== null && (
+        <Checkbox
+          name="specialists"
+          label={`Specialists only (at most ${options.specialist_areas} ${options.area_label.toLowerCase()} entries)`}
+          className="self-end pb-2 sm:col-span-2"
+        />
+      )}
+      <div className="space-y-3 sm:col-span-2 2xl:col-span-4">
+        <Button type="submit" busy={busy} icon={<Search className="h-4 w-4" />}>
+          Search the register
+        </Button>
+        <ErrorNote error={error} />
+        <p className="text-xs leading-relaxed text-fg-3">Only organisations with a website are listed. {options.attribution}</p>
+      </div>
+    </form>
+  );
+}
+
+/** Slices 8.1 and 8.3: search a register VROS keeps (the SRA's law firms, IAA advisers, schools,
+ * charities), with the filters each one supports. Every result comes with the register's own
+ * website (and company number where it has one), so nothing is guessed. */
+function RegisterSearch() {
+  const { data: sources, error: sourcesError } = useApi<RegisterSource[]>("/registers/sources");
+  const available = sources?.filter((s) => s.configured) ?? [];
+  const [chosen, setChosen] = useState<string | null>(null);
+  const key = chosen ?? available.find((s) => s.key === "sra")?.key ?? available[0]?.key ?? null;
+  const { data: options, error: optionsError } = useApi<RegisterOptions>(key ? `/registers/${key}/options` : null);
+
   return (
     <Panel primary testId="register-search">
-      <SourceHead icon={<Landmark className="h-4 w-4" />} title="Search the SRA register of law firms">
-        Every firm the Solicitors Regulation Authority regulates, kept in VROS and refreshed daily. Each result comes with the firm&apos;s own website and
-        company number from the register.
+      <SourceHead icon={<Landmark className="h-4 w-4" />} title="Search official registers">
+        Complete lists of real organisations, kept in VROS and refreshed on each register&apos;s own schedule: law firms (SRA), immigration advisers
+        (IAA), schools and charities. Results are checked against your accounts and the do-not-contact list.
       </SourceHead>
-      {provider.status !== "ok" ? (
-        <Unavailable provider={provider} />
-      ) : optionsError ? (
-        <ErrorNote error={optionsError} />
-      ) : !options ? (
+      {sourcesError ? (
+        <ErrorNote error={sourcesError} />
+      ) : !sources ? (
         <Skeleton rows={2} />
-      ) : !options.loaded ? (
-        <p className="rounded-lg border border-dashed border-border-strong px-3 py-2.5 text-[13px] text-fg-3">
-          The register has not been loaded yet. It loads with the worker&apos;s next hourly run, or an admin can refresh it now under Settings, System.
-        </p>
+      ) : available.length === 0 ? (
+        <p className="rounded-lg border border-dashed border-border-strong px-3 py-2.5 text-[13px] text-fg-3">No register is set up on this server.</p>
       ) : (
-        <form onSubmit={submit} className="grid gap-3 sm:grid-cols-2 2xl:grid-cols-4">
-          <Field label="Area of work">
-            <select name="area" defaultValue={options.areas.some((a) => a.area === "Immigration") ? "Immigration" : ""} className={inputClass}>
-              <option value="">Any area</option>
-              {options.areas.map((a) => (
-                <option key={a.area} value={a.area}>
-                  {a.area} ({a.organisations.toLocaleString()})
+        <div className="space-y-4">
+          <Field label="Register" className="max-w-md">
+            <select value={key ?? ""} onChange={(e) => setChosen(e.target.value)} className={inputClass} aria-label="Register">
+              {available.map((s) => (
+                <option key={s.key} value={s.key}>
+                  {s.name}
+                  {s.active_count ? ` (${s.active_count.toLocaleString()})` : ""}
                 </option>
               ))}
             </select>
           </Field>
-          <Field label="Office location">
-            <select value={where} onChange={(e) => setWhere(e.target.value)} className={inputClass} aria-label="Office location">
-              <option value="london">London</option>
-              <option value="anywhere">Anywhere</option>
-              <option value="custom">Postcode areas…</option>
-            </select>
-          </Field>
-          {where === "custom" && (
-            <Field label="Postcode areas" hint="Letters before the first digit, e.g. M, LS, B">
-              <input name="postcodes" required placeholder="M, LS, B" className={inputClass} />
-            </Field>
-          )}
-          <Field label="Offices">
-            <span className="flex items-center gap-2">
-              <input name="offices_min" type="number" min={1} max={1000} placeholder="Min" aria-label="Fewest offices" className={inputClass} />
-              <input name="offices_max" type="number" min={1} max={1000} placeholder="Max" aria-label="Most offices" className={inputClass} />
-            </span>
-          </Field>
-          <Field label="Authorised since (optional)">
-            <input name="since" type="date" className={inputClass} />
-          </Field>
-          <Field label="How many">
-            <select name="limit" defaultValue="100" className={inputClass}>
-              {[50, 100, 250, 500].map((n) => (
-                <option key={n} value={n}>
-                  {n}
-                </option>
-              ))}
-            </select>
-          </Field>
-          <Checkbox
-            name="specialists"
-            label={`Specialists only (at most ${SPECIALIST_MAX_AREAS} areas of work)`}
-            className="self-end pb-2 sm:col-span-2"
-          />
-          <div className="space-y-3 sm:col-span-2 2xl:col-span-4">
-            <Button type="submit" busy={busy} icon={<Search className="h-4 w-4" />}>
-              Search the register
-            </Button>
-            <ErrorNote error={error} />
-            <p className="text-xs leading-relaxed text-fg-3">{options.attribution}</p>
-          </div>
-        </form>
+          {optionsError ? <ErrorNote error={optionsError} /> : !options || options.key !== key ? <Skeleton rows={2} /> : <RegisterForm key={key} options={options} />}
+        </div>
       )}
     </Panel>
   );
@@ -324,7 +378,6 @@ export default function DiscoverPage() {
   const { data: imports, error } = useApi<ImportJob[]>("/discovery/imports");
   const web = providers?.find((p) => p.name === "Web search");
   const registry = providers?.find((p) => p.name === "Companies House");
-  const sra = providers?.find((p) => p.name === "SRA register");
 
   return (
     <div className="space-y-6">
@@ -334,7 +387,7 @@ export default function DiscoverPage() {
         description="Find new companies: search a regulator's register, the web or Companies House, or import a list. Nothing reaches Accounts until you approve it."
       />
       {!providers && <Skeleton rows={3} />}
-      {sra && <RegisterSearch provider={sra} />}
+      <RegisterSearch />
       {web && <WebSearch provider={web} />}
       <div className="grid items-start gap-5 lg:grid-cols-2">
         {registry && <RegistrySearch provider={registry} />}

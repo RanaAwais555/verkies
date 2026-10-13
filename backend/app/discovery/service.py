@@ -183,6 +183,7 @@ REGISTER_COLUMNS = [
     "offices",
     "areas",
     "authorised",
+    "income",
     "notes",
 ]
 REGISTER_MAPPING = {"name": "name", "website": "website", "notes": "notes"}
@@ -222,8 +223,10 @@ async def create_register_search(
             "offices": str(record.office_count or ""),
             "areas": areas,
             "authorised": authorised,
+            "income": str(record.income) if record.income is not None else "",
             "notes": f"{record.source.upper()} {record.source_id}; {areas or 'no areas listed'}"
             + (f"; {record.office_count} offices" if record.office_count else "")
+            + (f"; income £{record.income:,}" if record.income is not None else "")
             + (f"; authorised {authorised}" if authorised else ""),
         }
         db.add(DiscoveredCompany(discovery_job_id=job.id, row_number=i, raw=raw))

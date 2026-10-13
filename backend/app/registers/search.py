@@ -13,6 +13,15 @@ from app.registers.sources import LONDON_AREAS
 MAX_RESULTS = 500
 
 
+def _money(pounds: int) -> str:
+    """250000 -> "£250k", 2000000 -> "£2m"."""
+    if pounds >= 1_000_000:
+        return f"£{pounds / 1_000_000:g}m"
+    if pounds >= 1_000:
+        return f"£{pounds / 1_000:g}k"
+    return f"£{pounds}"
+
+
 @dataclass(frozen=True)
 class RegisterQuery:
     source: str
@@ -25,10 +34,13 @@ class RegisterQuery:
     authorised_since: date | None = None
     # Firms that list at most this many areas of work: specialists rather than generalists.
     max_areas: int | None = None
+    # Latest annual income in pounds (registers that state it: charities).
+    income_min: int | None = None
+    income_max: int | None = None
     with_website: bool = True
     limit: int = 100
 
-    def label(self) -> str:
+    def label(self, title: str | None = None) -> str:
         parts = [", ".join(self.areas) or "All areas"]
         if set(self.postcode_areas) == set(LONDON_AREAS):
             parts.append("in London")
@@ -43,9 +55,16 @@ class RegisterQuery:
             parts.append(f"up to {high} offices")
         if self.max_areas:
             parts.append(f"at most {self.max_areas} areas of work")
+        low_income, high_income = self.income_min, self.income_max
+        if low_income and high_income:
+            parts.append(f"income {_money(low_income)}-{_money(high_income)}")
+        elif low_income:
+            parts.append(f"income {_money(low_income)}+")
+        elif high_income:
+            parts.append(f"income up to {_money(high_income)}")
         if self.authorised_since:
             parts.append(f"authorised since {self.authorised_since.isoformat()}")
-        return f"{self.source.upper()}: " + "; ".join(parts)
+        return f"{title or self.source.upper()}: " + "; ".join(parts)
 
 
 def _filtered(query: RegisterQuery) -> Select[RegisterRecord]:
@@ -64,6 +83,10 @@ def _filtered(query: RegisterQuery) -> Select[RegisterRecord]:
         stmt = stmt.where(RegisterRecord.authorised_on >= query.authorised_since)
     if query.max_areas is not None:
         stmt = stmt.where(func.cardinality(RegisterRecord.areas) <= query.max_areas)
+    if query.income_min is not None:
+        stmt = stmt.where(RegisterRecord.income >= query.income_min)
+    if query.income_max is not None:
+        stmt = stmt.where(RegisterRecord.income <= query.income_max)
     if query.with_website:
         stmt = stmt.where(RegisterRecord.website.is_not(None))
     return stmt

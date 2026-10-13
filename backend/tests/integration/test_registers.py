@@ -90,10 +90,13 @@ def port() -> Iterator[int]:
     server = ThreadingHTTPServer(("127.0.0.1", 0), Handler)
     threading.Thread(target=server.serve_forever, daemon=True).start()
     served.update(orgs=london_firms(), calls=0)
-    original = refresh_module.SOURCES["sra"]
+    # Only the SRA, served by the fake (the dict is changed in place: the router holds it too).
+    original = dict(refresh_module.SOURCES)
+    refresh_module.SOURCES.clear()
     refresh_module.SOURCES["sra"] = SraRegister(f"http://sra.test:{server.server_address[1]}/all")
     yield server.server_address[1]
-    refresh_module.SOURCES["sra"] = original
+    refresh_module.SOURCES.clear()
+    refresh_module.SOURCES.update(original)
     server.shutdown()
 
 
@@ -323,3 +326,75 @@ def test_searching_the_register_makes_a_checked_discovery_job(engine: Engine, po
         assert nothing.status_code == 422
         unknown = client.send("POST", "/discovery/register-searches", json={"source": "nope"})
         assert unknown.status_code == 404
+
+
+def test_each_register_offers_its_own_filters_and_charities_search_by_income(
+    engine: Engine,
+) -> None:
+    """Charities (slice 8.3): categories, location and income from the register itself."""
+    rows = [
+        ("1100001", "Hope Trust", 512_000, ["E"], ["Education/training"], "https://hope.test/"),
+        ("1100002", "Big Health", 25_000_000, ["SE"], ["Health"], "https://bighealth.test/"),
+        ("1100003", "Small Help", 40_000, ["E"], ["Education/training"], "https://small.test/"),
+        ("1100004", "Leeds Learn", 600_000, ["LS"], ["Education/training"], "https://ll.test/"),
+    ]
+    with engine.begin() as conn:
+        for number, name, income, postcodes, areas, site in rows:
+            conn.execute(
+                text(
+                    "INSERT INTO register_records (id, source, source_id, name, active, website,"
+                    " postcode_areas, areas, income, first_seen_at, last_seen_at, data)"
+                    " VALUES (gen_random_uuid(), 'charity', :n, :name, true, :site, :pc, :areas,"
+                    " :income, now(), now(), '{}')"
+                ),
+                {
+                    "n": number,
+                    "name": name,
+                    "site": site,
+                    "pc": postcodes,
+                    "areas": areas,
+                    "income": income,
+                },
+            )
+        conn.execute(
+            text(
+                "INSERT INTO register_sources (key, record_count, active_count, detail)"
+                " VALUES ('charity', 4, 4, '{}')"
+            )
+        )
+    make_user(engine, "r@verkies.test", ["researcher"])
+    with TestClient(create_app()) as http:
+        client = ApiClient(http)
+        client.login("r@verkies.test")
+        sources = {s["key"]: s for s in client.get("/registers/sources").json()}
+        assert {"sra", "iaa", "gias", "charity"} <= set(sources)
+        assert sources["charity"]["short_name"] == "Charities"
+
+        options = client.get("/registers/charity/options").json()
+        assert options["area_label"] == "What the charity does"
+        assert (options["has_location"], options["has_income"], options["has_offices"]) == (
+            True,
+            True,
+            False,
+        )
+        assert options["specialist_areas"] is None
+        iaa = client.get("/registers/iaa/options").json()
+        assert iaa["has_location"] is False and iaa["loaded"] is False
+
+        job = client.send(
+            "POST",
+            "/discovery/register-searches",
+            json={
+                "source": "charity",
+                "areas": ["Education/training"],
+                "postcode_areas": ["E", "EC", "N", "NW", "SE", "SW", "W", "WC"],
+                "income_min": 250_000,
+                "income_max": 10_000_000,
+            },
+        )
+        assert job.status_code == 201, job.text
+        body = job.json()
+        assert body["name"] == "Charities: Education/training; in London; income £250k-£10m"
+        [hope] = body["rows"]
+        assert hope["raw"]["register_id"] == "1100001" and hope["raw"]["income"] == "512000"
+        assert "income £512,000" in hope["notes"]

@@ -444,6 +444,7 @@ export type BackupStatus = { kind: "dump" | "documents" | "offsite" | "drill"; l
 export type RegisterSource = {
   key: string;
   name: string;
+  short_name: string;
   publisher: string;
   attribution: string;
   cadence_hours: number;
@@ -459,7 +460,15 @@ export type RegisterSource = {
 
 export type RegisterOptions = {
   key: string;
+  name: string;
   loaded: boolean;
+  /** What the register's own categories are called ("Area of work", "School type"...). */
+  area_label: string;
+  has_location: boolean;
+  has_income: boolean;
+  has_offices: boolean;
+  /** Listing at most this many categories counts as a specialist; null: no such filter. */
+  specialist_areas: number | null;
   areas: { area: string; organisations: number }[];
   london_postcode_areas: string[];
   attribution: string;

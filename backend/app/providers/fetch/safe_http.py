@@ -16,7 +16,7 @@ from urllib.parse import urljoin
 import httpx
 
 from app.providers.fetch.netguard import IPNetwork, Resolver, SystemResolver, resolve_target
-from app.providers.fetch.types import FetchBlocked, FetchBudget, FetchFailed, FetchResult
+from app.providers.fetch.types import UNTYPED, FetchBlocked, FetchBudget, FetchFailed, FetchResult
 
 REDIRECT_STATUSES = frozenset({301, 302, 303, 307, 308})
 
@@ -130,7 +130,8 @@ class SafeHttpFetcher:
                 # Error pages are not content: report the status, never download the body.
                 return response_headers, status, b"", logical_url
             media_type = _media_type(response_headers.get("content-type"))
-            if media_type not in allowed_types:
+            # No Content-Type at all is accepted only when the caller lists UNTYPED.
+            if (media_type or UNTYPED) not in allowed_types:
                 raise FetchBlocked(
                     f"Content type {media_type or 'unknown'} is not accepted.",
                     code="bad_content_type",

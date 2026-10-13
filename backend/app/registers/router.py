@@ -35,6 +35,7 @@ class RegisterNotLoaded(AppError):
 class SourceOut(BaseModel):
     key: str
     name: str
+    short_name: str
     publisher: str
     attribution: str
     cadence_hours: int
@@ -57,6 +58,7 @@ async def sources(_: Reader, db: DbSession, settings: AppSettings) -> list[Sourc
             SourceOut(
                 key=key,
                 name=source.name,
+                short_name=source.short_name,
                 publisher=source.publisher,
                 attribution=source.attribution,
                 cadence_hours=source.cadence_hours,
@@ -111,7 +113,13 @@ class AreaOut(BaseModel):
 
 class SearchOptions(BaseModel):
     key: str
+    name: str
     loaded: bool
+    area_label: str
+    has_location: bool
+    has_income: bool
+    has_offices: bool
+    specialist_areas: int | None
     areas: list[AreaOut]
     london_postcode_areas: list[str]
     attribution: str
@@ -119,13 +127,20 @@ class SearchOptions(BaseModel):
 
 @router.get("/{key}/options")
 async def options(key: str, _: Researcher, db: DbSession) -> SearchOptions:
-    """What the search form offers for a register: its areas of work, with counts."""
+    """What the search form offers for a register: its own categories (with counts), and which
+    filters mean something for it (location, income)."""
     source = SOURCES.get(key)
     if source is None:
         raise NotFound("No such register.")
     return SearchOptions(
         key=key,
+        name=source.name,
         loaded=await search.loaded(db, key),
+        area_label=source.area_label,
+        has_location=source.has_location,
+        has_income=source.has_income,
+        has_offices=source.has_offices,
+        specialist_areas=source.specialist_areas,
         areas=[AreaOut(area=a, organisations=n) for a, n in await search.area_counts(db, key)],
         london_postcode_areas=list(LONDON_AREAS),
         attribution=source.attribution,
@@ -145,6 +160,8 @@ class RegisterSearchBody(BaseModel):
     offices_max: int | None = Field(default=None, ge=1, le=1000)
     authorised_since: date | None = None
     max_areas: int | None = Field(default=None, ge=1, le=50)
+    income_min: int | None = Field(default=None, ge=0)
+    income_max: int | None = Field(default=None, ge=0)
     with_website: bool = True
     limit: int = Field(default=100, ge=1, le=search.MAX_RESULTS)
 
@@ -158,7 +175,7 @@ async def register_search(body: RegisterSearchBody, user: Researcher, db: DbSess
     if not await search.loaded(db, body.source):
         raise RegisterNotLoaded(
             f"The {SOURCES[body.source].name} register has not been loaded yet. An admin can "
-            "refresh it under Settings, Data sources."
+            "refresh it under Settings, System, Registers."
         )
     query = search.RegisterQuery(
         source=body.source,
@@ -168,12 +185,18 @@ async def register_search(body: RegisterSearchBody, user: Researcher, db: DbSess
         offices_max=body.offices_max,
         authorised_since=body.authorised_since,
         max_areas=body.max_areas,
+        income_min=body.income_min,
+        income_max=body.income_max,
         with_website=body.with_website,
         limit=body.limit,
     )
     records, total = await search.find(db, query)
     job = await discovery.create_register_search(
-        db, user=user, label=query.label(), records=records, total=total
+        db,
+        user=user,
+        label=query.label(SOURCES[body.source].short_name),
+        records=records,
+        total=total,
     )
     await db.commit()
     return await _detail(db, job, None)

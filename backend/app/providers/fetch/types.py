@@ -5,6 +5,9 @@ from dataclasses import dataclass, field
 from app.providers.errors import ProviderError
 
 HTML_TYPES = frozenset({"text/html", "application/xhtml+xml"})
+# A response with no Content-Type header. Never accepted unless a caller lists it, which only
+# fixed publisher URLs do (a government file server that sends none, slice 8.3).
+UNTYPED = ""
 DEFAULT_CONTENT_TYPES = HTML_TYPES | frozenset(
     {"text/plain", "application/xml", "text/xml", "application/json"}
 )
