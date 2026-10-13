@@ -29,6 +29,8 @@ async def providers(_: CurrentUser, settings: AppSettings) -> list[ProviderStatu
     key = settings.companies_house_api_key
     has_key = bool(key and key.get_secret_value())
     has_sra_key = bool(settings.sra_api_key and settings.sra_api_key.get_secret_value())
+    safe_browsing = settings.safe_browsing_api_key
+    has_safe_browsing_key = bool(safe_browsing and safe_browsing.get_secret_value())
     return [
         ProviderStatus(
             name="JavaScript rendering",
@@ -74,6 +76,20 @@ async def providers(_: CurrentUser, settings: AppSettings) -> list[ProviderStatu
             name="Wikidata",
             status="ok" if settings.wikidata_enabled else "off",
             detail="Company facts by official website" if settings.wikidata_enabled else "Off",
+        ),
+        ProviderStatus(
+            name="Wayback Machine",
+            status="ok" if settings.website_archive_enabled else "off",
+            detail="How long a researched site's homepage has gone unchanged"
+            if settings.website_archive_enabled
+            else "Off: site age is not checked",
+        ),
+        ProviderStatus(
+            name="Safe Browsing",
+            status="ok" if has_safe_browsing_key else "off",
+            detail="Whether Google warns visitors away from a researched site"
+            if has_safe_browsing_key
+            else "Off: not checked (set VROS_SAFE_BROWSING_API_KEY)",
         ),
     ]
 

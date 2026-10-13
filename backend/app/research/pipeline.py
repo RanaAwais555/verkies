@@ -31,6 +31,7 @@ from app.research.source import CachedPageSource
 from app.scoring import stage as scoring_stages
 from app.signals.jobs import JobBoards
 from app.signals.stage import signals_stage
+from app.sitecheck.stage import SiteChecks, site_checks_stage
 
 logger = logging.getLogger(__name__)
 
@@ -62,6 +63,8 @@ class PipelineDeps:
     job_boards: JobBoards = field(default_factory=JobBoards.default)
     # None: built from settings (Companies House key, Wikidata switch).
     registries: Registries | None = None
+    # None: built from settings (Wayback switch, Safe Browsing key). Slice 8.2.
+    site_checks: SiteChecks | None = None
 
 
 class StageFailed(Exception):
@@ -329,7 +332,10 @@ async def _signals(run_id: uuid.UUID, deps: PipelineDeps) -> dict[str, Any]:
 
 async def _enrich(run_id: uuid.UUID, deps: PipelineDeps) -> dict[str, Any]:
     registries = deps.registries or Registries.from_settings(deps.settings)
-    return await enrich_stage(run_id, deps.sessionmaker, deps.fetcher, registries)
+    report = await enrich_stage(run_id, deps.sessionmaker, deps.fetcher, registries)
+    checks = deps.site_checks or SiteChecks.from_settings(deps.settings)
+    report.update(await site_checks_stage(run_id, deps.sessionmaker, deps.fetcher, checks))
+    return report
 
 
 async def _extract(run_id: uuid.UUID, deps: PipelineDeps) -> dict[str, Any]:

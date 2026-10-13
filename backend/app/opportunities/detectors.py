@@ -72,6 +72,8 @@ ANALYTICS = frozenset(
     }
 )
 MODERN_FRAMEWORKS = frozenset({"Next.js", "Nuxt", "Gatsby", "React", "Vue.js", "Angular", "Svelte"})
+# A homepage the Wayback Machine has seen unchanged this long is neglected (slice 8.2).
+STALE_ARCHIVE_YEARS = 3
 
 
 @dataclass
@@ -133,6 +135,15 @@ def website_rebuild(facts: Facts) -> Candidate | None:
         signals.append(("website.broken_internal_links", "some of its own links are broken"))
     if facts.has("seo.home_h1") and facts.value("seo.home_h1") is None:
         signals.append(("seo.home_h1", "the homepage has no main heading"))
+    archive = facts.value("website.archive") or {}
+    if (archive.get("years_unchanged") or 0) >= STALE_ARCHIVE_YEARS:
+        signals.append(
+            (
+                "website.archive",
+                f"its homepage has not changed in {archive['years_unchanged']:g} years "
+                f"(Wayback Machine)",
+            )
+        )
     if len(signals) < 2:
         return None
     reasons = "; ".join(text for _, text in signals)
@@ -147,6 +158,70 @@ def website_rebuild(facts: Facts) -> Candidate | None:
         rule_key="website_rebuild.neglect_signals",
         evidence_ids=facts.evidence(*(k for k, _ in signals), "website.copyright_year"),
         signals=[k for k, _ in signals],
+    )
+
+
+def website_compliance(facts: Facts) -> Candidate | None:
+    """What the site must show by law or its regulator and does not (slice 8.2). A regulator's
+    rule or a Safe Browsing listing is a strong reason on its own; other gaps need two."""
+    gaps: list[tuple[str, str, bool]] = []  # (key, plain words, strong)
+    if facts.is_absent("compliance.sra_badge"):
+        gaps.append(("compliance.sra_badge", "no SRA digital badge", True))
+    if facts.is_absent("compliance.sra_number"):
+        gaps.append(("compliance.sra_number", "no SRA number", True))
+    if facts.is_absent("compliance.complaints_procedure"):
+        gaps.append(
+            (
+                "compliance.complaints_procedure",
+                "no complaints procedure naming the Legal Ombudsman",
+                True,
+            )
+        )
+    prices = facts.value("compliance.price_information") or {}
+    if prices and not prices.get("published"):
+        gaps.append(
+            ("compliance.price_information", "no published prices for immigration work", True)
+        )
+    if facts.is_absent("compliance.company_number_shown"):
+        gaps.append(
+            (
+                "compliance.company_number_shown",
+                "no registered company number although it names a company",
+                False,
+            )
+        )
+    cookies = facts.value("compliance.cookie_consent") or {}
+    if cookies and not cookies.get("consent_tool"):
+        trackers = ", ".join(cookies.get("trackers", []))
+        gaps.append(
+            (
+                "compliance.cookie_consent",
+                f"trackers ({trackers}) with no cookie consent tool",
+                False,
+            )
+        )
+    if facts.value("website.https") is False:
+        gaps.append(("website.https", "no HTTPS, so browsers mark it Not secure", False))
+    if (facts.value("website.safe_browsing") or {}).get("threats"):
+        gaps.append(
+            ("website.safe_browsing", "Google Safe Browsing warns visitors away from it", True)
+        )
+    strong = any(s for _, _, s in gaps)
+    if not strong and len(gaps) < 2:
+        return None
+    keys = [k for k, _, _ in gaps]
+    return Candidate(
+        category="website_rebuild",
+        title="Website compliance fixes",
+        problem=(
+            f"The website is missing things it is required to show, or has problems that turn "
+            f"visitors away ({'; '.join(t for _, t, _ in gaps)}). These are specific, checkable "
+            f"fixes and an easy reason to talk; they often lead to a wider rebuild."
+        ),
+        confidence=round(min(0.85, 0.55 + 0.07 * len(gaps) + (0.05 if strong else 0)), 2),
+        rule_key="website_rebuild.compliance_gaps",
+        evidence_ids=facts.evidence(*keys, "compliance.sra_regulated"),
+        signals=keys,
     )
 
 
@@ -393,6 +468,7 @@ def measurement_gap(facts: Facts) -> Candidate | None:
 DETECTORS: tuple[Detector, ...] = (
     structured_intake,
     website_rebuild,
+    website_compliance,
     conversion_path,
     booking_system,
     seo_gaps,
