@@ -6,6 +6,8 @@ import pytest
 os.environ.setdefault("VROS_ENVIRONMENT", "test")
 # No calls to the breached-password service from tests; tests that need it use a fake.
 os.environ.setdefault("VROS_BREACHED_PASSWORD_CHECK", "false")
+# Nor to the Wayback Machine from research runs; tests that need it use a fake.
+os.environ.setdefault("VROS_WEBSITE_ARCHIVE_ENABLED", "false")
 
 from app.config import get_settings
 from app.db import get_engine, get_sessionmaker

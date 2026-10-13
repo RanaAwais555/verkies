@@ -47,6 +47,8 @@ class ObservationArea(StrEnum):
     HIRING = "hiring"
     SIGNALS = "signals"  # dated buying signals: job postings, announcements (slice 2.2)
     REGISTRY = "registry"  # official company registries: Companies House, Wikidata (slice 2.3)
+    # What the site must show by law or its regulator, and whether it does (slice 8.2).
+    COMPLIANCE = "compliance"
 
 
 class PageKind(StrEnum):

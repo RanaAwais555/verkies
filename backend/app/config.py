@@ -139,6 +139,12 @@ class Settings(BaseSettings):
     register_max_bytes: int = Field(default=150 * 1024 * 1024, gt=0)
     register_timeout_seconds: float = Field(default=300.0, gt=0)
 
+    # Outside checks of a researched site (slice 8.2): the Wayback Machine (keyless) for how long
+    # the homepage has gone unchanged, and Google Safe Browsing (a Google API key with the Safe
+    # Browsing API enabled) for whether browsers warn visitors away.
+    website_archive_enabled: bool = True
+    safe_browsing_api_key: SecretStr | None = None
+
     # Web search for discovery (slice 2.4): "none", or a self-hosted SearXNG instance
     # (docker compose --profile search).
     search_provider: Literal["none", "searxng"] = "none"

@@ -24,6 +24,7 @@ from app.registry.stage import Registries
 from app.research.pipeline import PipelineDeps, run_research
 from app.research.router import get_enqueuer
 from app.signals.jobs import JobBoards
+from app.sitecheck.stage import SiteChecks
 from tests.integration.conftest import ApiClient, make_user
 from tests.unit.test_netguard import FakeResolver
 from tests.unit.test_render import CHROMIUM, CHROMIUM_AVAILABLE
@@ -117,6 +118,7 @@ def run_pipeline(
     hosts: tuple[str, ...] = ("acme.test",),
     job_boards: JobBoards | None = None,
     registries: Registries | None = None,
+    site_checks: SiteChecks | None = None,
 ) -> None:
     async def go() -> None:
         engine = create_async_engine(settings.database_url, poolclass=NullPool)
@@ -143,6 +145,7 @@ def run_pipeline(
                     job_boards=job_boards or JobBoards.default(),
                     # No network in tests: registries only when a test supplies fakes.
                     registries=registries or Registries.disabled(),
+                    site_checks=site_checks or SiteChecks.disabled(),
                 ),
             )
         finally:
