@@ -30,9 +30,10 @@ import uuid
 from collections import defaultdict
 from dataclasses import dataclass, field
 from datetime import UTC, date, datetime, time
-from typing import Any, Literal
+from typing import Literal
 
-from sqlalchemy import func, select
+from sqlalchemy import Select, func, select
+from sqlalchemy.dialects.postgresql import distinct_on
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.accounts import access
@@ -60,8 +61,8 @@ from app.core.enums import (
 )
 from app.core.errors import Conflict, NotFound, ValidationFailed
 from app.crm import timeline
-from app.crm.activities import Relationship, relationship
-from app.crm.models import Activity, Task
+from app.crm.activities import Relationship, account_relationships, relationship
+from app.crm.models import Task
 from app.prospects.service import add_business_days
 
 OPEN_TASK = (TaskStatus.OPEN, TaskStatus.IN_PROGRESS)
@@ -165,59 +166,65 @@ def assess(facts: Facts, now: datetime, settings: Settings) -> tuple[HealthColou
 
 
 async def gather(
-    db: AsyncSession, accounts: list[Account], now: datetime
+    db: AsyncSession,
+    accounts: list[Account],
+    now: datetime,
+    scope: Select[uuid.UUID] | None = None,
 ) -> dict[uuid.UUID, Facts]:
-    ids = [a.id for a in accounts]
-    if not ids:
+    """The facts behind each account's health. `scope` selects the same accounts' ids: pass it for
+    a long list, so every query filters in the database instead of carrying thousands of ids."""
+    if not accounts:
         return {}
+    if scope is None:
+        scope = select(Account.id).where(Account.id.in_([a.id for a in accounts]))
     today = now.date()
+    open_project = (
+        Project.account_id.in_(scope),
+        Project.deleted_at.is_(None),
+        Project.status.not_in(CLOSED),
+    )
     projects: dict[uuid.UUID, list[ProjectFacts]] = defaultdict(list)
     by_project: dict[uuid.UUID, ProjectFacts] = {}
-    for p in (
-        await db.execute(
-            select(Project)
-            .where(
-                Project.account_id.in_(ids),
-                Project.deleted_at.is_(None),
-                Project.status.not_in(CLOSED),
-            )
-            .order_by(Project.created_at)
-        )
-    ).scalars():
-        facts = ProjectFacts(name=p.name, status=p.status, target_date=p.target_date)
-        projects[p.account_id].append(facts)
-        by_project[p.id] = facts
+    project_columns = (
+        Project.id,
+        Project.account_id,
+        Project.name,
+        Project.status,
+        Project.target_date,
+    )
+    for project_id, account_id, name, status, target_date in (
+        await db.execute(select(*project_columns).where(*open_project).order_by(Project.created_at))
+    ).all():
+        facts = ProjectFacts(name=name, status=status, target_date=target_date)
+        projects[account_id].append(facts)
+        by_project[project_id] = facts
     if by_project:
-        for m in (
+        for project_id, name, due in (
             await db.execute(
-                select(Milestone)
-                .where(
-                    Milestone.project_id.in_(list(by_project)),
-                    Milestone.completed_at.is_(None),
-                    Milestone.due_date < today,
-                )
+                select(Milestone.project_id, Milestone.name, Milestone.due_date)
+                .join(Project, Project.id == Milestone.project_id)
+                .where(*open_project, Milestone.completed_at.is_(None), Milestone.due_date < today)
                 .order_by(Milestone.due_date)
             )
-        ).scalars():
-            assert m.due_date is not None
-            by_project[m.project_id].late_milestones.append((m.name, m.due_date))
-        for r in (
+        ).all():
+            assert due is not None  # due_date < today
+            by_project[project_id].late_milestones.append((name, due))
+        for project_id, severity, description in (
             await db.execute(
-                select(ProjectRisk)
-                .where(
-                    ProjectRisk.project_id.in_(list(by_project)), ProjectRisk.resolved_at.is_(None)
-                )
+                select(ProjectRisk.project_id, ProjectRisk.severity, ProjectRisk.description)
+                .join(Project, Project.id == ProjectRisk.project_id)
+                .where(*open_project, ProjectRisk.resolved_at.is_(None))
                 .order_by(ProjectRisk.created_at)
             )
-        ).scalars():
-            by_project[r.project_id].open_risks.append((r.severity, r.description))
+        ).all():
+            by_project[project_id].open_risks.append((severity, description))
 
     overdue = dict(
         (
             await db.execute(
                 select(Task.account_id, func.count())
                 .where(
-                    Task.account_id.in_(ids),
+                    Task.account_id.in_(scope),
                     Task.deleted_at.is_(None),
                     Task.status.in_(OPEN_TASK),
                     Task.due_at < now,
@@ -226,30 +233,28 @@ async def gather(
             )
         ).all()
     )
-    touches: dict[uuid.UUID, list[Any]] = defaultdict(list)
-    for account_id, occurred_at, direction in (
-        await db.execute(
-            select(Activity.account_id, Activity.occurred_at, Activity.direction).where(
-                Activity.account_id.in_(ids)
+    relationships = await account_relationships(db, scope)
+    latest_feedback = {
+        fb.account_id: fb
+        for fb in (
+            await db.execute(
+                select(ClientFeedback)
+                .where(ClientFeedback.account_id.in_(scope))
+                .ext(distinct_on(ClientFeedback.account_id))
+                .order_by(
+                    ClientFeedback.account_id,
+                    ClientFeedback.received_on.desc(),
+                    ClientFeedback.created_at.desc(),
+                )
             )
-        )
-    ).all():
-        touches[account_id].append((occurred_at, direction))
-    latest_feedback: dict[uuid.UUID, ClientFeedback] = {}
-    for fb in (
-        await db.execute(
-            select(ClientFeedback)
-            .where(ClientFeedback.account_id.in_(ids))
-            .order_by(ClientFeedback.received_on.desc(), ClientFeedback.created_at.desc())
-        )
-    ).scalars():
-        latest_feedback.setdefault(fb.account_id, fb)
+        ).scalars()
+    }
     return {
         a.id: Facts(
             client_since=a.client_since,
             projects=projects[a.id],
             overdue_tasks=overdue.get(a.id, 0),
-            relationship=relationship(touches[a.id]),
+            relationship=relationships.get(a.id) or relationship([]),
             feedback=latest_feedback.get(a.id),
         )
         for a in accounts
@@ -267,9 +272,14 @@ class ClientView:
     expansion: list[str] = field(default_factory=list)
 
 
-async def _views(db: AsyncSession, accounts: list[Account], now: datetime) -> list[ClientView]:
+async def _views(
+    db: AsyncSession,
+    accounts: list[Account],
+    now: datetime,
+    scope: Select[uuid.UUID] | None = None,
+) -> list[ClientView]:
     settings = get_settings()
-    facts = await gather(db, accounts, now)
+    facts = await gather(db, accounts, now, scope)
     suggestions = await expansion.suggestions_for(db, [a.id for a in accounts], with_evidence=False)
     manager_ids = {a.account_manager_id for a in accounts if a.account_manager_id}
     names = (
@@ -314,7 +324,7 @@ async def list_clients(
     if mine:
         stmt = stmt.where(func.coalesce(Account.account_manager_id, Account.owner_id) == user.id)
     accounts = list((await db.execute(stmt.order_by(Account.name))).scalars())
-    views = await _views(db, accounts, now or _now())
+    views = await _views(db, accounts, now or _now(), stmt.with_only_columns(Account.id))
     if colour is not None:
         views = [v for v in views if v.colour is colour]
     if with_expansion:
@@ -458,6 +468,7 @@ async def sweep(
     if account_ids is not None:
         stmt = stmt.where(Account.id.in_(account_ids))
     accounts = list((await db.execute(stmt.with_for_update())).scalars())
+    scope = stmt.with_only_columns(Account.id)
     result = SweepResult(assessed=len(accounts))
     if not accounts:
         return result
@@ -470,7 +481,7 @@ async def sweep(
         )
     ).all():
         latest.setdefault(account_id, colour)
-    for view in await _views(db, accounts, now):
+    for view in await _views(db, accounts, now, scope):
         before = latest.get(view.account.id)
         if before is view.colour:
             continue

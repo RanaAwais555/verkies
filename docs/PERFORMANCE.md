@@ -50,13 +50,32 @@ Notes on the results:
 - **Follow-ups on their own:** the list takes **0.6 s** for 20,000 accounts.
 - **Unfinished run:** the 4-process run stopped at the reports once the machine ran out of memory.
 
+## Client health and the dashboards (after 7.5)
+
+Client health is still worked out from the records on every read, so it is never out of date; it is now cheap enough to stay that way. Measured on its own with the same data plus client work for the 4,000 clients (12,000 projects, 48,000 milestones, 3,900 risks, 12,000 pieces of feedback):
+
+| | Before | After |
+| --- | --- | --- |
+| Client list (`/clients`, 4,000 clients) | 2.5 to 2.9 s | 1.0 to 1.2 s |
+| Management dashboard | 8.9 to 10.6 s | 1.5 to 1.6 s |
+| Sales dashboard (unchanged) | 1.6 to 2.6 s | 1.6 to 2.7 s |
+
+Three warm runs each, one after another, before and after the change on the same data; the spread is this laptop, not the code (the sales dashboard's code did not change). The management dashboard was so slow because client work (projects, milestones, risks) made each health read heavier, and it read every client's health twice.
+
+What changed:
+- **Scoped in the database:** each query behind client health used to carry the id of every client (4,000 parameters, then 10,000 project ids). They now filter by the same query that chose the clients.
+- **The relationship read in SQL:** latest contact and unanswered messages are folded per account in one query (`crm.activities.account_relationships`) instead of reading every activity the clients ever had. A test checks it gives exactly what the Python fold gives, ties and notes included.
+- **Only the columns needed:** projects, milestones and risks are read as columns; only each client's latest feedback is read.
+- **Once per dashboard:** the management dashboard worked out every client's health twice (clients at risk, then clients with expansion potential); it now does it once.
+
+Before and after gave identical results for all 4,000 clients: colour, every reason, latest contact, projects, feedback and expansion.
+
+**Not cached, on purpose.** A short cache was considered for the dashboards. Of the sales dashboard's time, about half is reading the open deals with their accounts (0.6 s for the 4,000 open deals here, far more than an agency's pipeline) and about a third is the follow-up counts; both grow with the records rather than the number of people looking. A cache would show a deal someone has just won up to a minute late, which costs more trust than the time it saves at this size.
+
 ## Still slow, and why
 
-- **`/clients` and the management dashboard:** they work out client health for every client on every read. That takes 1.4 s and 2.4 s on their own with 4,000 clients. An agency with a few hundred clients will not notice; at thousands, store each client's health from the daily retention check instead of recalculating it.
-- **The sales dashboard:** it computes every figure on each read. That takes 1.4 s on its own, and much longer when many people open it at once. A short cache (a minute) would be enough.
 - **Admin `/follow-ups` across every account:** 2.5 s under load at this size. Salespeople, who see their own accounts, get it in under a second.
-
-These are recorded rather than fixed here. None is a correctness problem, and each needs a decision about how fresh the figures must be.
+- **Dashboards with thousands of open deals:** each reads every open deal with its account. If a pipeline ever grows that large, read only the columns the figures use.
 
 ## Sizing
 
