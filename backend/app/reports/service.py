@@ -482,9 +482,8 @@ async def sales(
         )
     )
 
-    flags: Counter[str] = Counter(
-        f.kind for f in await follow_up_flags(db, user=user, settings=settings, mine=mine)
-    )
+    # Counts only: the exact number of each flag, without fetching the flags themselves.
+    flags = (await follow_up_flags(db, user=user, settings=settings, mine=mine, limit=1)).counts
     board.tables.append(
         Table(
             "follow_ups",

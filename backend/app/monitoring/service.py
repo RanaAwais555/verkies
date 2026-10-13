@@ -129,7 +129,9 @@ class WatchView:
     attention: str | None = None
 
 
-async def watched(db: AsyncSession, *, user: User, mine: bool = True) -> list[WatchView]:
+async def watched(
+    db: AsyncSession, *, user: User, mine: bool = True, limit: int = 500
+) -> list[WatchView]:
     stmt = (
         select(Account)
         .where(Account.deleted_at.is_(None))
@@ -140,7 +142,9 @@ async def watched(db: AsyncSession, *, user: User, mine: bool = True) -> list[Wa
         stmt = stmt.where(clause)
     if mine:
         stmt = stmt.where(Watch.user_id == user.id)
-    accounts = list((await db.execute(stmt.distinct().order_by(Account.name))).scalars())
+    accounts = list(
+        (await db.execute(stmt.distinct().order_by(Account.name).limit(limit))).scalars()
+    )
     ids = [a.id for a in accounts]
     if not ids:
         return []

@@ -23,8 +23,9 @@ function FlagGroup({
   tone,
   testId,
   flags,
+  total,
   perGroup,
-}: (typeof FLAG_GROUPS)[number] & { flags: FollowUpFlag[]; perGroup: number }) {
+}: (typeof FLAG_GROUPS)[number] & { flags: FollowUpFlag[]; total: number; perGroup: number }) {
   const [all, setAll] = useState(false);
   const shown = all ? flags : flags.slice(0, perGroup);
   return (
@@ -32,7 +33,7 @@ function FlagGroup({
       <h3 className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-[0.08em] text-fg-3">
         <Icon aria-hidden className={cx("h-3.5 w-3.5", tone === "bad" ? "text-bad" : "text-warn")} />
         {title}
-        <span className="tabular font-medium normal-case tracking-normal text-fg">{flags.length}</span>
+        <span className="tabular font-medium normal-case tracking-normal text-fg">{total.toLocaleString()}</span>
       </h3>
       <ul className="divide-y divide-grid" data-testid={testId}>
         {shown.map((f) => (
@@ -48,8 +49,13 @@ function FlagGroup({
       </ul>
       {flags.length > perGroup && (
         <button type="button" onClick={() => setAll(!all)} className="text-xs font-medium text-accent-text hover:underline">
-          {all ? "Show fewer" : `Show all ${flags.length}`}
+          {all ? "Show fewer" : total > flags.length ? `Show the ${flags.length} most urgent` : `Show all ${flags.length}`}
         </button>
+      )}
+      {all && total > flags.length && (
+        <p className="text-xs text-fg-3">
+          The {flags.length} most urgent of {total.toLocaleString()}. Work these first, or filter to your own.
+        </p>
       )}
     </section>
   );
@@ -75,7 +81,7 @@ export function FollowUpsPanel({
   const setMine = onMine ?? setOwnMine;
   const { data, error } = useApi<FollowUps>(`/follow-ups${mine ? "?mine=true" : ""}`);
   const groups = FLAG_GROUPS.filter((g) => !kinds || kinds.includes(g.kind))
-    .map((g) => ({ ...g, flags: data?.flags.filter((f) => f.kind === g.kind) ?? [] }))
+    .map((g) => ({ ...g, flags: data?.flags.filter((f) => f.kind === g.kind) ?? [], total: data?.counts[g.kind] ?? 0 }))
     .filter((g) => g.flags.length > 0);
   return (
     <div id="follow-ups" className="scroll-mt-20">

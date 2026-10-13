@@ -32,9 +32,12 @@ EXPOSE 8000
 # Behind Caddy: trust X-Forwarded-* from the proxy. The API port is never published in
 # production, so only Caddy can reach it.
 ENV FORWARDED_ALLOW_IPS="*"
-# Trust X-Forwarded-For from any peer: only Caddy and the frontend can reach the API, and Caddy
-# replaces whatever a client sent with the address it saw (rate limits and sessions need it).
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--proxy-headers", "--forwarded-allow-ips", "*"]
+# Several API processes (slice 7.5): heavy requests are CPU-bound Python, so one process makes
+# every request wait behind them. Metrics from all of them are combined through files in
+# PROMETHEUS_MULTIPROC_DIR, emptied on start (app/observability/metrics.py).
+ENV VROS_API_WORKERS=2
+ENV PROMETHEUS_MULTIPROC_DIR=/tmp/vros-metrics
+CMD ["/bin/sh", "-c", "rm -rf \"$PROMETHEUS_MULTIPROC_DIR\" && mkdir -p \"$PROMETHEUS_MULTIPROC_DIR\" && exec uvicorn app.main:app --host 0.0.0.0 --port 8000 --proxy-headers --workers \"$VROS_API_WORKERS\""]
 
 FROM api AS worker
 USER root
@@ -43,5 +46,9 @@ RUN uv sync --frozen --no-dev --extra render
 # Headless shell only, with its system libraries. Installed as root, readable by vros.
 RUN playwright install --with-deps --only-shell chromium && chmod -R a+rX /ms-playwright
 USER vros
-# --beat runs the daily schedule (client health) inside this worker; keep one worker container.
-CMD ["celery", "-A", "app.workers.celery_app:celery_app", "worker", "--beat", "--schedule=/tmp/celerybeat-schedule", "--loglevel=INFO", "--concurrency=2"]
+# --beat runs the daily schedules inside this worker; keep one worker container and raise
+# VROS_WORKER_CONCURRENCY (research runs at once) instead.
+ENV VROS_WORKER_CONCURRENCY=2
+# The worker serves no /metrics (it records outcomes in Redis instead).
+ENV PROMETHEUS_MULTIPROC_DIR=
+CMD ["/bin/sh", "-c", "exec celery -A app.workers.celery_app:celery_app worker --beat --schedule=/tmp/celerybeat-schedule --loglevel=INFO --concurrency=\"$VROS_WORKER_CONCURRENCY\""]

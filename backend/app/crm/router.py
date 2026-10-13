@@ -16,7 +16,7 @@ from app.auth.models import User
 from app.core.enums import TaskStatus
 from app.core.errors import ValidationFailed
 from app.crm import activities, service
-from app.crm.follow_ups import KINDS, follow_up_flags
+from app.crm.follow_ups import follow_up_flags
 from app.crm.schemas import (
     ActivityOut,
     CompleteTask,
@@ -143,9 +143,15 @@ async def list_activities(
 
 @router.get("/follow-ups")
 async def follow_ups(
-    user: Member, db: DbSession, settings: AppSettings, mine: bool = False
+    user: Member,
+    db: DbSession,
+    settings: AppSettings,
+    mine: bool = False,
+    limit: Annotated[int, Query(ge=1, le=500)] = 100,
 ) -> FollowUpsOut:
-    flags = await follow_up_flags(db, user=user, settings=settings, mine=mine)
+    """Up to `limit` flags of each kind, most urgent first; `counts` says how many exist."""
+    found = await follow_up_flags(db, user=user, settings=settings, mine=mine, limit=limit)
+    flags = found.flags
     names = await user_names(db, {f.owner_id for f in flags if f.owner_id})
     return FollowUpsOut(
         flags=[
@@ -162,7 +168,7 @@ async def follow_ups(
             )
             for f in flags
         ],
-        counts={k: sum(1 for f in flags if f.kind == k) for k in KINDS},
+        counts=dict(found.counts),
         stale_opportunity_days=settings.stale_opportunity_days,
         inactive_deal_days=settings.inactive_deal_days,
     )

@@ -464,11 +464,13 @@ async def list_clients(
     health_: Annotated[HealthColour | None, Query(alias="health")] = None,
     mine: bool = False,
     expansion_: Annotated[bool, Query(alias="expansion")] = False,
+    limit: Annotated[int, Query(ge=1, le=1000)] = 500,
 ) -> list[ClientOut]:
     views = await health.list_clients(
         db, user=user, colour=health_, mine=mine, with_expansion=expansion_
     )
-    return [ClientOut.of(v) for v in views]
+    # Ranked by health, which is worked out per client, so the cut comes after the ranking.
+    return [ClientOut.of(v) for v in views[:limit]]
 
 
 @router.post("/clients/health-check")

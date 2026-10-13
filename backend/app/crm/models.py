@@ -108,7 +108,10 @@ class Task(IdMixin, TimestampMixin, SoftDeleteMixin, Base):
     account_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("accounts.id"), index=True)
     contact_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("contacts.id"))
     lead_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("leads.id"))
-    opportunity_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("opportunities.id"))
+    # Indexed (slice 7.5): the follow-up engine looks up each opportunity's latest task.
+    opportunity_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("opportunities.id"), index=True
+    )
     deal_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("deals.id"), index=True)
     project_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("projects.id"), index=True)
     title: Mapped[str] = mapped_column(String(200))
