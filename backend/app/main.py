@@ -31,6 +31,8 @@ from app.notifications.router import router as notifications_router
 from app.observability.metrics import install_metrics
 from app.outreach.router import router as outreach_router
 from app.prospects.router import router as prospects_router
+from app.registers.router import router as registers_router
+from app.registers.router import search_router as register_search_router
 from app.reports.router import router as reports_router
 from app.research.router import router as research_router
 from app.scoring.config_router import router as config_router
@@ -114,6 +116,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         discovery_router,
         search_router,
         registry_router,
+        register_search_router,
+        registers_router,
         system_router,
     ):
         app.include_router(router, prefix=API_PREFIX)

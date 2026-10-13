@@ -132,6 +132,13 @@ class Settings(BaseSettings):
     companies_house_api_key: SecretStr | None = None
     wikidata_enabled: bool = True
 
+    # Regulators' registers kept in VROS and refreshed by the worker (slice 8.1). The SRA's
+    # Data Share API needs a free subscription key from sra-prod-apim.developer.azure-api.net.
+    sra_api_key: SecretStr | None = None
+    # Whole-register downloads are far larger than a web page (the SRA's is about 25MB).
+    register_max_bytes: int = Field(default=150 * 1024 * 1024, gt=0)
+    register_timeout_seconds: float = Field(default=300.0, gt=0)
+
     # Web search for discovery (slice 2.4): "none", or a self-hosted SearXNG instance
     # (docker compose --profile search).
     search_provider: Literal["none", "searxng"] = "none"

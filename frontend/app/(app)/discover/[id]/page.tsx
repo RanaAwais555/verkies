@@ -179,11 +179,21 @@ export default function ImportPage() {
                   <td>
                     <span className="font-medium text-fg">{r.name ?? "—"}</span>
                     {r.industry && <span className="text-xs text-fg-3"> · {r.industry}</span>}
-                    {r.raw.number && (
+                    {r.raw.register ? (
                       <span className="block text-xs text-fg-3">
-                        No. {r.raw.number}
-                        {r.raw.locality ? ` · ${r.raw.locality}` : ""}
+                        {r.raw.register.toUpperCase()} {r.raw.register_id}
+                        {r.raw.town ? ` · ${r.raw.town}` : ""}
+                        {r.raw.offices ? ` · ${r.raw.offices} ${r.raw.offices === "1" ? "office" : "offices"}` : ""}
+                        {r.raw.number ? ` · No. ${r.raw.number}` : ""}
+                        {r.raw.areas && <span className="block max-w-[48ch] truncate" title={r.raw.areas}>{r.raw.areas}</span>}
                       </span>
+                    ) : (
+                      r.raw.number && (
+                        <span className="block text-xs text-fg-3">
+                          No. {r.raw.number}
+                          {r.raw.locality ? ` · ${r.raw.locality}` : ""}
+                        </span>
+                      )
                     )}
                   </td>
                   <td className="text-fg-2">{r.normalised_domain ?? r.website_url ?? "—"}</td>

@@ -183,3 +183,35 @@ def monitoring_check_watched() -> None:
 @celery_app.task(name="vros.monitoring.check_account", soft_time_limit=600, time_limit=660)
 def monitoring_check_account(account_id: str, user_id: str) -> None:
     asyncio.run(monitoring_job(uuid.UUID(account_id), uuid.UUID(user_id)))
+
+
+async def registers_job(key: str | None) -> dict[str, str]:
+    from app.registers.refresh import build_register_fetcher, refresh_due, refresh_source
+
+    settings = get_settings()
+    engine = create_async_engine(settings.database_url, poolclass=NullPool)
+    fetcher = build_register_fetcher(settings)
+    sessionmaker = async_sessionmaker(engine, expire_on_commit=False)
+    try:
+        if key is None:
+            report = await refresh_due(sessionmaker, fetcher, settings)
+        else:
+            result = await refresh_source(key, sessionmaker, fetcher, settings)
+            report = {key: result.status.value}
+        logger.info("registers refreshed", extra={"registers": report})
+        return report
+    finally:
+        await fetcher.aclose()
+        await engine.dispose()
+
+
+@celery_app.task(name="vros.registers.refresh_due", soft_time_limit=3600, time_limit=3660)
+def registers_refresh_due() -> None:
+    """Every register that is due for its refresh (slice 8.1), scheduled by the worker's beat."""
+    asyncio.run(registers_job(None))
+
+
+@celery_app.task(name="vros.registers.refresh", soft_time_limit=1800, time_limit=1860)
+def registers_refresh(key: str) -> None:
+    """One register, now (an admin's Refresh now)."""
+    asyncio.run(registers_job(key))

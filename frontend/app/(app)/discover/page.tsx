@@ -1,15 +1,15 @@
 "use client";
 
-import { Building2, FileUp, Globe2, Search } from "lucide-react";
+import { Building2, FileUp, Globe2, Landmark, Search } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { type ChangeEvent, type FormEvent, type ReactNode } from "react";
+import { type ChangeEvent, type FormEvent, type ReactNode, useState } from "react";
 
-import { Badge, Button, controlClass, Empty, ErrorNote, Field, inputClass, PageHeader, Panel, Skeleton, Spinner } from "@/components/ui";
+import { Badge, Button, Checkbox, controlClass, Empty, ErrorNote, Field, inputClass, PageHeader, Panel, Skeleton, Spinner } from "@/components/ui";
 import { api } from "@/lib/client";
 import { formatDate } from "@/lib/format";
 import { useAction, useApi } from "@/lib/hooks";
-import type { ImportDetail, ImportJob, ProviderStatus } from "@/lib/types";
+import type { ImportDetail, ImportJob, ProviderStatus, RegisterOptions } from "@/lib/types";
 
 const MAX_BYTES = 2_000_000;
 
@@ -19,7 +19,11 @@ const SIC_HINTS = "69102 solicitors, 69109 other legal, 70229 consultancy, 62012
 const KIND: Record<string, { label: string; tone: "blue" | "purple" | "neutral" }> = {
   search: { label: "Web search", tone: "blue" },
   registry: { label: "Companies House", tone: "purple" },
+  register: { label: "Register", tone: "purple" },
 };
+
+// Specialists list few areas of work; generalists list many.
+const SPECIALIST_MAX_AREAS = 3;
 
 /** A source's heading: an icon tile, a title and one plain sentence on what it does. */
 function SourceHead({ icon, title, children }: { icon: ReactNode; title: string; children: ReactNode }) {
@@ -157,6 +161,118 @@ function RegistrySearch({ provider }: { provider: ProviderStatus }) {
   );
 }
 
+/** Slice 8.1: search a regulator's register VROS keeps (the SRA's law firms), by area of work,
+ * location, size and how specialised a firm is. Every result has the regulator's own website and
+ * company number, so nothing is guessed. */
+function RegisterSearch({ provider }: { provider: ProviderStatus }) {
+  const router = useRouter();
+  const { busy, error, run } = useAction();
+  const { data: options, error: optionsError } = useApi<RegisterOptions>(provider.status === "ok" ? "/registers/sra/options" : null);
+  const [where, setWhere] = useState("london");
+
+  async function submit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const data = new FormData(event.currentTarget);
+    const area = String(data.get("area") ?? "");
+    const custom = String(data.get("postcodes") ?? "")
+      .toUpperCase()
+      .split(/[\s,]+/)
+      .filter(Boolean);
+    const number = (name: string) => (data.get(name) ? Number(data.get(name)) : null);
+    const job = await run(() =>
+      api<ImportDetail>("/discovery/register-searches", {
+        method: "POST",
+        body: {
+          source: "sra",
+          areas: area ? [area] : [],
+          postcode_areas: where === "london" ? (options?.london_postcode_areas ?? []) : where === "custom" ? custom : [],
+          offices_min: number("offices_min"),
+          offices_max: number("offices_max"),
+          max_areas: data.get("specialists") ? SPECIALIST_MAX_AREAS : null,
+          authorised_since: String(data.get("since") ?? "") || null,
+          limit: Number(data.get("limit") ?? 100),
+        },
+      }),
+    );
+    if (job) router.push(`/discover/${job.id}`);
+  }
+
+  return (
+    <Panel primary testId="register-search">
+      <SourceHead icon={<Landmark className="h-4 w-4" />} title="Search the SRA register of law firms">
+        Every firm the Solicitors Regulation Authority regulates, kept in VROS and refreshed daily. Each result comes with the firm&apos;s own website and
+        company number from the register.
+      </SourceHead>
+      {provider.status !== "ok" ? (
+        <Unavailable provider={provider} />
+      ) : optionsError ? (
+        <ErrorNote error={optionsError} />
+      ) : !options ? (
+        <Skeleton rows={2} />
+      ) : !options.loaded ? (
+        <p className="rounded-lg border border-dashed border-border-strong px-3 py-2.5 text-[13px] text-fg-3">
+          The register has not been loaded yet. It loads with the worker&apos;s next hourly run, or an admin can refresh it now under Settings, System.
+        </p>
+      ) : (
+        <form onSubmit={submit} className="grid gap-3 sm:grid-cols-2 2xl:grid-cols-4">
+          <Field label="Area of work">
+            <select name="area" defaultValue={options.areas.some((a) => a.area === "Immigration") ? "Immigration" : ""} className={inputClass}>
+              <option value="">Any area</option>
+              {options.areas.map((a) => (
+                <option key={a.area} value={a.area}>
+                  {a.area} ({a.organisations.toLocaleString()})
+                </option>
+              ))}
+            </select>
+          </Field>
+          <Field label="Office location">
+            <select value={where} onChange={(e) => setWhere(e.target.value)} className={inputClass} aria-label="Office location">
+              <option value="london">London</option>
+              <option value="anywhere">Anywhere</option>
+              <option value="custom">Postcode areas…</option>
+            </select>
+          </Field>
+          {where === "custom" && (
+            <Field label="Postcode areas" hint="Letters before the first digit, e.g. M, LS, B">
+              <input name="postcodes" required placeholder="M, LS, B" className={inputClass} />
+            </Field>
+          )}
+          <Field label="Offices">
+            <span className="flex items-center gap-2">
+              <input name="offices_min" type="number" min={1} max={1000} placeholder="Min" aria-label="Fewest offices" className={inputClass} />
+              <input name="offices_max" type="number" min={1} max={1000} placeholder="Max" aria-label="Most offices" className={inputClass} />
+            </span>
+          </Field>
+          <Field label="Authorised since (optional)">
+            <input name="since" type="date" className={inputClass} />
+          </Field>
+          <Field label="How many">
+            <select name="limit" defaultValue="100" className={inputClass}>
+              {[50, 100, 250, 500].map((n) => (
+                <option key={n} value={n}>
+                  {n}
+                </option>
+              ))}
+            </select>
+          </Field>
+          <Checkbox
+            name="specialists"
+            label={`Specialists only (at most ${SPECIALIST_MAX_AREAS} areas of work)`}
+            className="self-end pb-2 sm:col-span-2"
+          />
+          <div className="space-y-3 sm:col-span-2 2xl:col-span-4">
+            <Button type="submit" busy={busy} icon={<Search className="h-4 w-4" />}>
+              Search the register
+            </Button>
+            <ErrorNote error={error} />
+            <p className="text-xs leading-relaxed text-fg-3">{options.attribution}</p>
+          </div>
+        </form>
+      )}
+    </Panel>
+  );
+}
+
 function CsvImport() {
   const router = useRouter();
   const { busy, error, setError, run } = useAction();
@@ -208,15 +324,17 @@ export default function DiscoverPage() {
   const { data: imports, error } = useApi<ImportJob[]>("/discovery/imports");
   const web = providers?.find((p) => p.name === "Web search");
   const registry = providers?.find((p) => p.name === "Companies House");
+  const sra = providers?.find((p) => p.name === "SRA register");
 
   return (
     <div className="space-y-6">
       <PageHeader
         eyebrow="Revenue"
         title="Discover"
-        description="Find new companies: search the web, search Companies House or import a list. Nothing reaches Accounts until you approve it."
+        description="Find new companies: search a regulator's register, the web or Companies House, or import a list. Nothing reaches Accounts until you approve it."
       />
       {!providers && <Skeleton rows={3} />}
+      {sra && <RegisterSearch provider={sra} />}
       {web && <WebSearch provider={web} />}
       <div className="grid items-start gap-5 lg:grid-cols-2">
         {registry && <RegistrySearch provider={registry} />}

@@ -74,6 +74,18 @@ Phases follow §20. Phase 1 must work reliably end to end before any later phase
 | 7.4 Access control refinement ✅ | Permission matrix reviewed; Viewer made truly read-only (`records.write`, required centrally for changes allowed only by read access; personal actions marked); a test that reads every route from the schema and checks strangers, no-role users, Viewers and other people's accounts; "View only" label | Every endpoint covered by an access test |
 | 7.5 Performance and scale ✅ | Load-tested at 20,000 accounts (docs/PERFORMANCE.md): the follow-up engine moved into SQL with capped lists and exact counts (52 s to 0.6 s), an index on `tasks.opportunity_id`, several API processes with combined metrics, configurable worker concurrency, and a test that every list endpoint is bounded; what is still slow is recorded | Baseline recorded; no list endpoint unbounded |
 
+## Phase 8: Prospect finder
+
+Discovery starts from complete, official lists of real organisations (regulators' registers and open datasets) instead of web pages, so a search returns firms and not articles; each prospect then carries fit, need, timing and reach with evidence.
+
+| Slice | Delivers | Exit criteria |
+| --- | --- | --- |
+| 8.1 Registers kept in VROS ✅ | A register source framework (adapter per register: download, cadence, parse, attribution), `register_sources` and `register_records` with first seen, last seen and removed; the worker checks hourly and refreshes each source on its own cadence, applying only a changed download and refusing a short one; Settings, System shows each register's last refresh with Refresh now (admins); the SRA register through its Data Share API; Discover searches it by area of work, office location (London or postcode areas), offices, specialisms and authorisation date into a checked discovery job with the register's website and company number | A failing or short download leaves the copy untouched and says why; an identical download is not applied; removed firms are marked, never deleted; every route covered by the access test |
+| 8.2 Website compliance and health | Checks every crawled page of a prospect's site against the rules its sector must follow (SRA badge, SRA number, price publication for the listed services, complaints procedure; Companies Act details; working HTTPS) and site health (redesign age from the Wayback Machine, certificate expiry, Safe Browsing), each finding with its evidence | Findings only from pages read; nothing claimed from the homepage alone |
+| 8.3 More registers and datasets | IAA, Legal Aid directory, CQC, Charity Commission, schools (GIAS), visa sponsors, ICO register, Overture places, as further sources | Each source tested against a fake and the real format; licence terms recorded |
+| 8.4 Triggers | Companies House streaming (name changes, new directors, office moves, share allotments), accounts data (employee growth), new authorisations and registrations, tenders | Each trigger dated with its source; fades after its window |
+| 8.5 Four-axis prospect score | Fit, need, timing and reach as separate scores, a High-fit default view with the reason each result was hidden | Every score traceable to evidence; precision of the top 20 measured |
+
 ## Later phases
 
 | Phase | Theme | Headline deliverables |

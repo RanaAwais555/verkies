@@ -440,6 +440,31 @@ export type Readiness = { status: string; checks: Record<string, { status: strin
 export type BackupRun = { status: "ok" | "failed" | "skipped"; started_at: string; finished_at: string; bytes: number | null; detail: string | null };
 export type BackupStatus = { kind: "dump" | "documents" | "offsite" | "drill"; label: string; latest: BackupRun | null; last_ok: BackupRun | null };
 
+/** Slice 8.1: a regulator's register kept in VROS, and how its last refresh went. */
+export type RegisterSource = {
+  key: string;
+  name: string;
+  publisher: string;
+  attribution: string;
+  cadence_hours: number;
+  configured: boolean;
+  last_checked_at: string | null;
+  last_changed_at: string | null;
+  last_status: "ok" | "unchanged" | "failed" | "unconfigured" | null;
+  last_error: string | null;
+  record_count: number;
+  active_count: number;
+  detail: { new?: number; updated?: number; removed?: number };
+};
+
+export type RegisterOptions = {
+  key: string;
+  loaded: boolean;
+  areas: { area: string; organisations: number }[];
+  london_postcode_areas: string[];
+  attribution: string;
+};
+
 export const REJECTION_REASONS: Record<string, string> = {
   no_commercial_opportunity: "No commercial opportunity",
   wrong_icp: "Wrong ICP",
