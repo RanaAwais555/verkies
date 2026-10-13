@@ -13,6 +13,8 @@ import type { BulkResearchResult, ImportDetail, ImportRow } from "@/lib/types";
 const MAX_PER_BATCH = 50;
 const ACTIVE_RUN = ["queued", "running", "retrying"];
 const RESEARCHABLE = new Set(["new", "possible_duplicate"]);
+// How each register's own identifier reads on a row (slice 8.3).
+const REGISTER_ID: Record<string, string> = { sra: "SRA", iaa: "IAA", gias: "URN", charity: "Charity no." };
 const STATUS_TONE: Record<ImportRow["status"], Tone> = {
   pending: "neutral",
   new: "green",
@@ -181,9 +183,10 @@ export default function ImportPage() {
                     {r.industry && <span className="text-xs text-fg-3"> · {r.industry}</span>}
                     {r.raw.register ? (
                       <span className="block text-xs text-fg-3">
-                        {r.raw.register.toUpperCase()} {r.raw.register_id}
+                        {REGISTER_ID[r.raw.register] ?? r.raw.register.toUpperCase()} {r.raw.register_id}
                         {r.raw.town ? ` · ${r.raw.town}` : ""}
                         {r.raw.offices ? ` · ${r.raw.offices} ${r.raw.offices === "1" ? "office" : "offices"}` : ""}
+                        {r.raw.income ? ` · income £${Number(r.raw.income).toLocaleString()}` : ""}
                         {r.raw.number ? ` · No. ${r.raw.number}` : ""}
                         {r.raw.areas && <span className="block max-w-[48ch] truncate" title={r.raw.areas}>{r.raw.areas}</span>}
                       </span>

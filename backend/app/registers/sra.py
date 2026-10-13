@@ -87,6 +87,7 @@ def parse(body: bytes) -> list[RegisterEntry]:
 
 class SraRegister:
     key = "sra"
+    short_name = "SRA"
     name = "Solicitors Regulation Authority"
     publisher = "Solicitors Regulation Authority"
     attribution = (
@@ -94,6 +95,11 @@ class SraRegister:
         "firms, reused under the SRA's data sharing terms."
     )
     cadence_hours = 24
+    area_label = "Area of work"
+    has_location = True
+    has_income = False
+    has_offices = True
+    specialist_areas: int | None = 3
 
     def __init__(self, url: str = API) -> None:
         self.url = url
@@ -102,7 +108,7 @@ class SraRegister:
         key = settings.sra_api_key
         return bool(key and key.get_secret_value())
 
-    async def download(self, fetcher: SafeHttpFetcher, settings: Settings) -> bytes:
+    async def download(self, fetcher: SafeHttpFetcher, settings: Settings) -> dict[str, bytes]:
         key = settings.sra_api_key
         if not key or not key.get_secret_value():
             raise ProviderUnavailable("The SRA register needs VROS_SRA_API_KEY.")
@@ -115,7 +121,7 @@ class SraRegister:
             raise ProviderUnavailable("The SRA refused the subscription key.")
         if result.status != 200:
             raise ProviderError(f"The SRA returned {result.status}.", code="register_error")
-        return result.body
+        return {"organisations": result.body}
 
-    def parse(self, body: bytes) -> list[RegisterEntry]:
-        return parse(body)
+    def parse(self, files: dict[str, bytes]) -> list[RegisterEntry]:
+        return parse(files["organisations"])

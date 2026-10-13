@@ -10,7 +10,7 @@ change can be told apart from a first sighting.
 from datetime import date, datetime
 from typing import Any
 
-from sqlalchemy import Boolean, Index, Integer, String, Text, UniqueConstraint
+from sqlalchemy import BigInteger, Boolean, Index, Integer, String, Text, UniqueConstraint
 from sqlalchemy.dialects.postgresql import ARRAY, JSONB
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -68,6 +68,10 @@ class RegisterRecord(IdMixin, TimestampMixin, Base):
     areas: Mapped[list[str]] = mapped_column(ARRAY(String(120)), default=list)
     office_count: Mapped[int | None] = mapped_column(Integer)
     authorised_on: Mapped[date | None]
+    # Latest annual income in pounds, where the register states it (charities). Slice 8.3.
+    income: Mapped[int | None] = mapped_column(BigInteger)
+    # SHA-256 of this entry as last applied: a refresh rewrites only rows that changed.
+    row_hash: Mapped[str | None] = mapped_column(String(64))
     first_seen_at: Mapped[datetime]
     last_seen_at: Mapped[datetime]
     removed_at: Mapped[datetime | None]

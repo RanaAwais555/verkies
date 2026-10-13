@@ -10,7 +10,7 @@ import trustme
 
 from app.providers.fetch.netguard import parse_networks
 from app.providers.fetch.safe_http import SafeHttpFetcher
-from app.providers.fetch.types import FetchBlocked, FetchBudget, FetchFailed
+from app.providers.fetch.types import UNTYPED, FetchBlocked, FetchBudget, FetchFailed
 from tests.unit.test_netguard import FakeResolver
 
 PUBLIC = "93.184.216.34"
@@ -137,6 +137,20 @@ async def test_unexpected_content_type_is_refused() -> None:
         with pytest.raises(FetchBlocked) as caught:
             await fetcher.fetch("https://site.test/file.zip")
     assert caught.value.code == "bad_content_type"
+
+
+async def test_a_response_without_a_content_type_is_refused_unless_the_caller_allows_it() -> None:
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(200, content=b"URN,Name\r\n1,A\r\n")  # no Content-Type at all
+
+    async with _fetcher(handler) as fetcher:
+        with pytest.raises(FetchBlocked) as caught:
+            await fetcher.fetch("https://site.test/data.csv")
+        assert caught.value.code == "bad_content_type"
+        result = await fetcher.fetch(
+            "https://site.test/data.csv", content_types=frozenset({"text/csv", UNTYPED})
+        )
+    assert result.content_type is None and result.body.startswith(b"URN")
 
 
 async def test_environment_proxies_are_ignored(monkeypatch: pytest.MonkeyPatch) -> None:
