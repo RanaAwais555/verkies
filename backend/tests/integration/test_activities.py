@@ -1,11 +1,18 @@
 """Slice 3.2: logging activities, editing contacts, relationship tracking and follow-up flags."""
 
+import asyncio
+import random
 import uuid
 from datetime import UTC, datetime, timedelta
 
 import pytest
-from sqlalchemy import Engine, text
+from sqlalchemy import Engine, select, text
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
+from app.accounts.models import Account
+from app.config import get_settings
+from app.core.enums import ActivityDirection
+from app.crm.activities import Relationship, account_relationships, relationship
 from tests.integration.conftest import ApiClient, make_user
 from tests.integration.test_deals import admin, stages  # noqa: F401 - fixture
 from tests.integration.test_leads import account, opportunity
@@ -370,3 +377,47 @@ def test_follow_ups_are_capped_but_counted_exactly(engine: Engine, api: ApiClien
     assert [f["title"] for f in overdue] == ["Overdue 9 days", "Overdue 5 days"]
     assert body["counts"]["overdue_follow_up"] == 3
     assert api.get("/follow-ups", params={"limit": 501}).status_code == 422
+
+
+def test_the_relationship_folded_in_sql_matches_the_rules(engine: Engine) -> None:
+    """Client health reads relationships for every client in one query; it must give exactly
+    what folding each account's activities in Python gives, ties and notes included."""
+    rng = random.Random(7)  # noqa: S311 - a repeatable mix of test data
+    directions = list(ActivityDirection)
+    base = NOW - timedelta(days=30)
+    expected: dict[uuid.UUID, Relationship] = {}
+    rows = []
+    for n in range(40):
+        acme = account(engine, f"Account {n}")
+        touches = [
+            (base + timedelta(hours=rng.randint(0, 12)), rng.choice(directions))
+            for _ in range(rng.randint(0, 8))  # few hours, so moments are often shared
+        ]
+        expected[acme] = relationship(touches)
+        rows += [{"id": uuid.uuid4(), "a": acme, "d": d.value, "at": at} for at, d in touches]
+    with engine.begin() as conn:
+        conn.execute(
+            text(
+                "INSERT INTO activities (id, account_id, channel, activity_type, direction,"
+                " occurred_at, summary, payload)"
+                " VALUES (:id, :a, 'manual', 'note', :d, :at, 'Logged', '{}')"
+            ),
+            rows,
+        )
+
+    async def fold() -> dict[uuid.UUID, Relationship]:
+        db_engine = create_async_engine(get_settings().database_url)
+        try:
+            async with async_sessionmaker(db_engine, class_=AsyncSession)() as db:
+                return await account_relationships(db, select(Account.id))
+        finally:
+            await db_engine.dispose()
+
+    folded = asyncio.run(fold())
+    assert {a: folded.get(a) or relationship([]) for a in expected} == expected
+    assert {r.response_status for r in expected.values()} == {
+        "not_contacted",
+        "no_reply",
+        "awaiting_reply",
+        "replied",
+    }

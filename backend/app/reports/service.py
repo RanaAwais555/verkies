@@ -993,9 +993,8 @@ async def management(db: AsyncSession, *, user: User, period: Period) -> Dashboa
             ],
         )
     )
-    at_risk = [
-        v for v in await health.list_clients(db, user=user) if v.colour is not HealthColour.GREEN
-    ]
+    clients = await health.list_clients(db, user=user)
+    at_risk = [v for v in clients if v.colour is not HealthColour.GREEN]
     board.tables.append(
         Table(
             "clients_at_risk",
@@ -1013,7 +1012,7 @@ async def management(db: AsyncSession, *, user: User, period: Period) -> Dashboa
             ],
         )
     )
-    expanding = [v for v in await health.list_clients(db, user=user) if v.expansion]
+    expanding = [v for v in clients if v.expansion]
     board.tables.append(
         Table(
             "clients_with_expansion",

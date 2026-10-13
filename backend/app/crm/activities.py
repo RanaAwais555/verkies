@@ -17,7 +17,7 @@ from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from typing import Any, Literal
 
-from sqlalchemy import func, select
+from sqlalchemy import Select, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.accounts import access
@@ -103,21 +103,20 @@ def relationship(touches: Iterable[tuple[datetime, ActivityDirection]]) -> Relat
             attempts = 0
         else:
             attempts += 1
-    status: ResponseStatus
-    if last_reply_at is None:
-        status = "no_reply"
-    elif attempts:
-        status = "awaiting_reply"
-    else:
-        status = "replied"
     return Relationship(
         first_interaction_at=ordered[0][0],
         latest_interaction_at=ordered[-1][0],
         interactions=len(ordered),
         last_reply_at=last_reply_at,
         attempts_since_reply=attempts,
-        response_status=status,
+        response_status=_status(last_reply_at, attempts),
     )
+
+
+def _status(last_reply_at: datetime | None, attempts: int) -> ResponseStatus:
+    if last_reply_at is None:
+        return "no_reply"
+    return "awaiting_reply" if attempts else "replied"
 
 
 async def contact_relationships(
@@ -143,6 +142,47 @@ async def account_relationship(db: AsyncSession, account_id: uuid.UUID) -> Relat
         select(Activity.occurred_at, Activity.direction).where(Activity.account_id == account_id)
     )
     return relationship((o, d) for o, d in rows.all())
+
+
+async def account_relationships(
+    db: AsyncSession, scope: Select[uuid.UUID]
+) -> dict[uuid.UUID, Relationship]:
+    """`relationship()` for every account in `scope` (a select of account ids), folded in SQL so
+    a list of thousands of clients does not read every activity they ever had. Accounts with no
+    interactions are left out; they are `relationship([])`.
+
+    The same rules: notes are not interactions, and an attempt at the same moment as the last
+    reply came before it, so only attempts strictly after the last reply count.
+    """
+    talk = Activity.direction != ActivityDirection.INTERNAL
+    reply = Activity.direction.in_(REPLIES)
+    replies = (
+        select(Activity.account_id, func.max(Activity.occurred_at).label("at"))
+        .where(Activity.account_id.in_(scope), reply)
+        .group_by(Activity.account_id)
+        .subquery()
+    )
+    rows = await db.execute(
+        select(
+            Activity.account_id,
+            func.min(Activity.occurred_at),
+            func.max(Activity.occurred_at),
+            func.count(),
+            func.max(replies.c.at),
+            func.count().filter(
+                ~reply, or_(replies.c.at.is_(None), Activity.occurred_at > replies.c.at)
+            ),
+        )
+        .outerjoin(replies, replies.c.account_id == Activity.account_id)
+        .where(Activity.account_id.in_(scope), talk)
+        .group_by(Activity.account_id)
+    )
+    return {
+        account_id: Relationship(
+            first, latest, interactions, last_reply_at, attempts, _status(last_reply_at, attempts)
+        )
+        for account_id, first, latest, interactions, last_reply_at, attempts in rows.all()
+    }
 
 
 # --- last touch (read by the follow-up engine and the deal board) ------------------------------
