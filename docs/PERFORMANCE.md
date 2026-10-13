@@ -23,7 +23,7 @@ change to a list, report or the follow-up engine, with the same data and the sam
 | --- | --- |
 | The follow-up engine filters, orders, counts and cuts in SQL: each kind returns its 100 most urgent flags (`limit`, up to 500) and the exact count | It loaded every overdue task, opportunity and deal into Python on every read: 12,000 overdue tasks and 15,000 opportunities each time |
 | "No next action" is decided in SQL (`crm.attention_statement`) | It read every open opportunity and filtered in Python |
-| Index `tasks.opportunity_id` (migration `0031`) | "Last touched" looks up each opportunity's latest completed task; without the index each lookup scanned every task |
+| Index `tasks.opportunity_id` (migration `0032`) | "Last touched" looks up each opportunity's latest completed task; without the index each lookup scanned every task |
 | Several API processes (`VROS_API_WORKERS`, default 2) with Prometheus multi-process metrics | Heavy requests are CPU-bound Python, so with one process every request queued behind them |
 | `VROS_WORKER_CONCURRENCY` (default 2) for the worker | How many research runs and monitoring checks run at once, without editing the image |
 | `limit` on `/clients`, `/monitoring/watched` and `/config/{kind}/versions`; a test (`tests/unit/test_list_limits.py`) that fails if a list endpoint has neither a capped `limit` nor a recorded reason it is bounded | No list endpoint returns every row of a growing table |

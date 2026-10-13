@@ -29,6 +29,7 @@ BOUNDED: dict[str, str] = {
     "/notifications/preferences": "one row per notification kind",
     "/system/providers": "one row per optional provider",
     "/system/backups": "one row per backup step",
+    "/registers/sources": "one row per register VROS has an adapter for",
     "/roles": "the seven roles",
     # Admin-curated configuration, small by design.
     "/catalogue/services": "what Verkies sells",

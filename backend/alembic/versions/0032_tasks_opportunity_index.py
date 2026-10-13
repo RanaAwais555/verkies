@@ -1,8 +1,8 @@
 """index tasks.opportunity_id: the follow-up engine reads each opportunity's latest completed task
 (slice 7.5)
 
-Revision ID: 0031
-Revises: 0030
+Revision ID: 0032
+Revises: 0031
 Create Date: 2026-10-13
 
 Without it, finding stale opportunities scanned every task once per opportunity: with 20,000
@@ -13,8 +13,8 @@ from collections.abc import Sequence
 
 from alembic import op
 
-revision: str = "0031"
-down_revision: str | None = "0030"
+revision: str = "0032"
+down_revision: str | None = "0031"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 
