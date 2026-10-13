@@ -6,7 +6,7 @@ import { useRef, useState, type FormEvent } from "react";
 import { Badge, Button, Empty, ErrorNote, Field, IconButton, inputClass, Panel, Skeleton } from "@/components/ui";
 import { api, withQuery } from "@/lib/client";
 import { formatDate } from "@/lib/format";
-import { useAction, useApi } from "@/lib/hooks";
+import { useAction, useApi, useCanChange } from "@/lib/hooks";
 import type { Deal, DocumentKind, Project, VrosDocument } from "@/lib/types";
 
 export const DOCUMENT_KINDS: { key: DocumentKind; label: string }[] = [
@@ -34,6 +34,7 @@ function size(bytes: number): string {
 function DocumentRow({ doc, showAccount }: { doc: VrosDocument; showAccount?: boolean }) {
   const { busy, error, run } = useAction();
   const [confirming, setConfirming] = useState(false);
+  const writable = useCanChange();
   return (
     <li className="flex flex-wrap items-start gap-3 py-3 first:pt-0 last:pb-0" data-testid="document">
       <span aria-hidden className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-sunken text-fg-3">
@@ -70,9 +71,11 @@ function DocumentRow({ doc, showAccount }: { doc: VrosDocument; showAccount?: bo
             </Button>
           </>
         ) : (
-          <IconButton label={`Remove ${doc.title}`} onClick={() => setConfirming(true)}>
-            <Trash2 className="h-4 w-4" />
-          </IconButton>
+          writable && (
+            <IconButton label={`Remove ${doc.title}`} onClick={() => setConfirming(true)}>
+              <Trash2 className="h-4 w-4" />
+            </IconButton>
+          )
         )}
       </span>
     </li>
@@ -195,12 +198,14 @@ export function DocumentsPanel({
   const { data: projects } = useApi<Project[]>(withLinks ? `/projects?account_id=${accountId}&status=all` : null);
   const { data: deals } = useApi<Deal[]>(withLinks ? `/deals?account_id=${accountId}&status=all` : null);
   const [adding, setAdding] = useState(false);
+  const writable = useCanChange();
   return (
     <Panel
       title="Documents"
       description={description ?? "Proposals, contracts, briefs, notes and files. Downloads only; nothing is opened inside VROS."}
       testId="documents"
       actions={
+        writable &&
         !adding && (
           <Button onClick={() => setAdding(true)} icon={<Upload className="h-4 w-4" />}>
             Upload

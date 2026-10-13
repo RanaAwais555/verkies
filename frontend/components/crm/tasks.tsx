@@ -7,7 +7,7 @@ import { Badge, Button, ErrorNote, Field, inputClass, StatusBadge, TextLink } fr
 import { cx } from "@/components/ui/cx";
 import { api } from "@/lib/client";
 import { endOfWorkingDay, formatDate, initials, isOverdue, relativeDate } from "@/lib/format";
-import { useAction, useApi, useSession } from "@/lib/hooks";
+import { useAction, useApi, useCanChange, useSession } from "@/lib/hooks";
 import type { Task, TeamMember } from "@/lib/types";
 
 const PRIORITY_TONE = { urgent: "red", high: "amber", low: "neutral", normal: "neutral" } as const;
@@ -21,6 +21,7 @@ export function TaskRow({ task, showAccount, onChange }: { task: Task; showAccou
   const { busy, error, run } = useAction();
   const open = isOpen(task);
   const overdue = open && isOverdue(task.due_at);
+  const writable = useCanChange();
 
   async function complete() {
     if (await run(() => api(`/tasks/${task.id}/complete`, { method: "POST", body: {} }).then(() => true))) onChange?.();
@@ -55,7 +56,7 @@ export function TaskRow({ task, showAccount, onChange }: { task: Task; showAccou
         </div>
         <ErrorNote error={error} />
       </div>
-      {open && (
+      {open && writable && (
         <Button busy={busy} onClick={complete} icon={<Check className="h-3.5 w-3.5" />} className="h-8 shrink-0 px-2.5 text-xs">
           Mark done
         </Button>

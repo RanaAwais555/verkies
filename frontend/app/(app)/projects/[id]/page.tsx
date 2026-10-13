@@ -12,7 +12,7 @@ import { Badge, Button, Empty, ErrorNote, Field, IconButton, inputClass, PageHea
 import { cx } from "@/components/ui/cx";
 import { api } from "@/lib/client";
 import { formatDate, money } from "@/lib/format";
-import { useAction, useApi } from "@/lib/hooks";
+import { useAction, useApi, useCanChange } from "@/lib/hooks";
 import type { Milestone, ProjectDetail, ProjectRisk, Service, TeamMember } from "@/lib/types";
 
 const SEVERITY_TONE: Record<ProjectRisk["severity"], Tone> = { low: "neutral", medium: "amber", high: "red" };
@@ -21,6 +21,7 @@ function MilestoneItem({ milestone, onChange }: { milestone: Milestone; onChange
   const { busy, error, run } = useAction();
   const toggle = () => run(() => api(`/milestones/${milestone.id}`, { method: "PATCH", body: { done: !milestone.done } }).then(onChange));
   const remove = () => run(() => api(`/milestones/${milestone.id}`, { method: "DELETE" }).then(onChange));
+  const writable = useCanChange();
   return (
     <li className="flex items-start gap-3 py-2.5 first:pt-0 last:pb-0" data-testid="milestone">
       <button
@@ -28,7 +29,7 @@ function MilestoneItem({ milestone, onChange }: { milestone: Milestone; onChange
         role="checkbox"
         aria-checked={milestone.done}
         aria-label={`${milestone.done ? "Reopen" : "Mark reached"}: ${milestone.name}`}
-        disabled={busy}
+        disabled={busy || !writable}
         onClick={toggle}
         className={cx(
           "mt-0.5 flex h-[18px] w-[18px] shrink-0 items-center justify-center rounded-md border transition-colors",
@@ -48,15 +49,18 @@ function MilestoneItem({ milestone, onChange }: { milestone: Milestone; onChange
         </span>
         <ErrorNote error={error} />
       </span>
-      <IconButton label={`Delete milestone ${milestone.name}`} onClick={remove}>
-        <Trash2 className="h-4 w-4" />
-      </IconButton>
+      {writable && (
+        <IconButton label={`Delete milestone ${milestone.name}`} onClick={remove}>
+          <Trash2 className="h-4 w-4" />
+        </IconButton>
+      )}
     </li>
   );
 }
 
 function Milestones({ project, refresh }: { project: ProjectDetail; refresh: () => void }) {
   const { busy, error, run } = useAction();
+  const writable = useCanChange();
 
   async function add(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -86,6 +90,7 @@ function Milestones({ project, refresh }: { project: ProjectDetail; refresh: () 
             ))}
           </ul>
         )}
+        {writable && (
         <form onSubmit={add} className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_10rem_auto] sm:items-end">
           <Field label="New milestone">
             <input name="name" required maxLength={200} className={inputClass} />
@@ -97,6 +102,7 @@ function Milestones({ project, refresh }: { project: ProjectDetail; refresh: () 
             Add
           </Button>
         </form>
+        )}
         <ErrorNote error={error} />
       </div>
     </Panel>
@@ -106,6 +112,7 @@ function Milestones({ project, refresh }: { project: ProjectDetail; refresh: () 
 function RiskItem({ risk, onChange }: { risk: ProjectRisk; onChange: () => void }) {
   const { busy, error, run } = useAction();
   const [resolving, setResolving] = useState(false);
+  const writable = useCanChange();
 
   async function resolve(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -128,6 +135,7 @@ function RiskItem({ risk, onChange }: { risk: ProjectRisk; onChange: () => void 
         {risk.resolution && `: ${risk.resolution}`}
       </p>
       {!risk.resolved &&
+        writable &&
         (resolving ? (
           <form onSubmit={resolve} className="flex flex-wrap items-end gap-2">
             <Field label="How it was resolved (optional)" className="min-w-0 flex-1">
@@ -153,6 +161,7 @@ function RiskItem({ risk, onChange }: { risk: ProjectRisk; onChange: () => void 
 function Risks({ project, refresh }: { project: ProjectDetail; refresh: () => void }) {
   const { busy, error, run } = useAction();
   const [raising, setRaising] = useState(false);
+  const writable = useCanChange();
 
   async function raise(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -175,6 +184,7 @@ function Risks({ project, refresh }: { project: ProjectDetail; refresh: () => vo
       description="Anything that could hurt delivery. Open until someone resolves it."
       testId="risks"
       actions={
+        writable &&
         !raising && (
           <Button onClick={() => setRaising(true)} icon={<ShieldAlert className="h-4 w-4" />}>
             Raise a risk
@@ -222,12 +232,14 @@ function Risks({ project, refresh }: { project: ProjectDetail; refresh: () => vo
 
 function Tasks({ project, refresh }: { project: ProjectDetail; refresh: () => void }) {
   const [adding, setAdding] = useState(false);
+  const writable = useCanChange();
   return (
     <Panel
       title="Tasks"
       description={`${project.open_tasks} open${project.overdue_tasks ? `, ${project.overdue_tasks} overdue` : ""}.`}
       testId="project-tasks"
       actions={
+        writable &&
         !adding && (
           <Button onClick={() => setAdding(true)} icon={<Plus className="h-4 w-4" />}>
             Add task
@@ -266,6 +278,7 @@ function Details({ project, refresh }: { project: ProjectDetail; refresh: () => 
   const { data: services } = useApi<Service[]>("/catalogue/services");
   const { busy, error, run } = useAction();
   const [saved, setSaved] = useState(false);
+  const writable = useCanChange();
 
   async function save(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -293,7 +306,9 @@ function Details({ project, refresh }: { project: ProjectDetail; refresh: () => 
 
   return (
     <Panel title="Details" testId="project-details">
-      <form key={project.status + project.target_date + project.owner?.id} onSubmit={save} className="space-y-3">
+      <form key={project.status + project.target_date + project.owner?.id} onSubmit={save}>
+        {/* Read-only for someone who may not change records: the same fields, disabled. */}
+        <fieldset disabled={!writable} className="space-y-3">
         <Field label="Name">
           <input name="name" defaultValue={project.name} required maxLength={200} className={inputClass} />
         </Field>
@@ -338,12 +353,15 @@ function Details({ project, refresh }: { project: ProjectDetail; refresh: () => 
           <textarea name="notes" defaultValue={project.notes ?? ""} maxLength={10000} rows={4} className={cx(inputClass, "resize-y")} />
         </Field>
         <ErrorNote error={error} />
-        <div className="flex items-center gap-3">
-          <Button type="submit" variant="primary" busy={busy} icon={<Save className="h-4 w-4" />}>
-            Save
-          </Button>
-          {saved && <span className="text-xs text-ok">Saved.</span>}
-        </div>
+        {writable && (
+          <div className="flex items-center gap-3">
+            <Button type="submit" variant="primary" busy={busy} icon={<Save className="h-4 w-4" />}>
+              Save
+            </Button>
+            {saved && <span className="text-xs text-ok">Saved.</span>}
+          </div>
+        )}
+        </fieldset>
       </form>
     </Panel>
   );

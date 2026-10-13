@@ -7,7 +7,7 @@ import { useState } from "react";
 import { Badge, Button, Empty, ErrorNote, Panel, Skeleton, SourceLink, Table, type Tone } from "@/components/ui";
 import { api } from "@/lib/client";
 import { formatDate, label, relativeDate } from "@/lib/format";
-import { useAction, useApi } from "@/lib/hooks";
+import { useAction, useApi, useCanChange } from "@/lib/hooks";
 import type { AlertFlag, MonitorAlert, WatchedAccount, WebsiteChange } from "@/lib/types";
 
 const KIND: Record<string, { label: string; tone: Tone }> = {
@@ -62,6 +62,8 @@ function BeforeAfter({ change }: { change: WebsiteChange }) {
 export function WatchButton({ accountId, watching, onChange }: { accountId: string; watching: boolean; onChange: () => void }) {
   const { busy, error, run } = useAction();
   const [queued, setQueued] = useState(false);
+  // Watching is the person's own; checking now runs work for the team, so it needs records.write.
+  const writable = useCanChange();
   return (
     <span className="inline-flex flex-wrap items-center gap-2">
       <Button
@@ -73,7 +75,7 @@ export function WatchButton({ accountId, watching, onChange }: { accountId: stri
       >
         {watching ? "Stop watching" : "Watch"}
       </Button>
-      {watching && (
+      {watching && writable && (
         <Button
           variant="ghost"
           icon={<RefreshCw className="h-4 w-4" />}
@@ -92,6 +94,7 @@ export function WatchButton({ accountId, watching, onChange }: { accountId: stri
 
 function AlertRow({ alert, showAccount }: { alert: MonitorAlert; showAccount: boolean }) {
   const { busy, run } = useAction();
+  const writable = useCanChange();
   const kind = KIND[alert.kind] ?? { label: label(alert.kind), tone: "neutral" as Tone };
   return (
     <li className="flex flex-wrap items-start gap-3 py-3 first:pt-0 last:pb-0" data-testid="monitor-alert">
@@ -124,7 +127,7 @@ function AlertRow({ alert, showAccount }: { alert: MonitorAlert; showAccount: bo
         <SourceLink url={alert.source_url} />
         {alert.detail && <BeforeAfter change={alert.detail} />}
       </span>
-      {!alert.reviewed && (
+      {!alert.reviewed && writable && (
         <Button
           className="h-7 px-2.5 text-xs"
           busy={busy}

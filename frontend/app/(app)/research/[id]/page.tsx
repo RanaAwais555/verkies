@@ -42,6 +42,7 @@ export default function ResearchRunPage() {
   const nextAction = brief?.sections.next_action?.claims[0]?.text ?? null;
   const needsOverride = !!assessment && (!assessment.score?.qualifies || !!assessment.qualification?.hard_reject);
   const reviewer = can(session, "prospects.review");
+  const runner = can(session, "research.run");
   const reviewable = completed && run.review_status === "pending" && reviewer && brief && assessment;
 
   return (
@@ -81,12 +82,12 @@ export default function ResearchRunPage() {
         actions={
           <>
             {run.account_id && run.review_status !== "approved" && <TextLink href={`/accounts/${run.account_id}`}>Open account</TextLink>}
-            {ACTIVE.has(run.status) && (
+            {runner && ACTIVE.has(run.status) && (
               <Button busy={action.busy} onClick={() => act("cancel")} icon={<Square className="h-3.5 w-3.5" />}>
                 Cancel
               </Button>
             )}
-            {(run.status === "failed" || run.status === "cancelled") && (
+            {runner && (run.status === "failed" || run.status === "cancelled") && (
               <Button busy={action.busy} onClick={() => act("retry")} icon={<RotateCcw className="h-3.5 w-3.5" />}>
                 Retry
               </Button>

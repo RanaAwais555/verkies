@@ -6,7 +6,7 @@ import { useState, type FormEvent } from "react";
 import { Badge, Button, Empty, ErrorNote, Field, inputClass, Panel, Skeleton, SourceLink, Success } from "@/components/ui";
 import { api } from "@/lib/client";
 import { formatDate } from "@/lib/format";
-import { useAction, useApi } from "@/lib/hooks";
+import { useAction, useApi, useCanChange } from "@/lib/hooks";
 import type { ExpansionSuggestion } from "@/lib/types";
 
 function SuggestionItem({ accountId, suggestion, onDone }: { accountId: string; suggestion: ExpansionSuggestion; onDone: (message: string) => void }) {
@@ -14,6 +14,7 @@ function SuggestionItem({ accountId, suggestion, onDone }: { accountId: string; 
   const [dismissing, setDismissing] = useState(false);
   const [service, setService] = useState(suggestion.services.length === 1 ? suggestion.services[0].id : "");
   const base = `/accounts/${accountId}/expansion/${suggestion.candidate_id}`;
+  const writable = useCanChange();
 
   async function open() {
     const done = await run(() => api(`${base}/open`, { method: "POST", body: { service_id: service || null } }).then(() => true));
@@ -46,7 +47,7 @@ function SuggestionItem({ accountId, suggestion, onDone }: { accountId: string; 
           ))}
         </ul>
       </div>
-      {dismissing ? (
+      {!writable ? null : dismissing ? (
         <form onSubmit={dismiss} className="flex flex-wrap items-end gap-2">
           <Field label="Why it does not fit" className="min-w-0 flex-1">
             <input name="reason" required minLength={3} maxLength={500} className={inputClass} />

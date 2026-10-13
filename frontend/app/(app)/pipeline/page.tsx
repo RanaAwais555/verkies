@@ -12,7 +12,7 @@ import { SaveViewButton } from "@/components/views/save-view";
 import { cx } from "@/components/ui/cx";
 import { api, withQuery } from "@/lib/client";
 import { money } from "@/lib/format";
-import { useAction, useApi, useTab } from "@/lib/hooks";
+import { useAction, useApi, useCanChange, useTab } from "@/lib/hooks";
 import type { Deal, Forecast, Pipeline, PipelineStage, Pipelines } from "@/lib/types";
 
 const OUTCOME_TINT: Record<PipelineStage["outcome"], string> = {
@@ -36,7 +36,7 @@ function Column({
   stages: PipelineStage[];
   selected: string | null;
   onSelect: (id: string) => void;
-  onMove: (deal: Deal, stage: PipelineStage) => void;
+  onMove?: (deal: Deal, stage: PipelineStage) => void;
 }) {
   const [over, setOver] = useState(false);
   const total = deals.reduce((sum, d) => sum + (d.value ?? 0), 0);
@@ -47,7 +47,7 @@ function Column({
     setOver(false);
     // The board looks the deal up by id; dropping it on its own column does nothing.
     const id = event.dataTransfer.getData(DRAG_TYPE);
-    if (id) onMove({ id } as Deal, stage);
+    if (id) onMove?.({ id } as Deal, stage);
   }
 
   return (
@@ -55,7 +55,7 @@ function Column({
       aria-label={`${stage.name}: ${deals.length} deals`}
       data-testid={`stage-${stage.key}`}
       onDragOver={(e) => {
-        if (e.dataTransfer.types.includes(DRAG_TYPE)) {
+        if (onMove && e.dataTransfer.types.includes(DRAG_TYPE)) {
           e.preventDefault();
           setOver(true);
         }
@@ -89,7 +89,7 @@ function Column({
             stages={stages}
             selected={selected === deal.id}
             onSelect={() => onSelect(deal.id)}
-            onMove={(target) => onMove(deal, target)}
+            onMove={onMove && ((target) => onMove(deal, target))}
           />
         ))}
       </div>
@@ -126,6 +126,7 @@ function Board({
   const [selected, setSelected] = useState<string | null>(null);
   const [losing, setLosing] = useState<{ deal: Deal; stage: PipelineStage } | null>(null);
   const action = useAction();
+  const writable = useCanChange();
 
   async function refresh() {
     await Promise.all([deals.mutate(), forecast.mutate()]);
@@ -189,7 +190,7 @@ function Board({
                   deals={shown.filter((d) => d.stage_id === stage.id)}
                   selected={selected}
                   onSelect={setSelected}
-                  onMove={move}
+                  onMove={writable ? move : undefined}
                 />
               ))}
             </div>
@@ -208,6 +209,7 @@ function Board({
 export default function PipelinePage() {
   const { data, error } = useApi<Pipelines>("/pipelines");
   const [tab, setTab] = useTab("new_business");
+  const writable = useCanChange();
   const params = useSearchParams();
   const pathname = usePathname();
   const router = useRouter();
@@ -232,7 +234,7 @@ export default function PipelinePage() {
       <PageHeader
         eyebrow="Revenue"
         title="Pipeline"
-        description="Every deal by stage. Drag a card, or use its Move menu. A deal's value stays Unknown until someone enters it."
+        description={`Every deal by stage.${writable ? " Drag a card, or use its Move menu." : ""} A deal's value stays Unknown until someone enters it.`}
         actions={
           <>
             <select value={owner} onChange={(e) => set({ owner: e.target.value || null })} aria-label="Deal owner" className={`${controlClass} w-40`}>

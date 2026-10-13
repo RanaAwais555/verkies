@@ -8,7 +8,7 @@ import { Badge, Button, Empty, ErrorNote, Field, inputClass, Panel, ShowAll, Tab
 import { cx } from "@/components/ui/cx";
 import { api } from "@/lib/client";
 import { formatDate, relativeDate } from "@/lib/format";
-import { useAction, useApi } from "@/lib/hooks";
+import { useAction, useApi, useCanChange } from "@/lib/hooks";
 import type { Account360, AccountHealth, ClientSummary, HealthColour, HealthReason } from "@/lib/types";
 
 const COLOUR: Record<HealthColour, { label: string; tone: Tone; dot: string }> = {
@@ -180,6 +180,7 @@ function EndClient({ accountId, onDone }: { accountId: string; onDone: () => voi
 export function ClientHealthPanel({ account, onChange }: { account: Account360; onChange: () => void }) {
   const { data, error, mutate } = useApi<AccountHealth>(`/accounts/${account.id}/health`);
   const [recording, setRecording] = useState(false);
+  const writable = useCanChange();
   if (error) return <ErrorNote error={error} />;
   if (!data) return null;
   const current = data.current;
@@ -196,6 +197,7 @@ export function ClientHealthPanel({ account, onChange }: { account: Account360; 
       testId="client-health"
       actions={
         current &&
+        writable &&
         !recording && (
           <Button onClick={() => setRecording(true)} icon={<MessageSquareText className="h-4 w-4" />}>
             Record feedback
@@ -256,7 +258,7 @@ export function ClientHealthPanel({ account, onChange }: { account: Account360; 
             </ol>
           </div>
         )}
-        {current && <EndClient accountId={account.id} onDone={refresh} />}
+        {current && writable && <EndClient accountId={account.id} onDone={refresh} />}
       </div>
     </Panel>
   );

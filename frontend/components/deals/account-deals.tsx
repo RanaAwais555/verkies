@@ -9,7 +9,7 @@ import { ConvertForm } from "@/components/clients/convert";
 import { Badge, Button, Empty, ErrorNote, Panel, ShowAll } from "@/components/ui";
 import { api } from "@/lib/client";
 import { formatDate, money } from "@/lib/format";
-import { useAction } from "@/lib/hooks";
+import { useAction, useCanChange } from "@/lib/hooks";
 import type { Deal } from "@/lib/types";
 
 const OUTCOME_TONE = { open: "accent", won: "green", lost: "red", nurture: "amber", inactive: "neutral" } as const;
@@ -36,6 +36,7 @@ export function OpenDealButton({ opportunityId, onOpened }: { opportunityId: str
 
 /** The account's deals, open and closed, each with its stage, value and close date. */
 export function AccountDeals({ deals, onChange }: { deals: Deal[]; onChange: () => void }) {
+  const writable = useCanChange();
   const [converting, setConverting] = useState<string | null>(null);
   return (
     <Panel
@@ -80,9 +81,11 @@ export function AccountDeals({ deals, onChange }: { deals: Deal[]; onChange: () 
                       }}
                     />
                   ) : (
-                    <Button className="h-7 px-2.5 text-xs" icon={<UserCheck className="h-3.5 w-3.5" />} onClick={() => setConverting(d.id)}>
-                      Convert to client
-                    </Button>
+                    writable && (
+                      <Button className="h-7 px-2.5 text-xs" icon={<UserCheck className="h-3.5 w-3.5" />} onClick={() => setConverting(d.id)}>
+                        Convert to client
+                      </Button>
+                    )
                   )}
                 </span>
               )}

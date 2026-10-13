@@ -8,7 +8,7 @@ import { MailboxSettings } from "@/components/mail/mailbox-settings";
 import { cx } from "@/components/ui/cx";
 import { api } from "@/lib/client";
 import { fileSize, formatDate, initials, label, relativeDate } from "@/lib/format";
-import { can, useAction, useApi, useSession, useTab } from "@/lib/hooks";
+import { can, canChange, useAction, useApi, useSession, useTab } from "@/lib/hooks";
 import type { BackupStatus, ConfigVersion, Invite, ProviderStatus, Readiness, ReferenceProject, RegisterSource, Role, Service, User } from "@/lib/types";
 
 function Profile({ user }: { user: User }) {
@@ -607,7 +607,8 @@ export default function SettingsPage() {
   const configAdmin = can(session, "config.manage");
   const tabs = [
     { key: "profile", label: "Profile" },
-    ...(can(session, "accounts.read", "accounts.read_own") ? [{ key: "mailbox", label: "Mailbox" }] : []),
+    // Connecting a mailbox is for people who send email, which someone view-only may not.
+    ...(canChange(session) ? [{ key: "mailbox", label: "Mailbox" }] : []),
     ...(can(session, "users.manage") ? [{ key: "team", label: "Team" }] : []),
     { key: "catalogue", label: "Services and references" },
     ...(can(session, "config.manage", "research.run", "accounts.read", "accounts.read_own") ? [{ key: "config", label: "ICP and scoring" }] : []),
