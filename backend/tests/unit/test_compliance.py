@@ -1,19 +1,18 @@
 """Website compliance and health (slice 8.2): what a site must show by law or its regulator,
-the Wayback Machine and Safe Browsing checks, and the opportunity they raise."""
+the Wayback Machine check, and the opportunity they raise."""
 
 import asyncio
 import json
 from datetime import date
 
-import httpx
 import pytest
 
 from app.intelligence.extractors import compliance
 from app.intelligence.facts import facts_from_observations
 from app.intelligence.types import Observation, Page, SiteContext
 from app.opportunities.detectors import website_compliance, website_rebuild
-from app.providers.errors import ProviderError, ProviderUnavailable
-from app.sitecheck import safebrowsing, wayback
+from app.providers.errors import ProviderError
+from app.sitecheck import wayback
 from app.sitecheck.stage import SiteChecks, collect
 
 BADGE = (
@@ -192,17 +191,7 @@ def obs(key: str, value: object) -> Observation:
     return Observation(ObservationArea.WEBSITE, key, value, "https://firm.test/", "x")
 
 
-def test_a_safe_browsing_listing_alone_raises_compliance_and_old_archives_count_as_neglect() -> (
-    None
-):
-    flagged = facts_from_observations([obs("website.safe_browsing", {"threats": ["MALWARE"]})])
-    candidate = website_compliance(flagged)
-    assert candidate is not None and "warns visitors away" in candidate.problem
-    assert (
-        website_compliance(facts_from_observations([obs("website.safe_browsing", {"threats": []})]))
-        is None
-    )
-
+def test_old_archives_count_as_neglect() -> None:
     old = facts_from_observations(
         [
             obs("website.archive", {"years_unchanged": 5.2, "last_changed": "2021-08-01"}),
@@ -233,28 +222,6 @@ def test_wayback_reports_first_capture_and_last_change() -> None:
         wayback.parse(b"not json", b"[]")
 
 
-def test_safe_browsing_reads_threats_and_a_refused_key_is_unavailable() -> None:
-    assert safebrowsing.parse({}) == []
-    assert safebrowsing.parse(
-        {"matches": [{"threatType": "MALWARE"}, {"threatType": "SOCIAL_ENGINEERING"}]}
-    ) == ["MALWARE", "SOCIAL_ENGINEERING"]
-
-    def handler(request: httpx.Request) -> httpx.Response:
-        assert request.url.params["key"] == "k"
-        assert json.loads(request.content)["threatInfo"]["threatEntries"] == [
-            {"url": "https://firm.test/"}
-        ]
-        return httpx.Response(200, json={"matches": [{"threatType": "MALWARE"}]})
-
-    client = safebrowsing.SafeBrowsing("k", transport=httpx.MockTransport(handler))
-    assert asyncio.run(client.threats("https://firm.test/")) == ["MALWARE"]
-    refused = safebrowsing.SafeBrowsing(
-        "bad", transport=httpx.MockTransport(lambda _r: httpx.Response(403))
-    )
-    with pytest.raises(ProviderUnavailable):
-        asyncio.run(refused.threats("https://firm.test/"))
-
-
 class FakeWayback(wayback.Wayback):
     def __init__(self, record: wayback.ArchiveRecord | None, fail: bool = False) -> None:
         super().__init__(enabled=True)
@@ -268,9 +235,9 @@ class FakeWayback(wayback.Wayback):
 
 def test_site_checks_record_what_they_found_and_report_what_they_could_not() -> None:
     record = wayback.ArchiveRecord(date(2006, 7, 1), date(2021, 8, 15), 12)
-    checks = SiteChecks(FakeWayback(record), safebrowsing.SafeBrowsing(None))
+    checks = SiteChecks(FakeWayback(record))
     found_, report = asyncio.run(
-        collect("firm.test", "https://firm.test/", None, checks, date(2026, 8, 15))  # type: ignore[arg-type]
+        collect("firm.test", None, checks, date(2026, 8, 15))  # type: ignore[arg-type]
     )
     [archive] = found_
     assert archive.key == "website.archive"
@@ -281,14 +248,11 @@ def test_site_checks_record_what_they_found_and_report_what_they_could_not() -> 
         "recent_versions": 12,
     }
     assert archive.source_url == "https://web.archive.org/web/*/firm.test"
-    assert report == {
-        "website_archive": "last changed 2021-08-15",
-        "safe_browsing": "not configured",
-    }
+    assert report == {"website_archive": "last changed 2021-08-15"}
 
-    failing = SiteChecks(FakeWayback(None, fail=True), safebrowsing.SafeBrowsing(None))
+    failing = SiteChecks(FakeWayback(None, fail=True))
     nothing, report = asyncio.run(
-        collect("firm.test", "https://firm.test/", None, failing, date(2026, 8, 15))  # type: ignore[arg-type]
+        collect("firm.test", None, failing, date(2026, 8, 15))  # type: ignore[arg-type]
     )
     assert nothing == []
     assert report["website_archive"] == "failed"
@@ -296,5 +260,5 @@ def test_site_checks_record_what_they_found_and_report_what_they_could_not() -> 
 
     off = SiteChecks.disabled()
     assert asyncio.run(
-        collect("firm.test", "https://firm.test/", None, off, date(2026, 8, 15))  # type: ignore[arg-type]
-    ) == ([], {"website_archive": "disabled", "safe_browsing": "not configured"})
+        collect("firm.test", None, off, date(2026, 8, 15))  # type: ignore[arg-type]
+    ) == ([], {"website_archive": "disabled"})

@@ -63,7 +63,7 @@ class PipelineDeps:
     job_boards: JobBoards = field(default_factory=JobBoards.default)
     # None: built from settings (Companies House key, Wikidata switch).
     registries: Registries | None = None
-    # None: built from settings (Wayback switch, Safe Browsing key). Slice 8.2.
+    # None: built from settings (Wayback switch). Slice 8.2.
     site_checks: SiteChecks | None = None
 
 
