@@ -121,8 +121,13 @@ async def check_now(
 
 
 @router.get("/monitoring/watched")
-async def watched(user: Member, db: DbSession, mine: bool = True) -> list[WatchedOut]:
-    views = await service.watched(db, user=user, mine=mine)
+async def watched(
+    user: Member,
+    db: DbSession,
+    mine: bool = True,
+    limit: Annotated[int, Query(ge=1, le=1000)] = 500,
+) -> list[WatchedOut]:
+    views = await service.watched(db, user=user, mine=mine, limit=limit)
     return [
         WatchedOut(
             account_id=v.account.id,

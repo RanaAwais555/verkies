@@ -347,3 +347,26 @@ def test_mine_and_who_may_see_what(
     assert seller.get(f"/activities?account_id={ours}").json() == []
     assert seller.send("POST", f"/accounts/{ours}/contacts", json={"name": "X"}).status_code == 404
     assert log(seller, sams, kind="note", summary="Mine.").status_code == 201
+
+
+def test_follow_ups_are_capped_but_counted_exactly(engine: Engine, api: ApiClient) -> None:
+    """Slice 7.5: each kind returns at most `limit` flags, most urgent first, while `counts`
+    says how many there are, so the list stays fast however many exist."""
+    owner = make_user(engine, "ada@verkies.test", ["admin"], name="Ada Admin")
+    api.login("ada@verkies.test")
+    acme = account(engine, "Acme Legal", domain="acme.test", owner=owner)
+    with engine.begin() as conn:
+        for days in (3, 9, 5):
+            conn.execute(
+                text(
+                    "INSERT INTO tasks (id, account_id, title, owner_id, due_at, priority, status)"
+                    " VALUES (gen_random_uuid(), :a, :t, :o, now() - make_interval(days => :d),"
+                    " 'normal', 'open')"
+                ),
+                {"a": acme, "t": f"Overdue {days} days", "o": owner, "d": days},
+            )
+    body = api.get("/follow-ups", params={"limit": 2}).json()
+    overdue = [f for f in body["flags"] if f["kind"] == "overdue_follow_up"]
+    assert [f["title"] for f in overdue] == ["Overdue 9 days", "Overdue 5 days"]
+    assert body["counts"]["overdue_follow_up"] == 3
+    assert api.get("/follow-ups", params={"limit": 501}).status_code == 422

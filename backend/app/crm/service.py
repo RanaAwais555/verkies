@@ -8,7 +8,7 @@ import uuid
 from datetime import UTC, datetime
 from typing import Any
 
-from sqlalchemy import ColumnElement, Select, func, select
+from sqlalchemy import ColumnElement, Select, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.accounts import access
@@ -312,9 +312,10 @@ def closed_opportunities() -> Select[Any]:
     )
 
 
-async def requiring_attention(
-    db: AsyncSession, *, user: User, limit: int, mine: bool = False
-) -> list[tuple[Opportunity, Account, list[str]]]:
+def attention_statement(user: User, *, mine: bool = False) -> Select[Opportunity, Account, Task]:
+    """Open opportunities that need a next action, as (Opportunity, Account, Task), highest
+    priority first. The filter is attention_reasons in SQL, so the database does the cutting:
+    no open next action, or one without an owner or a due date (slice 7.5)."""
     stmt = (
         select(Opportunity, Account, Task)
         .join(Account, Account.id == Opportunity.account_id)
@@ -323,6 +324,13 @@ async def requiring_attention(
             Opportunity.deleted_at.is_(None),
             Account.deleted_at.is_(None),
             Opportunity.id.not_in(closed_opportunities()),
+            or_(
+                Task.id.is_(None),
+                Task.deleted_at.is_not(None),
+                Task.status.not_in(OPEN),
+                Task.owner_id.is_(None),
+                Task.due_at.is_(None),
+            ),
         )
         .order_by(Account.priority_score.desc().nulls_last(), Opportunity.created_at)
     )
@@ -331,14 +339,14 @@ async def requiring_attention(
         stmt = stmt.where(clause)
     if mine:
         stmt = stmt.where(responsible(Opportunity.owner_id) == user.id)
-    found: list[tuple[Opportunity, Account, list[str]]] = []
-    for opportunity, account, task in (await db.execute(stmt)).all():
-        reasons = attention_reasons(opportunity, task)
-        if reasons:
-            found.append((opportunity, account, reasons))
-            if len(found) >= limit:
-                break
-    return found
+    return stmt
+
+
+async def requiring_attention(
+    db: AsyncSession, *, user: User, limit: int, mine: bool = False
+) -> list[tuple[Opportunity, Account, list[str]]]:
+    rows = (await db.execute(attention_statement(user, mine=mine).limit(limit))).all()
+    return [(o, a, attention_reasons(o, t)) for o, a, t in rows]
 
 
 async def opportunity_labels(

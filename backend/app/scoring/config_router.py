@@ -7,7 +7,7 @@ qualification result and score snapshot records which version produced it.
 from datetime import datetime
 from typing import Annotated, Any, Literal
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Query
 from pydantic import BaseModel
 from sqlalchemy import select
 
@@ -64,9 +64,14 @@ async def active(kind: Kind, _: Reader, db: DbSession) -> ConfigVersion:
 
 
 @router.get("/{kind}/versions")
-async def versions(kind: Kind, _: Reader, db: DbSession) -> list[ConfigVersion]:
+async def versions(
+    kind: Kind,
+    _: Reader,
+    db: DbSession,
+    limit: Annotated[int, Query(ge=1, le=500)] = 100,
+) -> list[ConfigVersion]:
     table = TABLES[kind]
-    rows = (await db.execute(select(table).order_by(table.version.desc()))).scalars()
+    rows = (await db.execute(select(table).order_by(table.version.desc()).limit(limit))).scalars()
     return [_out(kind, r) for r in rows]
 
 

@@ -12,8 +12,13 @@ the internal hostnames (Prometheus on the Docker network, or localhost): Caddy f
 - Backups (slice 7.2): when each backup step last succeeded and whether its latest run failed.
 
 Counts only: no names, emails, URLs or other personal data are ever labels.
+
+The API runs several processes (slice 7.5, VROS_API_WORKERS). Each counts its own requests in
+files under PROMETHEUS_MULTIPROC_DIR and a scrape adds them up, whichever process answers. The
+live gauges are read fresh on every scrape and never stored, so they need no such sharing.
 """
 
+import os
 import time
 from collections.abc import Awaitable, Callable
 from datetime import UTC, datetime
@@ -23,11 +28,12 @@ from fastapi import FastAPI, Request, Response
 from prometheus_client import (
     CollectorRegistry,
     Counter,
-    Gauge,
     Histogram,
     disable_created_metrics,
     generate_latest,
+    multiprocess,
 )
+from prometheus_client.core import GaugeMetricFamily, Metric
 from prometheus_client.exposition import CONTENT_TYPE_LATEST
 from sqlalchemy import func, select
 
@@ -70,6 +76,42 @@ class HttpMetrics:
         self.duration.labels(method, route).observe(seconds)
 
 
+def http_exposition(http: HttpMetrics) -> bytes:
+    """This process's request counts, or every process's when several share the work."""
+    if os.environ.get("PROMETHEUS_MULTIPROC_DIR"):
+        registry = CollectorRegistry()
+        multiprocess.MultiProcessCollector(registry)  # type: ignore[no-untyped-call]
+        return generate_latest(registry)
+    return generate_latest(http.registry)
+
+
+class _Snapshot:
+    """Gauges for one scrape: values are collected here and exposed once, never stored."""
+
+    def __init__(self) -> None:
+        self.families: list[GaugeMetricFamily] = []
+
+    def gauge(self, name: str, doc: str, labels: tuple[str, ...] = ()) -> "_Gauge":
+        family = GaugeMetricFamily(name, doc, labels=list(labels))
+        self.families.append(family)
+        return _Gauge(family, [])
+
+    def collect(self) -> list[Metric]:
+        return list(self.families)
+
+
+class _Gauge:
+    def __init__(self, family: GaugeMetricFamily, values: list[str]) -> None:
+        self.family = family
+        self.values = values
+
+    def labels(self, *values: str) -> "_Gauge":
+        return _Gauge(self.family, list(values))
+
+    def set(self, value: float) -> None:
+        self.family.add_metric(self.values, value)
+
+
 def route_of(request: Request) -> str:
     """The route template (/accounts/{account_id}), never the raw path with its IDs."""
     route = request.scope.get("route")
@@ -78,10 +120,8 @@ def route_of(request: Request) -> str:
 
 async def live_metrics(settings: Settings) -> bytes:
     """Gauges read now from the database and Redis."""
-    registry = CollectorRegistry()
-
-    def gauge(name: str, doc: str, labels: tuple[str, ...] = ()) -> Gauge:
-        return Gauge(name, doc, list(labels), registry=registry)
+    snapshot = _Snapshot()
+    gauge = snapshot.gauge
 
     up = gauge("vros_dependency_up", "1 when the API could read the dependency.", ("dependency",))
     try:
@@ -178,6 +218,8 @@ async def live_metrics(settings: Settings) -> bytes:
         up.labels("redis").set(0)
     finally:
         await client.aclose()
+    registry = CollectorRegistry()
+    registry.register(snapshot)
     return generate_latest(registry)
 
 
@@ -203,5 +245,5 @@ def install_metrics(app: FastAPI, settings: Settings, internal_hosts: tuple[str,
     async def metrics(request: Request) -> Response:
         if (request.url.hostname or "") not in internal_hosts:
             return Response(status_code=404)
-        body = generate_latest(http.registry) + await live_metrics(settings)
+        body = http_exposition(http) + await live_metrics(settings)
         return Response(body, media_type=CONTENT_TYPE_LATEST)
