@@ -58,7 +58,6 @@ Order of use: official API or structured feed first, crawling second.
 | Get Information About Schools (DfE) | `SchoolsRegister` (`app/registers/`) | 8 ✅ | Keyless, Open Government Licence; `edubasealldata{YYYYMMDD}.csv` (Windows-1252, about 65MB), the last three days tried. The DfE server sends no Content-Type, so this fixed URL alone accepts an untyped response (`UNTYPED`, §4) | daily |
 | Charity Commission register extract | `CharityRegister` (`app/registers/`) | 8 ✅ | Keyless, Open Government Licence; the daily tab-separated extract (charities, about 160MB unzipped, and classifications), read row by row. Registered main charities only. A first load of 172,000 charities takes minutes and about 700MB at peak in the worker; later refreshes write only changes | daily |
 | Wayback Machine CDX API | `Wayback` (`app/sitecheck/`) | 8 ✅ | Keyless; two requests per research run through the safe fetcher (first capture; the latest 50 distinct homepage versions). A digest change is any change, so it reports "last archived change", never "last redesign". `VROS_WEBSITE_ARCHIVE_ENABLED` (off in tests) | per run |
-| Google Safe Browsing Lookup API v4 | `SafeBrowsing` (`app/sitecheck/`) | 8 ✅ | Optional Google API key with the Safe Browsing API enabled (`VROS_SAFE_BROWSING_API_KEY`); POST to Google's fixed endpoint (httpx directly, like SearXNG; no crawled URL is requested), only the homepage URL sent | per run |
 | SEC EDGAR (Form D) | `CompanyDataProvider` | 2 | Descriptive User-Agent required | 30 days |
 | Wikidata SPARQL | `Wikidata` (`app/registry/`) | 2 ✅ | Keyless; matched by official website (P856), used only when exactly one item claims the domain; `VROS_WIKIDATA_ENABLED` | 30 days |
 | Greenhouse, Lever, Ashby, Workable public job APIs | `JobBoards` (`app/signals/`) | 2 ✅ | Keyless JSON; only the board the company's site links to | 1 day |
@@ -68,7 +67,7 @@ Order of use: official API or structured feed first, crawling second.
 | Gmail API, Microsoft Graph, IMAP/SMTP | `EmailProvider` | 3 | Free with existing accounts | n/a |
 | Ollama | `AIProvider`, `EmbeddingProvider` | 1 | Local | n/a |
 
-**Not used:** LinkedIn scraping or automation, paid enrichment (Apollo, Hunter, Clearbit, Crunchbase), SMTP mailbox probing, and anything that bypasses CAPTCHAs, logins or paywalls (§18A).
+**Not used:** LinkedIn scraping or automation, paid enrichment (Apollo, Hunter, Clearbit, Crunchbase), any service that charges once a free allowance runs out (Exa, Foursquare, Google Safe Browsing, whose free API is for non-commercial use only, and its paid successor Web Risk), SMTP mailbox probing, and anything that bypasses CAPTCHAs, logins or paywalls (§18A).
 
 ## 4. Fetcher budget (Phase 1)
 
