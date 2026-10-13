@@ -163,7 +163,7 @@ def website_rebuild(facts: Facts) -> Candidate | None:
 
 def website_compliance(facts: Facts) -> Candidate | None:
     """What the site must show by law or its regulator and does not (slice 8.2). A regulator's
-    rule or a Safe Browsing listing is a strong reason on its own; other gaps need two."""
+    rule is a strong reason on its own; other gaps need two."""
     gaps: list[tuple[str, str, bool]] = []  # (key, plain words, strong)
     if facts.is_absent("compliance.sra_badge"):
         gaps.append(("compliance.sra_badge", "no SRA digital badge", True))
@@ -202,10 +202,6 @@ def website_compliance(facts: Facts) -> Candidate | None:
         )
     if facts.value("website.https") is False:
         gaps.append(("website.https", "no HTTPS, so browsers mark it Not secure", False))
-    if (facts.value("website.safe_browsing") or {}).get("threats"):
-        gaps.append(
-            ("website.safe_browsing", "Google Safe Browsing warns visitors away from it", True)
-        )
     strong = any(s for _, _, s in gaps)
     if not strong and len(gaps) < 2:
         return None

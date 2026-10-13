@@ -17,7 +17,6 @@ from sqlalchemy import Engine
 from app.config import Settings, get_settings
 from app.main import create_app
 from app.research.router import get_enqueuer
-from app.sitecheck.safebrowsing import SafeBrowsing
 from app.sitecheck.stage import SiteChecks
 from app.sitecheck.wayback import Wayback
 from tests.integration.conftest import ApiClient, make_user
@@ -110,16 +109,13 @@ def test_research_finds_compliance_gaps_and_site_age_and_raises_an_opportunity(
             settings,
             render=False,
             hosts=("brightlegal.test", "wa.test"),
-            site_checks=SiteChecks(
-                Wayback(base_url=f"http://wa.test:{port}/cdx"), SafeBrowsing(None)
-            ),
+            site_checks=SiteChecks(Wayback(base_url=f"http://wa.test:{port}/cdx")),
         )
 
         detail = client.get(f"/research-runs/{run['id']}").json()
         assert detail["status"] == "completed", detail
         enrich = next(s for s in detail["stages"] if s["stage"] == "enrich")["detail"]
         assert enrich["website_archive"] == "last changed 2019-09-10"
-        assert enrich["safe_browsing"] == "not configured"
         assert {q["url"][0] for q in cdx_queries} == {"brightlegal.test"}
 
         areas = client.get(f"/research-runs/{run['id']}/intelligence").json()["areas"]
