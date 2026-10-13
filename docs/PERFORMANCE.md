@@ -72,10 +72,13 @@ Before and after gave identical results for all 4,000 clients: colour, every rea
 
 **Not cached, on purpose.** A short cache was considered for the dashboards. Of the sales dashboard's time, about half is reading the open deals with their accounts (0.6 s for the 4,000 open deals here, far more than an agency's pipeline) and about a third is the follow-up counts; both grow with the records rather than the number of people looking. A cache would show a deal someone has just won up to a minute late, which costs more trust than the time it saves at this size.
 
+## Follow-ups counted and listed in one pass
+
+Each kind of follow-up ran its whole filter twice: once to count and again for the most urgent 100, so the last-touch lookups for every opportunity and deal ran twice. The count is now a window over the matching rows (`count(*) OVER ()`), worked out before the limit, in the same query as the list. Admin `/follow-ups` across all 20,000 accounts, on its own and warm: **1.3 to 1.4 s before, 0.5 to 0.7 s after**, with the same counts for every kind (11,924 overdue, 15,000 without a next action, 14,580 stale, 2,591 inactive deals).
+
 ## Still slow, and why
 
-- **Admin `/follow-ups` across every account:** 2.5 s under load at this size. Salespeople, who see their own accounts, get it in under a second.
-- **Dashboards with thousands of open deals:** each reads every open deal with its account. If a pipeline ever grows that large, read only the columns the figures use.
+- **Dashboards with thousands of open deals:** reading the 4,000 open deals here takes about 0.5 s. Reading only the account's name and industry was tried and changed nothing (0.52 s either way): the time is spent building the deal records themselves, not their accounts. Only reading plain columns instead of records would help, which means rewriting the sales and management figures; at an agency's pipeline (hundreds of open deals at most) it is not worth it.
 
 ## Sizing
 

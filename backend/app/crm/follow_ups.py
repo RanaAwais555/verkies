@@ -93,12 +93,14 @@ def _quiet_detail(since: datetime, now: datetime) -> str:
 
 
 async def _page(db: AsyncSession, stmt: Any, limit: int) -> tuple[list[Any], int]:
-    """The first `limit` rows of an ordered statement, and how many rows it has in all."""
-    total = (
-        await db.execute(select(func.count()).select_from(stmt.order_by(None).subquery()))
-    ).scalar_one()
-    rows = list((await db.execute(stmt.limit(limit))).all()) if total else []
-    return rows, total
+    """The first `limit` rows of an ordered statement, and how many rows it has in all.
+
+    One query: the count is a window over every matching row, worked out before the limit, so
+    the filter (with its last-touch lookups) runs once instead of once to count and again to list.
+    No rows means a count of nought.
+    """
+    found = (await db.execute(stmt.add_columns(func.count().over()).limit(limit))).all()
+    return [row[:-1] for row in found], found[0][-1] if found else 0
 
 
 def _scoped(stmt: Any, user: User, owner: Any, mine: bool) -> Any:
