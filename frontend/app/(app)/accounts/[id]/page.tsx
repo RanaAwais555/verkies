@@ -39,7 +39,7 @@ import {
 } from "@/components/ui";
 import { ApiError } from "@/lib/client";
 import { formatDate, initials, label, percent, relativeDate } from "@/lib/format";
-import { can, useApi, useSession, useTab } from "@/lib/hooks";
+import { can, canChange, useApi, useCanChange, useSession, useTab } from "@/lib/hooks";
 import type { Account360, AuditEntry, Deal, Enrollment } from "@/lib/types";
 
 function Facts({ account }: { account: Account360 }) {
@@ -72,11 +72,13 @@ function People({ account, refresh }: { account: Account360; refresh: () => void
   const [enrolling, setEnrolling] = useState<string | null>(null);
   const enrollments = useApi<Enrollment[]>(`/outreach/enrollments?account_id=${account.id}`);
   const live = (contactId: string) => enrollments.data?.find((e) => e.contact_id === contactId && e.status === "active");
+  const writable = useCanChange();
   return (
     <Panel
       title="People"
       description="Named on the company's own pages or added by the team. Nobody is contacted without a lawful basis."
       actions={
+        writable &&
         !adding && (
           <Button onClick={() => setAdding(true)} icon={<UserPlus className="h-4 w-4" />}>
             Add person
@@ -97,7 +99,7 @@ function People({ account, refresh }: { account: Account360; refresh: () => void
         </div>
       )}
       {account.contacts.length === 0 && !adding ? (
-        <Empty icon={<UserRound className="h-4 w-4" />}>No people yet. Add someone you know at the company.</Empty>
+        <Empty icon={<UserRound className="h-4 w-4" />}>{writable ? "No people yet. Add someone you know at the company." : "No people yet."}</Empty>
       ) : (
         <ul className="divide-y divide-grid" data-testid="contacts">
           {account.contacts.map((c) =>
@@ -137,17 +139,21 @@ function People({ account, refresh }: { account: Account360; refresh: () => void
                     {live(c.id) && <EnrollmentLine enrollment={live(c.id)!} onChange={() => enrollments.mutate()} />}
                     {c.notes && <p className="text-xs leading-relaxed text-fg-2">{c.notes}</p>}
                   </div>
-                  {!live(c.id) && (
-                    <IconButton label={`Enrol ${c.name} in a sequence`} onClick={() => setEnrolling(enrolling === c.id ? null : c.id)}>
-                      <ListOrdered className="h-3.5 w-3.5" />
-                    </IconButton>
+                  {writable && (
+                    <>
+                      {!live(c.id) && (
+                        <IconButton label={`Enrol ${c.name} in a sequence`} onClick={() => setEnrolling(enrolling === c.id ? null : c.id)}>
+                          <ListOrdered className="h-3.5 w-3.5" />
+                        </IconButton>
+                      )}
+                      <IconButton label={`Email ${c.name}`} onClick={() => setEmailing(emailing === c.id ? null : c.id)}>
+                        <Mail className="h-3.5 w-3.5" />
+                      </IconButton>
+                      <IconButton label={`Edit ${c.name}`} onClick={() => setEditing(c.id)}>
+                        <Pencil className="h-3.5 w-3.5" />
+                      </IconButton>
+                    </>
                   )}
-                  <IconButton label={`Email ${c.name}`} onClick={() => setEmailing(emailing === c.id ? null : c.id)}>
-                    <Mail className="h-3.5 w-3.5" />
-                  </IconButton>
-                  <IconButton label={`Edit ${c.name}`} onClick={() => setEditing(c.id)}>
-                    <Pencil className="h-3.5 w-3.5" />
-                  </IconButton>
                 </div>
                 {enrolling === c.id && (
                   <div className="mt-3 sm:ml-11">
@@ -184,16 +190,19 @@ function People({ account, refresh }: { account: Account360; refresh: () => void
 }
 
 function Activities({ account }: { account: Account360 }) {
+  const writable = useCanChange();
   return (
-    <div className="grid items-start gap-4 lg:grid-cols-2">
-      <Panel title="Log activity" description="Record a call, meeting, message or note after it happened. VROS never contacts anyone itself.">
-        <LogActivityForm accountId={account.id} />
-      </Panel>
+    <div className={writable ? "grid items-start gap-4 lg:grid-cols-2" : "grid items-start gap-4"}>
+      {writable && (
+        <Panel title="Log activity" description="Record a call, meeting, message or note after it happened. VROS never contacts anyone itself.">
+          <LogActivityForm accountId={account.id} />
+        </Panel>
+      )}
       <Panel
         title="Logged activity"
         description={account.relationship.interactions > 0 ? <RelationshipLine relationship={account.relationship} className="mt-1" /> : "Newest first."}
       >
-        <ActivityList query={`account_id=${account.id}`} empty="Nothing logged yet. Log your first call, meeting or message." />
+        <ActivityList query={`account_id=${account.id}`} empty={writable ? "Nothing logged yet. Log your first call, meeting or message." : "Nothing logged yet."} />
       </Panel>
     </div>
   );
@@ -203,6 +212,7 @@ function Overview({ account, refresh, showActivity }: { account: Account360; ref
   const [settingFor, setSettingFor] = useState<string | null>(null);
   const deals = useApi<Deal[]>(`/deals?account_id=${account.id}&status=all`);
   const dealFor = (opportunityId: string) => deals.data?.find((d) => d.opportunity_id === opportunityId);
+  const writable = useCanChange();
   return (
     <div className="grid items-start gap-4 lg:grid-cols-[minmax(0,1fr)_340px]">
       <div className="flex min-w-0 flex-col gap-4">
@@ -228,6 +238,7 @@ function Overview({ account, refresh, showActivity }: { account: Account360; ref
                       (dealFor(o.id) ? (
                         <Badge tone="accent">Deal: {dealFor(o.id)!.stage_name}</Badge>
                       ) : (
+                        writable && (
                         <OpenDealButton
                           opportunityId={o.id}
                           onOpened={() => {
@@ -235,6 +246,7 @@ function Overview({ account, refresh, showActivity }: { account: Account360; ref
                             refresh();
                           }}
                         />
+                        )
                       ))}
                   </div>
                   <p className="text-[13px] leading-relaxed text-fg-2">{o.problem}</p>
@@ -256,9 +268,11 @@ function Overview({ account, refresh, showActivity }: { account: Account360; ref
                           }}
                         />
                       ) : (
-                        <Button onClick={() => setSettingFor(o.id)} icon={<Plus className="h-4 w-4" />}>
-                          Set next action
-                        </Button>
+                        writable && (
+                          <Button onClick={() => setSettingFor(o.id)} icon={<Plus className="h-4 w-4" />}>
+                            Set next action
+                          </Button>
+                        )
                       )}
                     </div>
                   )}
@@ -352,11 +366,13 @@ function Leads({ account }: { account: Account360 }) {
 function Tasks({ account, refresh }: { account: Account360; refresh: () => void }) {
   const [editing, setEditing] = useState<string | null>(null);
   const [adding, setAdding] = useState(false);
+  const writable = useCanChange();
   return (
     <Panel
       title="Tasks"
       primary
       actions={
+        writable &&
         !adding && (
           <Button onClick={() => setAdding(true)} icon={<Plus className="h-4 w-4" />}>
             Add task
@@ -381,7 +397,8 @@ function Tasks({ account, refresh }: { account: Account360; refresh: () => void 
         {account.tasks.map((t) => (
           <div key={t.id}>
             <TaskRow task={t} onChange={refresh} />
-            {isOpen(t) &&
+            {writable &&
+              isOpen(t) &&
               (editing === t.id ? (
                 <EditTask
                   task={t}
@@ -499,9 +516,11 @@ export default function AccountPage() {
               </LinkButton>
             )}
             <WatchButton accountId={account.id} watching={account.watching} onChange={() => mutate()} />
-            <Button onClick={() => setTab("activities")} icon={<NotebookPen className="h-4 w-4" />}>
-              Log activity
-            </Button>
+            {canChange(session) && (
+              <Button onClick={() => setTab("activities")} icon={<NotebookPen className="h-4 w-4" />}>
+                Log activity
+              </Button>
+            )}
             <Button onClick={() => setTab("tasks")} icon={<ListChecks className="h-4 w-4" />}>
               Tasks
             </Button>

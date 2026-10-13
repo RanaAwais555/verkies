@@ -6,7 +6,7 @@ import { useState, type FormEvent } from "react";
 import { Badge, Button, ErrorNote, Field, inputClass, Panel, ShowAll } from "@/components/ui";
 import { api } from "@/lib/client";
 import { formatDate, label, money } from "@/lib/format";
-import { useAction, useApi } from "@/lib/hooks";
+import { useAction, useApi, useCanChange } from "@/lib/hooks";
 import type { DealOutcome, Opportunity, SalesFeedback } from "@/lib/types";
 
 const POSITIVE = new Set(["good_lead", "meeting_booked", "proposal_sent", "won", "opportunity_confirmed", "contacted"]);
@@ -23,6 +23,7 @@ export function SalesFeedbackPanel({ accountId, opportunities }: { accountId: st
   const { busy, error, run } = useAction();
   const [giving, setGiving] = useState(false);
   const [all, setAll] = useState(false);
+  const writable = useCanChange();
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -51,6 +52,7 @@ export function SalesFeedbackPanel({ accountId, opportunities }: { accountId: st
       description="How good this lead really is. Kept for the learning engine; it changes nothing by itself."
       testId="sales-feedback"
       actions={
+        writable &&
         !giving && (
           <Button onClick={() => setGiving(true)} icon={<MessageSquarePlus className="h-4 w-4" />}>
             Give feedback

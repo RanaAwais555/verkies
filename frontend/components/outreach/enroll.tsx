@@ -6,7 +6,7 @@ import { useState } from "react";
 import { Badge, Button, ErrorNote, Field, inputClass, Skeleton } from "@/components/ui";
 import { api } from "@/lib/client";
 import { formatDate } from "@/lib/format";
-import { useAction, useApi } from "@/lib/hooks";
+import { useAction, useApi, useCanChange } from "@/lib/hooks";
 import type { Contact, Enrollment, OutreachSequence, SequencePreview } from "@/lib/types";
 
 /**
@@ -77,6 +77,7 @@ export function EnrollPanel({ contact, onDone, onCancel }: { contact: Pick<Conta
 /** Where a person is in a sequence, with a way to stop it. */
 export function EnrollmentLine({ enrollment, onChange }: { enrollment: Enrollment; onChange: () => void }) {
   const { busy, error, run } = useAction();
+  const writable = useCanChange();
   if (enrollment.status !== "active") {
     return (
       <p className="text-xs text-fg-3">
@@ -89,6 +90,7 @@ export function EnrollmentLine({ enrollment, onChange }: { enrollment: Enrollmen
       <Badge tone="accent">In {enrollment.sequence_name}</Badge>
       step {enrollment.next_position + 1} of {enrollment.total_steps}
       {enrollment.next_due_at && ` · due ${formatDate(enrollment.next_due_at)}`}
+      {writable && (
       <button
         type="button"
         disabled={busy}
@@ -101,6 +103,7 @@ export function EnrollmentLine({ enrollment, onChange }: { enrollment: Enrollmen
         <CircleStop aria-hidden className="h-3.5 w-3.5" />
         Stop
       </button>
+      )}
       <ErrorNote error={error} />
     </span>
   );

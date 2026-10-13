@@ -8,7 +8,7 @@ import { Badge, Button, Empty, ErrorNote, Field, inputClass, Panel, Skeleton, Ta
 import { cx } from "@/components/ui/cx";
 import { api } from "@/lib/client";
 import { formatDate, money } from "@/lib/format";
-import { useAction, useApi } from "@/lib/hooks";
+import { useAction, useApi, useCanChange } from "@/lib/hooks";
 import type { Account360, Referral } from "@/lib/types";
 
 const STATUSES: { key: Referral["status"]; label: string }[] = [
@@ -30,12 +30,13 @@ function Revenue({ referral }: { referral: Referral }) {
 
 function StatusSelect({ referral }: { referral: Referral }) {
   const { busy, error, run } = useAction();
+  const writable = useCanChange();
   return (
     <>
       <select
         aria-label={`Status of the referral of ${referral.referred_company}`}
         defaultValue={referral.status}
-        disabled={busy}
+        disabled={busy || !writable}
         onChange={(e) => run(() => api(`/referrals/${referral.id}`, { method: "PATCH", body: { status: e.target.value } }))}
         className={cx(inputClass, "w-auto py-1 text-xs")}
       >
@@ -179,12 +180,14 @@ export function ReferralForm({ account, onDone, onCancel }: { account?: Account3
 export function AccountReferrals({ account }: { account: Account360 }) {
   const { data, error, mutate } = useApi<Referral[]>(`/referrals?account_id=${account.id}`);
   const [adding, setAdding] = useState(false);
+  const writable = useCanChange();
   return (
     <Panel
       title="Referrals"
       description="Companies this account sent to Verkies, and who sent this one. Converted once a deal on the referred company is won."
       testId="account-referrals"
       actions={
+        writable &&
         !adding && (
           <Button onClick={() => setAdding(true)} icon={<Plus className="h-4 w-4" />}>
             Log a referral they gave

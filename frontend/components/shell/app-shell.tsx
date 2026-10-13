@@ -16,7 +16,7 @@ import { ErrorNote, IconButton, Loading } from "@/components/ui";
 import { cx } from "@/components/ui/cx";
 import { api } from "@/lib/client";
 import { initials, label } from "@/lib/format";
-import { useSession } from "@/lib/hooks";
+import { can, canChange, useSession } from "@/lib/hooks";
 import type { Session } from "@/lib/types";
 
 async function signOut() {
@@ -120,8 +120,7 @@ function Sidebar({ session, collapsed, onToggle, onNavigate }: { session: Sessio
 
 /** Can see records but not change them (slice 7.4): the API refuses their changes. */
 function viewOnly(session: Session) {
-  const p = session.user.permissions;
-  return (p.includes("accounts.read") || p.includes("accounts.read_own")) && !p.includes("records.write");
+  return can(session, "accounts.read", "accounts.read_own") && !canChange(session);
 }
 
 function TopBar({ onMenu, onPalette }: { onMenu: () => void; onPalette: () => void }) {

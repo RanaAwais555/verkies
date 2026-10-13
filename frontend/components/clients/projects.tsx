@@ -10,7 +10,7 @@ import { Badge, Button, controlClass, Empty, ErrorNote, Field, inputClass, Panel
 import { cx } from "@/components/ui/cx";
 import { api } from "@/lib/client";
 import { formatDate } from "@/lib/format";
-import { useAction, useApi } from "@/lib/hooks";
+import { useAction, useApi, useCanChange } from "@/lib/hooks";
 import type { Account360, Project, ProjectStatus, Service, TeamMember } from "@/lib/types";
 
 export const PROJECT_STATUSES: { key: ProjectStatus; label: string; tone: Tone }[] = [
@@ -189,13 +189,14 @@ export function NewProjectForm({ accountId, onCancel }: { accountId: string; onC
 function AccountManager({ account }: { account: Account360 }) {
   const { data: team } = useApi<TeamMember[]>("/team");
   const { busy, error, run } = useAction();
+  const writable = useCanChange();
   return (
     <div className="flex flex-wrap items-end gap-3">
       <Field label="Account manager">
         <select
           key={team ? "team" : "loading"}
           defaultValue={account.account_manager?.id ?? ""}
-          disabled={busy}
+          disabled={busy || !writable}
           onChange={(e) => run(() => api(`/accounts/${account.id}/account-manager`, { method: "PUT", body: { account_manager_id: e.target.value || null } }))}
           className={cx(controlClass, "block")}
         >
@@ -218,12 +219,14 @@ export function AccountProjects({ account }: { account: Account360 }) {
   const isClient = account.account_type === "customer";
   const { data, error } = useApi<Project[]>(`/projects?account_id=${account.id}&status=all`);
   const [adding, setAdding] = useState(false);
+  const writable = useCanChange();
   return (
     <Panel
       title="Projects"
       description="Delivery after a deal is won: milestones, risks and tasks. Kept light; VROS is not a project tool."
       actions={
         isClient &&
+        writable &&
         !adding && (
           <Button onClick={() => setAdding(true)} icon={<Plus className="h-4 w-4" />}>
             New project

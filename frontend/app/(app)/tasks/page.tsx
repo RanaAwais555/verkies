@@ -8,7 +8,7 @@ import { Empty, ErrorNote, controlClass, PageHeader, Panel, Skeleton } from "@/c
 import { SaveViewButton } from "@/components/views/save-view";
 import { withQuery } from "@/lib/client";
 import { isOverdue } from "@/lib/format";
-import { useApi } from "@/lib/hooks";
+import { useApi, useCanChange } from "@/lib/hooks";
 import type { Task } from "@/lib/types";
 
 /** The latest due time a "due" filter allows: the end of today, or now for overdue work. */
@@ -31,6 +31,7 @@ export default function TasksPage() {
   const status = params.get("status") ?? "open";
   const due = ["today", "overdue"].includes(params.get("due") ?? "") ? params.get("due")! : "";
   const [editing, setEditing] = useState<string | null>(null);
+  const writable = useCanChange();
   // Worked out once per choice of filter, so the request does not change on every render.
   const before = useMemo(() => dueBefore(due), [due]);
   const { data, error, mutate } = useApi<Task[]>(
@@ -85,7 +86,8 @@ export default function TasksPage() {
             {data.map((t) => (
               <div key={t.id}>
                 <TaskRow task={t} showAccount onChange={() => mutate()} />
-                {isOpen(t) &&
+                {writable &&
+                  isOpen(t) &&
                   (editing === t.id ? (
                     <EditTask
                       task={t}

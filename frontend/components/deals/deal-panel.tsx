@@ -11,7 +11,7 @@ import { NewTaskForm } from "@/components/crm/tasks";
 import { Badge, Button, ErrorNote, Field, IconButton, inputClass } from "@/components/ui";
 import { api } from "@/lib/client";
 import { formatDate, money } from "@/lib/format";
-import { useAction, useApi } from "@/lib/hooks";
+import { useAction, useApi, useCanChange } from "@/lib/hooks";
 import type { Deal, PipelineStage, TeamMember } from "@/lib/types";
 
 /** Say why a deal was lost (§13) before it moves to a lost stage. */
@@ -82,6 +82,7 @@ export function DealPanel({ deal, onClose, onChange }: { deal: Deal; onClose: ()
   const [adding, setAdding] = useState(false);
   const [logging, setLogging] = useState(false);
   const [converting, setConverting] = useState(false);
+  const writable = useCanChange();
 
   async function save(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -141,15 +142,19 @@ export function DealPanel({ deal, onClose, onChange }: { deal: Deal; onClose: ()
             }}
           />
         ) : (
-          <div className="space-y-2 rounded-xl border border-ok/30 bg-ok-soft p-3.5">
-            <p className="text-[13px] text-fg">Won. Make {deal.account_name} a client and start the project.</p>
-            <Button variant="primary" icon={<UserCheck className="h-4 w-4" />} onClick={() => setConverting(true)}>
-              Convert to client
-            </Button>
-          </div>
+          writable && (
+            <div className="space-y-2 rounded-xl border border-ok/30 bg-ok-soft p-3.5">
+              <p className="text-[13px] text-fg">Won. Make {deal.account_name} a client and start the project.</p>
+              <Button variant="primary" icon={<UserCheck className="h-4 w-4" />} onClick={() => setConverting(true)}>
+                Convert to client
+              </Button>
+            </div>
+          )
         ))}
 
-      <form key={deal.id + deal.stage_id} onSubmit={save} className="space-y-3">
+      <form key={deal.id + deal.stage_id} onSubmit={save}>
+        {/* Read-only for someone who may not change records: the same fields, disabled. */}
+        <fieldset disabled={!writable} className="space-y-3">
         <Field label="Deal name">
           <input name="name" defaultValue={deal.name} maxLength={200} className={inputClass} />
         </Field>
@@ -189,9 +194,12 @@ export function DealPanel({ deal, onClose, onChange }: { deal: Deal; onClose: ()
           </select>
         </Field>
         <ErrorNote error={error} />
-        <Button type="submit" variant="primary" busy={busy} icon={<Save className="h-4 w-4" />}>
-          Save deal
-        </Button>
+        {writable && (
+          <Button type="submit" variant="primary" busy={busy} icon={<Save className="h-4 w-4" />}>
+            Save deal
+          </Button>
+        )}
+        </fieldset>
       </form>
 
       <div className="space-y-2 border-t border-grid pt-4">
@@ -219,7 +227,7 @@ export function DealPanel({ deal, onClose, onChange }: { deal: Deal; onClose: ()
             }}
           />
         ) : (
-          <Button onClick={() => setAdding(true)}>Add next task</Button>
+          writable && <Button onClick={() => setAdding(true)}>Add next task</Button>
         )}
       </div>
 
@@ -228,7 +236,7 @@ export function DealPanel({ deal, onClose, onChange }: { deal: Deal; onClose: ()
       <div className="space-y-3 border-t border-grid pt-4">
         <div className="flex items-center justify-between gap-2">
           <h3 className="text-[13px] font-semibold text-fg">Activity</h3>
-          {!logging && (
+          {writable && !logging && (
             <Button className="h-7 px-2.5 text-xs" icon={<NotebookPen className="h-3.5 w-3.5" />} onClick={() => setLogging(true)}>
               Log activity
             </Button>

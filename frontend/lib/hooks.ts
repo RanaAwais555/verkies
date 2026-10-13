@@ -31,6 +31,19 @@ export function can(session: Session | undefined, ...permissions: string[]): boo
 }
 
 /**
+ * True when the person may change records. A Viewer reads everything but changes nothing except
+ * their own things (watching, saved views, notifications, password), so the controls are hidden
+ * rather than refused on click (slice 7.4).
+ */
+export function canChange(session: Session | undefined): boolean {
+  return can(session, "records.write");
+}
+
+export function useCanChange(): boolean {
+  return canChange(useSession().data);
+}
+
+/**
  * The open tab, kept in the address (`?tab=`) rather than in component state: a link opens a page
  * on its first tab, while Back and a shared link return to the tab that was open.
  */

@@ -14,7 +14,8 @@ export const DRAG_TYPE = "application/x-vros-deal";
 /**
  * A deal on the board (master context §12's kanban card): company, opportunity, value, owner,
  * priority, next task, last activity, days in stage and probability. It can be dragged to another
- * column, or moved with the "Move to" menu, which works without a mouse.
+ * column, or moved with the "Move to" menu, which works without a mouse. Without `onMove` (someone who
+ * may not change records) it is read-only.
  */
 export function DealCard({
   deal,
@@ -27,7 +28,7 @@ export function DealCard({
   stages: PipelineStage[];
   selected: boolean;
   onSelect: () => void;
-  onMove: (stage: PipelineStage) => void;
+  onMove?: (stage: PipelineStage) => void;
 }) {
   function dragStart(event: DragEvent<HTMLElement>) {
     event.dataTransfer.setData(DRAG_TYPE, deal.id);
@@ -37,16 +38,17 @@ export function DealCard({
 
   return (
     <article
-      draggable
-      onDragStart={dragStart}
+      draggable={!!onMove}
+      onDragStart={onMove ? dragStart : undefined}
       data-testid="deal"
       className={cx(
-        "group relative cursor-grab space-y-2.5 rounded-xl border bg-surface p-3 text-[13px] shadow-[var(--lift)] transition-[border-color,transform] duration-200 ease-spring active:cursor-grabbing",
+        "group relative space-y-2.5 rounded-xl border bg-surface p-3 text-[13px] shadow-[var(--lift)] transition-[border-color,transform] duration-200 ease-spring",
+        onMove && "cursor-grab active:cursor-grabbing",
         selected ? "border-accent" : "border-border/80 hover:border-border-strong",
       )}
     >
       <div className="flex items-start gap-2">
-        <GripVertical aria-hidden className="mt-0.5 h-4 w-4 shrink-0 text-fg-3 opacity-0 transition-opacity group-hover:opacity-100" />
+        {onMove && <GripVertical aria-hidden className="mt-0.5 h-4 w-4 shrink-0 text-fg-3 opacity-0 transition-opacity group-hover:opacity-100" />}
         <div className="min-w-0 flex-1">
           <button type="button" onClick={onSelect} className="block max-w-full truncate text-left font-semibold text-fg hover:text-accent-text" title={deal.name}>
             {deal.account_name}
@@ -105,6 +107,7 @@ export function DealCard({
           {deal.days_in_stage} {deal.days_in_stage === 1 ? "day" : "days"} in stage
           {deal.last_activity_at && ` · active ${relativeDate(deal.last_activity_at).toLowerCase()}`}
         </span>
+        {onMove && (
         <select
           aria-label={`Move ${deal.account_name} to`}
           value=""
@@ -123,6 +126,7 @@ export function DealCard({
               </option>
             ))}
         </select>
+        )}
       </div>
       <Link href={`/accounts/${deal.account_id}`} className="sr-only">
         Open {deal.account_name}

@@ -8,7 +8,7 @@ import { Badge, BandBadge, Button, Empty, ErrorNote, Field, inputClass, Note, Sk
 import { cx } from "@/components/ui/cx";
 import { api } from "@/lib/client";
 import { formatDate } from "@/lib/format";
-import { useAction, useApi } from "@/lib/hooks";
+import { useAction, useApi, useCanChange } from "@/lib/hooks";
 import type { EmailPreflight, OutreachQueue, OutreachQueueItem } from "@/lib/types";
 
 const CHANNEL = {
@@ -226,6 +226,8 @@ function SkipButton({ item, onDone }: { item: OutreachQueueItem; onDone: () => v
 function QueueCard({ item, blocked, onDone }: { item: OutreachQueueItem; blocked: string | null; onDone: () => void }) {
   const channel = CHANNEL[item.channel];
   const Icon = channel.icon;
+  // Someone who may not change records sees what is due, not the steps to do it.
+  const writable = useCanChange();
   return (
     <article className="lift space-y-3 rounded-xl border border-border/80 bg-surface p-4" data-testid="queue-item">
       <header className="flex flex-wrap items-start justify-between gap-2">
@@ -250,9 +252,9 @@ function QueueCard({ item, blocked, onDone }: { item: OutreachQueueItem; blocked
           </Badge>
         </span>
       </header>
-      {item.channel === "email" && <EmailStep item={item} onDone={onDone} />}
-      {item.channel === "linkedin" && <LinkedInStep item={item} blocked={blocked} onDone={onDone} />}
-      {item.channel === "call" && <CallStep item={item} onDone={onDone} />}
+      {writable && item.channel === "email" && <EmailStep item={item} onDone={onDone} />}
+      {writable && item.channel === "linkedin" && <LinkedInStep item={item} blocked={blocked} onDone={onDone} />}
+      {writable && item.channel === "call" && <CallStep item={item} onDone={onDone} />}
     </article>
   );
 }
