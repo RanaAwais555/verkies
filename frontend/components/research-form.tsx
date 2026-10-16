@@ -3,6 +3,7 @@
 import { useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 
+import { toast } from "@/components/toast";
 import { Button, ErrorNote, inputClass } from "@/components/ui";
 import { api } from "@/lib/client";
 import type { Run } from "@/lib/types";
@@ -22,6 +23,7 @@ export function NewResearchForm() {
       const run = await api<Run>("/research-runs", { method: "POST", body: { url } });
       // The app keeps this page alive in the background: leave it ready for the next company.
       form.reset();
+      toast(`Researching ${run.normalised_domain}`);
       router.push(`/research/${run.id}`);
     } catch (err) {
       setError(err);

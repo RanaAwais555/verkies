@@ -4,7 +4,7 @@ import uuid
 from datetime import UTC, datetime
 from typing import Any
 
-from sqlalchemy import delete, select
+from sqlalchemy import ColumnElement, delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.accounts.models import AccountDomain
@@ -44,6 +44,11 @@ def _now() -> datetime:
 def _sees_all(user: User) -> bool:
     # Reviewers decide on any prospect, so they see every run.
     return bool(user.permission_keys & {SEE_ALL_PERMISSION, REVIEW_PERMISSION})
+
+
+def visible_runs(user: User) -> ColumnElement[bool] | None:
+    """A WHERE clause limiting runs to the user's view, or None when they see all."""
+    return None if _sees_all(user) else ResearchRun.requested_by_id == user.id
 
 
 def _can_see(user: User, run: ResearchRun) -> bool:
@@ -138,8 +143,8 @@ async def list_runs(
     query: str | None = None,
 ) -> list[ResearchRun]:
     stmt = select(ResearchRun).order_by(ResearchRun.created_at.desc()).limit(limit)
-    if not _sees_all(user):
-        stmt = stmt.where(ResearchRun.requested_by_id == user.id)
+    if (clause := visible_runs(user)) is not None:
+        stmt = stmt.where(clause)
     if review_status is not None:
         stmt = stmt.where(ResearchRun.review_status == review_status)
     if query and query.strip():

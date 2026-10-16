@@ -18,6 +18,7 @@ import {
   Success,
   Tabs,
 } from "@/components/ui";
+import { toast } from "@/components/toast";
 import { api } from "@/lib/client";
 import { can, useApi, useSession, useTab } from "@/lib/hooks";
 import type { ConfigVersion, Invite, ReferenceProject, Role, Service, User } from "@/lib/types";
@@ -102,6 +103,7 @@ function Team({ me }: { me: User }) {
     );
     if (created) {
       setLink(created.invite_url ?? null);
+      toast(`Invite created for ${created.email}`);
       form.reset();
       refreshInvites();
     }
@@ -207,7 +209,10 @@ function ReferenceEditor({ project, services, onSaved }: { project: ReferencePro
     body.technologies = String(data.get("technologies") ?? "").split(",").map((t) => t.trim()).filter(Boolean);
     body.services = data.getAll("services");
     body.profile_complete = data.get("profile_complete") === "on";
-    if (await run(() => api(`/catalogue/reference-projects/${project.id}`, { method: "PATCH", body }))) onSaved();
+    if (await run(() => api(`/catalogue/reference-projects/${project.id}`, { method: "PATCH", body }))) {
+      toast(`Saved ${project.name}`);
+      onSaved();
+    }
   }
 
   return (
@@ -302,6 +307,7 @@ function ConfigEditor({ kind, admin }: { kind: "icp" | "scoring"; admin: boolean
       return api<ConfigVersion>(`/config/${kind}`, { method: "PUT", body: { config, note: note || null } });
     });
     if (saved) {
+      toast(`${kind === "icp" ? "ICP" : "Scoring"} configuration saved as version ${saved.version}`);
       setText(null);
       mutate();
       refreshVersions();

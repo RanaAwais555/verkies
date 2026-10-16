@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useState } from "react";
 
+import { toast } from "@/components/toast";
 import { BackLink } from "@/components/back";
 import { AssessmentView, BriefView, EvidenceList } from "@/components/brief";
 import { DecisionPanel } from "@/components/decision";
@@ -212,6 +213,7 @@ export default function ResearchRunPage() {
           recommendedRejection={assessment.qualification?.rejection_reason ?? null}
           onDecided={async (decided) => {
             if (decided) setApproval(decided);
+            toast(decided ? (decided.created_account ? "Approved: new account created" : "Approved: added to the account") : "Rejected");
             await Promise.all([mutate(), refreshBrief()]);
           }}
         />

@@ -3,6 +3,7 @@
 import { useParams } from "next/navigation";
 import { useState, type FormEvent } from "react";
 
+import { toast } from "@/components/toast";
 import { BackLink } from "@/components/back";
 import { NewTaskForm, TaskRow } from "@/components/tasks";
 import {
@@ -160,6 +161,7 @@ function EditTask({ task, onSaved }: { task: Task; onSaved: () => void }) {
         method: "PATCH",
         body: { owner_id: data.get("owner") || null, due_at: due ? new Date(`${due}T17:00:00`).toISOString() : null },
       });
+      toast("Task updated");
       onSaved();
     } catch (err) {
       setError(err);

@@ -3,6 +3,7 @@
 import { useParams } from "next/navigation";
 import { useState, type FormEvent } from "react";
 
+import { toast } from "@/components/toast";
 import { BackLink } from "@/components/back";
 import { Badge, Button, Card, ErrorNote, Field, inputClass, label, Loading, PageHeader, StatusBadge, Success, Table, TextLink } from "@/components/ui";
 import { api } from "@/lib/client";
@@ -101,6 +102,7 @@ export default function ImportPage() {
       const skipped = Object.keys(out.skipped).length;
       setResult(`Started research on ${out.started.length} compan${out.started.length === 1 ? "y" : "ies"}${skipped ? `; ${skipped} skipped` : ""}${out.queue_failures ? `; ${out.queue_failures} could not be queued` : ""}.`);
       setSelected(new Set());
+      toast(`Started research on ${out.started.length} compan${out.started.length === 1 ? "y" : "ies"}`);
       await mutate();
     } catch (err) {
       setActionError(err);

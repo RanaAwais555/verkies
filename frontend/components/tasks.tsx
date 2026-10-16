@@ -2,6 +2,7 @@
 
 import { useState, type FormEvent } from "react";
 
+import { toast } from "@/components/toast";
 import { Badge, Button, ErrorNote, Field, formatDate, inputClass, isOverdue, StatusBadge, TextLink } from "@/components/ui";
 import { api } from "@/lib/client";
 import { useApi, useSession } from "@/lib/hooks";
@@ -17,6 +18,7 @@ export function TaskRow({ task, showAccount, onChange }: { task: Task; showAccou
     setError(null);
     try {
       await api(`/tasks/${task.id}/complete`, { method: "POST", body: {} });
+      toast(`Done: ${task.title}`);
       onChange();
     } catch (err) {
       setError(err);
@@ -85,6 +87,7 @@ export function NewTaskForm({
         },
       });
       form.reset();
+      toast(opportunityId ? "Next action set" : "Task added");
       onCreated();
     } catch (err) {
       setError(err);
